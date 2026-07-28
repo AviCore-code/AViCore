@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AviCore — Offshore FTL & Fatigue Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --deck:#0A111E;      /* deep midnight — night offshore */
+    --panel:#111C2E;     /* raised instrument panel */
+    --panel2:#0E1727;
+    --rule:#22344E;      /* hairline instrument rule */
+    --ink:#EAF1FA;       /* cool white readout */
+    --muted:#8397B3;     /* steel label text */
+    --amber:#FFB627;     /* EFIS caution amber — signature accent */
+    --amber-dim:#B87F1a;
+    --ok:#37C6A0;        /* within-limits status */
+    --alert:#E5544D;     /* over-limit */
+    --maxw:1120px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--deck);
+    color:var(--ink);
+    font-family:"IBM Plex Sans","IBM Plex Sans Thai",system-ui,sans-serif;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  body.th{font-family:"IBM Plex Sans Thai","IBM Plex Sans",system-ui,sans-serif}
+  .mono{font-family:"IBM Plex Mono",monospace}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+  /* atmospheric backdrop */
+  .glow{position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(900px 500px at 78% -5%, rgba(255,182,39,.10), transparent 60%),
+      radial-gradient(700px 600px at 8% 12%, rgba(55,198,160,.06), transparent 60%);}
+  .grid-bg{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.4;
+    background-image:linear-gradient(var(--rule) 1px,transparent 1px),linear-gradient(90deg,var(--rule) 1px,transparent 1px);
+    background-size:64px 64px;
+    mask-image:radial-gradient(1000px 700px at 70% 0%,#000 0%,transparent 75%);
+    -webkit-mask-image:radial-gradient(1000px 700px at 70% 0%,#000 0%,transparent 75%);}
+  .content{position:relative;z-index:1}
+
+  /* ---- top bar ---- */
+  header{position:sticky;top:0;z-index:50;backdrop-filter:blur(10px);
+    background:rgba(10,17,30,.72);border-bottom:1px solid var(--rule)}
+  .bar{display:flex;align-items:center;gap:18px;height:64px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:"Chakra Petch";font-weight:700;
+    letter-spacing:.06em;font-size:19px}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--amber);
+    box-shadow:0 0 12px var(--amber);animation:pulse 2.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .sys{margin-left:4px;font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.14em;
+    color:var(--ok);border:1px solid var(--rule);border-radius:4px;padding:3px 8px}
+  .spacer{flex:1}
+  .langtog{display:flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden;
+    font-family:"IBM Plex Mono";font-size:12px}
+  .langtog button{background:transparent;color:var(--muted);border:0;padding:6px 11px;cursor:pointer;
+    letter-spacing:.08em;font-family:inherit}
+  .langtog button.on{background:var(--amber);color:#12100a;font-weight:600}
+  .cta{font-family:"Chakra Petch";font-weight:600;letter-spacing:.03em;font-size:14px;
+    background:var(--amber);color:#12100a;border:0;border-radius:7px;padding:10px 18px;cursor:pointer;
+    text-decoration:none;display:inline-block;transition:transform .15s, box-shadow .15s}
+  .cta:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(255,182,39,.28)}
+  .cta.ghost{background:transparent;color:var(--ink);border:1px solid var(--rule)}
+  .cta.ghost:hover{box-shadow:none;border-color:var(--amber)}
+  @media(max-width:720px){.sys{display:none}.bar{gap:10px}}
+
+  /* ---- hero ---- */
+  .hero{padding:72px 0 40px}
+  .hero-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:48px;align-items:center}
+  .eyebrow{font-family:"IBM Plex Mono";font-size:12px;letter-spacing:.28em;color:var(--amber);
+    text-transform:uppercase;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--amber)}
+  h1{font-family:"Chakra Petch";font-weight:700;line-height:1.08;letter-spacing:-.01em;
+    font-size:clamp(34px,5vw,54px);margin-bottom:22px}
+  h1 .hl{color:var(--amber)}
+  .lede{font-size:18px;color:#c6d3e4;max-width:30em;margin-bottom:30px}
+  .hero-cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .note{font-family:"IBM Plex Mono";font-size:11.5px;color:var(--muted);margin-top:18px;letter-spacing:.03em}
+
+  /* ---- MFD panel (signature) ---- */
+  .mfd{background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--rule);border-radius:14px;padding:20px;
+    box-shadow:0 30px 80px -30px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.03);
+    position:relative}
+  .mfd::after{content:"SAMPLE READOUT";position:absolute;top:14px;right:14px;
+    font-family:"IBM Plex Mono";font-size:9px;letter-spacing:.16em;color:var(--muted);
+    border:1px solid var(--rule);padding:2px 6px;border-radius:3px}
+  .mfd-head{display:flex;align-items:center;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--rule);margin-bottom:16px}
+  .mfd-head .t{font-family:"IBM Plex Mono";font-size:12px;letter-spacing:.12em;color:var(--muted)}
+  .mfd-head .id{font-family:"Chakra Petch";font-weight:600;font-size:15px;letter-spacing:.05em}
+  .chip{font-family:"IBM Plex Mono";font-size:10px;letter-spacing:.12em;padding:3px 8px;border-radius:4px;
+    background:rgba(55,198,160,.12);color:var(--ok);border:1px solid rgba(55,198,160,.35)}
+  .gauge{margin-bottom:14px}
+  .gauge-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .gauge-lbl{font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.1em;color:var(--muted)}
+  .gauge-val{font-family:"IBM Plex Mono";font-size:13px;color:var(--ink);font-weight:500}
+  .gauge-val b{color:var(--amber);font-weight:600}
+  .track{height:7px;background:#0a1524;border:1px solid var(--rule);border-radius:20px;overflow:hidden}
+  .fill{height:100%;width:0;border-radius:20px;transition:width 1.3s cubic-bezier(.2,.8,.2,1)}
+  .load .fill{width:var(--w)}
+  .fill.g{background:linear-gradient(90deg,#2b8f78,var(--ok))}
+  .fill.a{background:linear-gradient(90deg,var(--amber-dim),var(--amber))}
+  .mfd-foot{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;padding-top:16px;border-top:1px solid var(--rule)}
+  .stat{background:#0a1524;border:1px solid var(--rule);border-radius:8px;padding:11px 13px}
+  .stat .k{font-family:"IBM Plex Mono";font-size:10px;letter-spacing:.1em;color:var(--muted);margin-bottom:4px}
+  .stat .v{font-family:"Chakra Petch";font-weight:600;font-size:20px}
+  .stat .v.amber{color:var(--amber)} .stat .v.ok{color:var(--ok)}
+  .stat .v small{font-size:12px;color:var(--muted);font-family:"IBM Plex Mono";font-weight:400}
+
+  /* ---- credibility strip ---- */
+  .strip{border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);
+    background:var(--panel2);margin-top:34px}
+  .strip .wrap{display:flex;align-items:center;gap:22px;padding:22px 24px;flex-wrap:wrap}
+  .strip .badge{font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.16em;color:var(--amber)}
+  .strip p{color:#c6d3e4;font-size:15px;flex:1;min-width:260px}
+
+  /* ---- generic section ---- */
+  section.blk{padding:78px 0}
+  .khead{font-family:"IBM Plex Mono";font-size:12px;letter-spacing:.26em;color:var(--amber);
+    text-transform:uppercase;margin-bottom:16px}
+  h2{font-family:"Chakra Petch";font-weight:700;font-size:clamp(26px,3.4vw,38px);line-height:1.14;
+    letter-spacing:-.01em;margin-bottom:16px;max-width:16em}
+  .sub{color:var(--muted);font-size:17px;max-width:40em;margin-bottom:8px}
+
+  /* problem */
+  .pains{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:38px}
+  .pain{background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--alert);
+    border-radius:10px;padding:20px}
+  .pain .n{font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.14em;color:var(--alert);margin-bottom:10px}
+  .pain h3{font-family:"Chakra Petch";font-weight:600;font-size:17px;margin-bottom:7px}
+  .pain p{color:var(--muted);font-size:14.5px}
+
+  /* capabilities */
+  .caps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:40px}
+  .cap{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--rule);
+    border-radius:11px;padding:20px 18px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s}
+  .cap:hover{border-color:var(--amber);transform:translateY(-3px)}
+  .cap .idx{font-family:"IBM Plex Mono";font-size:11px;color:var(--amber);letter-spacing:.1em;margin-bottom:14px}
+  .cap h3{font-family:"Chakra Petch";font-weight:600;font-size:16px;margin-bottom:8px;line-height:1.25}
+  .cap p{color:var(--muted);font-size:13.5px;line-height:1.5}
+
+  /* framework */
+  .fw{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;margin-top:20px}
+  .fw-list{display:flex;flex-direction:column;gap:2px}
+  .fw-item{display:flex;gap:16px;padding:18px 0;border-bottom:1px solid var(--rule)}
+  .fw-item .m{font-family:"IBM Plex Mono";color:var(--amber);font-size:13px;flex-shrink:0;width:40px}
+  .fw-item h3{font-family:"Chakra Petch";font-weight:600;font-size:17px;margin-bottom:5px}
+  .fw-item p{color:var(--muted);font-size:14.5px}
+  .fw-panel{background:var(--panel);border:1px solid var(--rule);border-radius:14px;padding:26px}
+  .fw-panel .qk{font-family:"IBM Plex Mono";font-size:11px;letter-spacing:.14em;color:var(--muted);margin-bottom:18px}
+  .rowline{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px dashed var(--rule);
+    font-family:"IBM Plex Mono";font-size:13px}
+  .rowline:last-child{border-bottom:0}
+  .rowline .k{color:var(--muted)} .rowline .v{color:var(--ink)} .rowline .v b{color:var(--amber)}
+
+  /* final cta */
+  .final{background:linear-gradient(180deg,var(--panel2),var(--deck));border-top:1px solid var(--rule)}
+  .final .wrap{padding:84px 24px;text-align:center}
+  .final h2{margin:0 auto 18px}
+  .final .sub{margin:0 auto 30px}
+  .final .hero-cta{justify-content:center}
+
+  footer{border-top:1px solid var(--rule);padding:34px 0;color:var(--muted);font-size:13px}
+  footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+  footer .brand{font-size:16px;color:var(--ink)}
+
+  /* i18n visibility handled via JS innerHTML; reveal on scroll */
+  .reveal{opacity:0;transform:translateY(18px);transition:opacity .7s,transform .7s}
+  .reveal.in{opacity:1;transform:none}
+
+  @media(max-width:900px){
+    .hero-grid{grid-template-columns:1fr;gap:36px}
+    .caps{grid-template-columns:repeat(2,1fr)}
+    .pains{grid-template-columns:1fr}
+    .fw{grid-template-columns:1fr;gap:26px}
+  }
+  @media(max-width:560px){
+    .caps{grid-template-columns:1fr}
+    .mfd-foot{grid-template-columns:1fr}
+    .hero{padding:48px 0 24px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    *{animation:none!important;transition:none!important}
+    .fill{width:var(--w)!important}
+    .reveal{opacity:1;transform:none}
+  }
+</style>
+</head>
+<body class="en">
+<div class="glow"></div>
+<div class="grid-bg"></div>
+<div class="content">
+
+<header>
+  <div class="wrap bar">
+    <div class="brand"><span class="dot"></span>AviCore</div>
+    <span class="sys mono">SYSTEM · OPERATIONAL</span>
+    <span class="spacer"></span>
+    <div class="langtog">
+      <button id="en" class="on" onclick="setLang('en')">EN</button>
+      <button id="th" onclick="setLang('th')">TH</button>
+    </div>
+    <a href="#demo" class="cta" data-i18n="nav.cta"></a>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow" data-i18n="hero.eyebrow"></div>
+      <h1 data-i18n="hero.title"></h1>
+      <p class="lede" data-i18n="hero.lede"></p>
+      <div class="hero-cta">
+        <a href="#demo" class="cta" data-i18n="hero.cta1"></a>
+        <a href="#caps" class="cta ghost" data-i18n="hero.cta2"></a>
+      </div>
+      <div class="note" data-i18n="hero.note"></div>
+    </div>
+
+    <!-- signature: MFD fatigue readout -->
+    <div class="mfd" id="mfd">
+      <div class="mfd-head">
+        <span class="t mono" data-i18n="mfd.head"></span>
+        <span class="id">PLT-04</span>
+        <span class="spacer" style="flex:1"></span>
+        <span class="chip" data-i18n="mfd.ok"></span>
+      </div>
+
+      <div class="gauge">
+        <div class="gauge-top"><span class="gauge-lbl" data-i18n="mfd.g1"></span><span class="gauge-val mono"><b>34:20</b> / 55:00</span></div>
+        <div class="track"><div class="fill g" style="--w:62%"></div></div>
+      </div>
+      <div class="gauge">
+        <div class="gauge-top"><span class="gauge-lbl" data-i18n="mfd.g2"></span><span class="gauge-val mono"><b>78:15</b> / 110:00</span></div>
+        <div class="track"><div class="fill g" style="--w:71%"></div></div>
+      </div>
+      <div class="gauge">
+        <div class="gauge-top"><span class="gauge-lbl" data-i18n="mfd.g3"></span><span class="gauge-val mono"><b>156:40</b> / 190:00</span></div>
+        <div class="track"><div class="fill a" style="--w:82%"></div></div>
+      </div>
+      <div class="gauge">
+        <div class="gauge-top"><span class="gauge-lbl" data-i18n="mfd.g4"></span><span class="gauge-val mono"><b>742</b> / 1000</span></div>
+        <div class="track"><div class="fill g" style="--w:74%"></div></div>
+      </div>
+
+      <div class="mfd-foot">
+        <div class="stat">
+          <div class="k mono" data-i18n="mfd.fi"></div>
+          <div class="v ok">18 <small>/ 100</small></div>
+        </div>
+        <div class="stat">
+          <div class="k mono" data-i18n="mfd.cur"></div>
+          <div class="v amber">62 <small data-i18n="mfd.days"></small></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- credibility strip -->
+  <div class="strip">
+    <div class="wrap">
+      <span class="badge mono">◆ FIELD-PROVEN</span>
+      <p data-i18n="strip.text"></p>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM -->
+<section class="blk">
+  <div class="wrap reveal">
+    <div class="khead" data-i18n="prob.k"></div>
+    <h2 data-i18n="prob.title"></h2>
+    <p class="sub" data-i18n="prob.sub"></p>
+    <div class="pains">
+      <div class="pain"><div class="n mono">ERR&nbsp;01</div><h3 data-i18n="prob.1t"></h3><p data-i18n="prob.1p"></p></div>
+      <div class="pain"><div class="n mono">ERR&nbsp;02</div><h3 data-i18n="prob.2t"></h3><p data-i18n="prob.2p"></p></div>
+      <div class="pain"><div class="n mono">ERR&nbsp;03</div><h3 data-i18n="prob.3t"></h3><p data-i18n="prob.3p"></p></div>
+    </div>
+  </div>
+</section>
+
+<!-- CAPABILITIES -->
+<section class="blk" id="caps">
+  <div class="wrap reveal">
+    <div class="khead" data-i18n="cap.k"></div>
+    <h2 data-i18n="cap.title"></h2>
+    <p class="sub" data-i18n="cap.sub"></p>
+    <div class="caps">
+      <div class="cap"><div class="idx mono">01</div><h3 data-i18n="cap.1t"></h3><p data-i18n="cap.1p"></p></div>
+      <div class="cap"><div class="idx mono">02</div><h3 data-i18n="cap.2t"></h3><p data-i18n="cap.2p"></p></div>
+      <div class="cap"><div class="idx mono">03</div><h3 data-i18n="cap.3t"></h3><p data-i18n="cap.3p"></p></div>
+      <div class="cap"><div class="idx mono">04</div><h3 data-i18n="cap.4t"></h3><p data-i18n="cap.4p"></p></div>
+      <div class="cap"><div class="idx mono">05</div><h3 data-i18n="cap.5t"></h3><p data-i18n="cap.5p"></p></div>
+      <div class="cap"><div class="idx mono">06</div><h3 data-i18n="cap.6t"></h3><p data-i18n="cap.6p"></p></div>
+      <div class="cap"><div class="idx mono">07</div><h3 data-i18n="cap.7t"></h3><p data-i18n="cap.7p"></p></div>
+      <div class="cap"><div class="idx mono">08</div><h3 data-i18n="cap.8t"></h3><p data-i18n="cap.8p"></p></div>
+    </div>
+  </div>
+</section>
+
+<!-- FRAMEWORK FIT -->
+<section class="blk">
+  <div class="wrap reveal">
+    <div class="khead" data-i18n="fw.k"></div>
+    <h2 data-i18n="fw.title"></h2>
+    <div class="fw">
+      <div class="fw-list">
+        <div class="fw-item"><span class="m mono">A</span><div><h3 data-i18n="fw.1t"></h3><p data-i18n="fw.1p"></p></div></div>
+        <div class="fw-item"><span class="m mono">B</span><div><h3 data-i18n="fw.2t"></h3><p data-i18n="fw.2p"></p></div></div>
+        <div class="fw-item"><span class="m mono">C</span><div><h3 data-i18n="fw.3t"></h3><p data-i18n="fw.3p"></p></div></div>
+      </div>
+      <div class="fw-panel">
+        <div class="qk mono" data-i18n="fw.qk"></div>
+        <div class="rowline"><span class="k" data-i18n="fw.r1k"></span><span class="v mono"><b data-i18n="fw.r1v"></b></span></div>
+        <div class="rowline"><span class="k" data-i18n="fw.r2k"></span><span class="v mono"><b data-i18n="fw.r2v"></b></span></div>
+        <div class="rowline"><span class="k" data-i18n="fw.r3k"></span><span class="v mono"><b data-i18n="fw.r3v"></b></span></div>
+        <div class="rowline"><span class="k" data-i18n="fw.r4k"></span><span class="v mono"><b data-i18n="fw.r4v"></b></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final" id="demo">
+  <div class="wrap reveal">
+    <div class="khead" style="text-align:center" data-i18n="end.k"></div>
+    <h2 data-i18n="end.title"></h2>
+    <p class="sub" data-i18n="end.sub"></p>
+    <div class="hero-cta">
+      <a href="mailto:hello@avicore.app" class="cta" data-i18n="end.cta1"></a>
+      <a href="mailto:hello@avicore.app" class="cta ghost" data-i18n="end.cta2"></a>
+    </div>
+    <div class="note" data-i18n="end.note"></div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span>AviCore</div>
+    <span data-i18n="foot.tag"></span>
+    <span class="mono" style="font-size:12px">hello@avicore.app</span>
+  </div>
+</footer>
+
+</div>
+
+<script>
+const DICT = {
+  en:{
+    "nav.cta":"Request a demo",
+    "hero.eyebrow":"Offshore FTL &amp; Fatigue Monitor",
+    "hero.title":"FTL compliance that thinks like a <span class='hl'>Chief Pilot</span>.",
+    "hero.lede":"AviCore turns duty logs into live Flight Time Limitation and fatigue intelligence — purpose-built for offshore helicopter operations, not adapted from a fixed-wing tool.",
+    "hero.cta1":"Request a demo",
+    "hero.cta2":"See what it tracks",
+    "hero.note":"↑ Live rolling-window readout. Values shown are illustrative.",
+    "mfd.head":"FATIGUE MONITOR",
+    "mfd.ok":"WITHIN LIMITS",
+    "mfd.g1":"7-DAY DUTY",
+    "mfd.g2":"14-DAY DUTY",
+    "mfd.g3":"28-DAY DUTY",
+    "mfd.g4":"12-MONTH FLIGHT",
+    "mfd.fi":"DAILY FATIGUE INDEX",
+    "mfd.cur":"CUSTOMER CURRENCY",
+    "mfd.days":"/ 90 days",
+    "strip.text":"Born in live offshore operations in the Gulf of Thailand — built and run by a Chief Pilot managing a 21-pilot AW139 operation across daily oil &amp; gas charters.",
+    "prob.k":"The problem",
+    "prob.title":"Spreadsheets were never built to run FTL.",
+    "prob.sub":"Manual duty tracking looks fine until an audit, a customer currency check, or a cumulative breach you didn't see coming.",
+    "prob.1t":"Silent cumulative breaches",
+    "prob.1p":"7/14/28/365-day windows roll every single day. One late entry and a pilot is over limit before anyone notices.",
+    "prob.2t":"Data that lies",
+    "prob.2p":"Copy-paste errors and duplicate rows inflate flight time. Wrong numbers, wrong decisions, real risk.",
+    "prob.3t":"Audit &amp; customer pressure",
+    "prob.3p":"Regulators and oil &amp; gas charterers want proof — currency, rest, fatigue — reconstructed by hand under a deadline.",
+    "cap.k":"Capabilities",
+    "cap.title":"Everything an offshore roster actually needs.",
+    "cap.sub":"Each module was written against real Gulf-of-Thailand duty patterns — mixed duty days, night standby, recovery rest, customer currency.",
+    "cap.1t":"FDP &amp; duty calculation","cap.1p":"Automatic report and post-flight padding, with Mixed Duty Day logic handled correctly.",
+    "cap.2t":"Rolling cumulative windows","cap.2p":"7 / 14 / 28 / 365-day duty and flight totals, always current — no manual recount.",
+    "cap.3t":"Fatigue scoring","cap.3p":"Daily and weekly fatigue index per pilot, surfaced before it becomes a limit issue.",
+    "cap.4t":"Recovery rest tracking","cap.4p":"≥36-hour rest across two local nights, flagged automatically when it's due or missed.",
+    "cap.5t":"Night standby logic","cap.5p":"Standby duty counted at its correct partial weight toward cumulative duty — not guessed.",
+    "cap.6t":"Customer currency","cap.6p":"Track each charterer's currency thresholds per pilot, e.g. 90-day recency, with early warning.",
+    "cap.7t":"Fleet dashboard","cap.7p":"Whole-fleet status at a glance, then drill into any pilot's full duty and rest history.",
+    "cap.8t":"Pilot experience (PES)","cap.8p":"Maintain experience summaries with batch Excel import — no re-keying crew records.",
+    "fw.k":"Fits your operation",
+    "fw.title":"Your limits. Your customers. Your rules.",
+    "fw.1t":"CAAT-aligned, and adaptable","fw.1p":"Built around CAAT FTL frameworks, with limits configurable to your OM-A rather than locked to ours.",
+    "fw.2t":"Customer requirements built in","fw.2p":"Oil &amp; gas charterers add their own currency and rest demands — AviCore tracks them alongside the regulator's.",
+    "fw.3t":"Offshore reality, not theory","fw.3p":"Night standby, mixed duty, recovery rest and crew rotations are modelled the way they actually happen offshore.",
+    "fw.qk":"CONFIGURABLE LIMITS — EXAMPLE",
+    "fw.r1k":"7-day duty limit","fw.r1v":"55:00",
+    "fw.r2k":"28-day duty limit","fw.r2v":"190:00",
+    "fw.r3k":"Recovery rest","fw.r3v":"≥ 36:00",
+    "fw.r4k":"Customer currency","fw.r4v":"90 days",
+    "end.k":"Ready when you are",
+    "end.title":"See AviCore run on your roster.",
+    "end.sub":"Send us a sample month and we'll show you your own fleet's FTL and fatigue picture — no rebuild of your data required.",
+    "end.cta1":"Request a demo",
+    "end.cta2":"Talk to the team",
+    "end.note":"hello@avicore.app · replace with your booking link before publishing.",
+    "foot.tag":"Offshore FTL & fatigue intelligence."
+  },
+  th:{
+    "nav.cta":"ขอชมเดโม",
+    "hero.eyebrow":"ระบบ FTL &amp; Fatigue สำหรับงานบิน Offshore",
+    "hero.title":"ระบบ FTL ที่เข้าใจงานบิน<br>เหมือนมี <span class='hl'>Chief Pilot</span> คอยดูให้",
+    "hero.lede":"AviCore เปลี่ยนบันทึกเวลาปฏิบัติงานให้เป็นข้อมูล Flight Time Limitation และ fatigue แบบเรียลไทม์ ออกแบบมาเพื่องานบินเฮลิคอปเตอร์ offshore โดยเฉพาะ ไม่ใช่ดัดแปลงจากเครื่องมือฝั่ง fixed-wing",
+    "hero.cta1":"ขอชมเดโม",
+    "hero.cta2":"ดูว่าระบบติดตามอะไรบ้าง",
+    "hero.note":"↑ จอแสดง rolling-window แบบเรียลไทม์ ตัวเลขเป็นเพียงตัวอย่าง",
+    "mfd.head":"จอ FATIGUE MONITOR",
+    "mfd.ok":"อยู่ในลิมิต",
+    "mfd.g1":"ดิวตี้ 7 วัน",
+    "mfd.g2":"ดิวตี้ 14 วัน",
+    "mfd.g3":"ดิวตี้ 28 วัน",
+    "mfd.g4":"ชม.บิน 12 เดือน",
+    "mfd.fi":"ดัชนี FATIGUE รายวัน",
+    "mfd.cur":"CURRENCY ลูกค้า",
+    "mfd.days":"/ 90 วัน",
+    "strip.text":"เกิดจากงานบิน offshore จริงในอ่าวไทย — สร้างและใช้งานโดย Chief Pilot ที่ดูแลนักบิน 21 คน บิน AW139 ให้ลูกค้า oil &amp; gas ทุกวัน",
+    "prob.k":"ปัญหาที่เจอจริง",
+    "prob.title":"Excel ไม่เคยถูกออกแบบมาเพื่อคุม FTL",
+    "prob.sub":"การคุมดิวตี้ด้วยมือดูเหมือนโอเค จนกว่าจะโดนออดิท โดนเช็ก currency ของลูกค้า หรือเกินลิมิตสะสมโดยไม่ทันตั้งตัว",
+    "prob.1t":"เกินลิมิตสะสมแบบเงียบ ๆ",
+    "prob.1p":"หน้าต่าง 7/14/28/365 วันเลื่อนทุกวัน ลงข้อมูลช้าแค่ครั้งเดียว นักบินอาจเกินลิมิตก่อนที่ใครจะรู้",
+    "prob.2t":"ข้อมูลที่หลอกเรา",
+    "prob.2p":"พิมพ์ผิด ก็อปซ้ำ แถวซ้ำ ทำให้ชั่วโมงบินบวม ตัวเลขผิด การตัดสินใจผิด ความเสี่ยงจริง",
+    "prob.3t":"แรงกดดันจากออดิทและลูกค้า",
+    "prob.3p":"ทั้งหน่วยกำกับและลูกค้า oil &amp; gas ต้องการหลักฐาน — currency, rest, fatigue — ที่ต้องมานั่งไล่ทำมือใต้เดดไลน์",
+    "cap.k":"ความสามารถ",
+    "cap.title":"ครบทุกอย่างที่โรสเตอร์ offshore ต้องใช้จริง",
+    "cap.sub":"ทุกโมดูลเขียนจากรูปแบบดิวตี้จริงในอ่าวไทย — mixed duty day, night standby, recovery rest, currency ลูกค้า",
+    "cap.1t":"คำนวณ FDP &amp; ดิวตี้","cap.1p":"บวกเวลา report และหลังบินอัตโนมัติ พร้อมตรรกะ Mixed Duty Day ที่ถูกต้อง",
+    "cap.2t":"หน้าต่างสะสมแบบเลื่อน","cap.2p":"ยอดดิวตี้และชั่วโมงบิน 7 / 14 / 28 / 365 วัน อัปเดตตลอด ไม่ต้องนับมือ",
+    "cap.3t":"คะแนน Fatigue","cap.3p":"ดัชนี fatigue รายวันและรายสัปดาห์ต่อนักบิน เห็นก่อนที่จะกลายเป็นปัญหาลิมิต",
+    "cap.4t":"ติดตาม Recovery Rest","cap.4p":"พัก ≥36 ชม. คร่อมสองคืนท้องถิ่น แจ้งเตือนอัตโนมัติเมื่อถึงกำหนดหรือขาด",
+    "cap.5t":"ตรรกะ Night Standby","cap.5p":"นับ standby ตามน้ำหนักบางส่วนที่ถูกต้องเข้าสู่ดิวตี้สะสม ไม่ใช่เดา",
+    "cap.6t":"Currency ลูกค้า","cap.6p":"ติดตามเกณฑ์ currency ของลูกค้าแต่ละรายต่อนักบิน เช่น recency 90 วัน พร้อมเตือนล่วงหน้า",
+    "cap.7t":"แดชบอร์ดทั้งฝูงบิน","cap.7p":"เห็นสถานะทั้งฝูงในหน้าเดียว แล้วเจาะเข้าดูประวัติดิวตี้และพักของนักบินรายคน",
+    "cap.8t":"ประสบการณ์นักบิน (PES)","cap.8p":"เก็บสรุปประสบการณ์พร้อมนำเข้าจาก Excel เป็นชุด ไม่ต้องคีย์ประวัติลูกเรือใหม่",
+    "fw.k":"เข้ากับงานของคุณ",
+    "fw.title":"ลิมิตของคุณ ลูกค้าของคุณ กฎของคุณ",
+    "fw.1t":"อิงตาม CAAT และปรับได้","fw.1p":"สร้างบนกรอบ FTL ของ CAAT ตั้งลิมิตตาม OM-A ของคุณได้ ไม่ล็อกตามของเรา",
+    "fw.2t":"ใส่เงื่อนไขลูกค้าได้","fw.2p":"ลูกค้า oil &amp; gas มีเกณฑ์ currency และ rest ของตัวเอง — AviCore ติดตามคู่กับของหน่วยกำกับ",
+    "fw.3t":"ความจริง offshore ไม่ใช่ทฤษฎี","fw.3p":"Night standby, mixed duty, recovery rest และการหมุนลูกเรือ ถูกจำลองตามที่เกิดจริง offshore",
+    "fw.qk":"ลิมิตที่ปรับได้ — ตัวอย่าง",
+    "fw.r1k":"ลิมิตดิวตี้ 7 วัน","fw.r1v":"55:00",
+    "fw.r2k":"ลิมิตดิวตี้ 28 วัน","fw.r2v":"190:00",
+    "fw.r3k":"Recovery rest","fw.r3v":"≥ 36:00",
+    "fw.r4k":"Currency ลูกค้า","fw.r4v":"90 วัน",
+    "end.k":"พร้อมเมื่อคุณพร้อม",
+    "end.title":"ดู AviCore ทำงานบนโรสเตอร์ของคุณ",
+    "end.sub":"ส่งข้อมูลตัวอย่างหนึ่งเดือนมา แล้วเราจะให้คุณเห็นภาพ FTL และ fatigue ของฝูงบินคุณเอง โดยไม่ต้องรื้อข้อมูลใหม่",
+    "end.cta1":"ขอชมเดโม",
+    "end.cta2":"คุยกับทีมงาน",
+    "end.note":"hello@avicore.app · เปลี่ยนเป็นลิงก์จองของคุณก่อนเผยแพร่",
+    "foot.tag":"ข้อมูล FTL & fatigue สำหรับงานบิน offshore"
+  }
+};
+
+function setLang(l){
+  document.body.className = l;
+  document.documentElement.lang = l;
+  document.getElementById('en').classList.toggle('on', l==='en');
+  document.getElementById('th').classList.toggle('on', l==='th');
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const k = el.getAttribute('data-i18n');
+    if(DICT[l][k]!==undefined) el.innerHTML = DICT[l][k];
+  });
+}
+setLang('en');
+
+// animate gauges on load
+window.addEventListener('load', ()=> setTimeout(()=> document.getElementById('mfd').classList.add('load'), 250));
+
+// reveal on scroll
+const io = new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.14});
+document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+</body>
+</html>
