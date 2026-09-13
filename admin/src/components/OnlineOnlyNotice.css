@@ -1,0 +1,37 @@
+/* Inline notice for admin screens that cannot save while offline.
+
+   Deliberately NOT fixed-position: it belongs to the screen it appears on, not
+   to the window. The fixed bars (OfflineBar, LicenceBanner, UpdatePrompt) are
+   about the whole app; this is about the form directly beneath it. */
+.oonotice{
+  display:flex;align-items:flex-start;gap:10px;
+  margin:0 0 14px;padding:10px 13px;border-radius:10px;
+  background:rgba(251,191,36,.10);
+  border:1px solid rgba(251,191,36,.45);
+  color:#fbbf24;
+  font:12.5px/1.55 system-ui,sans-serif;
+}
+
+.oonotice-icon{
+  flex:none;width:19px;height:19px;border-radius:50%;margin-top:1px;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:12px;
+  background:rgba(251,191,36,.22);
+}
+
+.oonotice-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.oonotice-text b{font-weight:800}
+/* The English line is a translation, not new information - quieter so the
+   Thai reader is not made to scan past equal-weight duplicate text. */
+.oonotice-en{font-size:11px;opacity:.72}
+
+/* A disabled Save should look unavailable, not broken. Pairs with
+   `disabled={!online}` from useOnlineOnly(). */
+button:disabled.needs-online,
+.needs-online:disabled{
+  opacity:.45;cursor:not-allowed;
+}
+
+/* Never on paper: reports printed while offline are perfectly valid, and a
+   warning about saving would be confusing on a document handed to CAAT. */
+@media print{.oonotice{display:none}}

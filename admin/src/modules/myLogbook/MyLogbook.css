@@ -1,0 +1,193 @@
+.logbook-page{color:white}
+.logbook-page .module-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.logbook-page .module-header h1{margin:0;font-size:28px;font-weight:900}
+.logbook-page .module-header p{margin:6px 0 0;color:#94a3b8;font-size:13px}
+
+.logbook-actions{display:flex;gap:8px}
+.logbook-actions button{padding:10px 16px;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:800;cursor:pointer}
+.logbook-actions button.primary{background:#1677ff;border-color:#1677ff;color:white}
+.logbook-actions button:disabled{opacity:.6;cursor:wait}
+
+.logbook-filters{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap;background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.15);border-radius:12px;padding:14px 16px;margin-bottom:8px}
+.logbook-field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#94a3b8}
+.logbook-field input,.logbook-field select{padding:9px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white;color-scheme:dark}
+.logbook-pilot-name{padding:9px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white;font-weight:700;display:inline-block;min-width:180px}
+.logbook-msg{font-size:12px;color:#4ade80;margin-top:8px}
+
+/* 3M / 6M / 12M presets. The active one is highlighted because it also decides
+   what Print and Export will cover - the user has to be able to see which. */
+.logbook-presets{display:flex;gap:6px}
+.logbook-presets button{padding:9px 14px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#cbd5e1;font-weight:800;font-size:12px;cursor:pointer}
+.logbook-presets button:hover{border-color:#475569}
+.logbook-presets button.active{background:#1677ff;border-color:#1677ff;color:white}
+
+.logbook-print-area{background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.18);border-radius:14px;padding:18px}
+.logbook-letterhead{margin-bottom:14px}
+.logbook-title{font-size:18px;font-weight:900}
+.logbook-sub{font-size:12px;color:#94a3b8;margin-top:4px}
+
+/* Scrolls both ways within itself (not via the page) - see the long
+   comment on .allstatus-scroll in AllStatus.css for why this is the only
+   configuration where the sticky thead below reliably works. */
+.logbook-scroll{overflow:auto;max-height:70vh}
+.logbook-table{border-collapse:collapse;white-space:nowrap;font-size:12px;min-width:100%}
+.logbook-table th,.logbook-table td{border:1px solid rgba(148,163,184,.25);padding:6px 8px;text-align:center}
+.logbook-table thead{position:sticky;top:0}
+.logbook-table thead th{background:rgba(30,41,59,.9);font-weight:800;color:#e2e8f0}
+.logbook-table td.logbook-route{text-align:left;max-width:180px;white-space:normal}
+.logbook-table td.logbook-strong{font-weight:800;color:#4ade80}
+.logbook-table td.logbook-empty{padding:24px;color:#94a3b8;white-space:normal}
+.logbook-table tfoot td{background:rgba(148,163,184,.08);font-weight:800;color:#e2e8f0}
+
+/* Month grouping, used when the range spans more than one month (a 12-month
+   extract). The month heading and its subtotal are the equivalent of the
+   company workbook's per-month page and its "TOTAL THIS PAGE" line. */
+.logbook-monthhead td{background:rgba(22,119,255,.14);font-weight:900;text-align:left!important;color:#bfdbfe;letter-spacing:.4px}
+.logbook-subtotal td{background:rgba(148,163,184,.07);font-weight:800;color:#cbd5e1}
+
+.logbook-idblock{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:8px;font-size:12px;color:#cbd5e1}
+.logbook-idblock b{color:#94a3b8;font-weight:700}
+
+/* Career experience summary - the standing total behind the 12-month extract. */
+.logbook-summary{margin-top:16px;border:1px solid rgba(148,163,184,.22);border-radius:12px;padding:14px 16px;background:rgba(15,23,42,.5)}
+.logbook-summary-title{font-size:12.5px;font-weight:900;color:#e2e8f0;margin-bottom:10px;letter-spacing:.3px}
+.logbook-summary-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.logbook-summary-table th,.logbook-summary-table td{border:1px solid rgba(148,163,184,.2);padding:6px 4px;text-align:center}
+.logbook-summary-table th{font-size:9.5px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.3px;background:rgba(2,6,23,.35);white-space:normal}
+.logbook-summary-table td{font-size:14px;color:#e2e8f0;font-variant-numeric:tabular-nums;font-weight:800}
+/* The two headline figures - the ones a renewal or an audit asks for first. */
+.logbook-summary-table th.logbook-summary-lead{background:rgba(22,119,255,.16);color:#bfdbfe}
+.logbook-summary-table td.logbook-summary-lead{color:#7dd3fc;background:rgba(22,119,255,.08)}
+/* Row labels in the aircraft-type table ("Last 90 days" / "Total to date").
+   Left-aligned and lighter than the figures, so the numbers stay the thing the
+   eye lands on. */
+.logbook-typerow-label{text-align:left!important;font-size:11px!important;font-weight:700!important;color:#94a3b8!important;white-space:nowrap;width:1%}
+.logbook-summary-note{margin-top:6px;font-size:10.5px;color:#94a3b8;line-height:1.45}
+/* The aircraft-type table has a LABEL column, so its widths cannot be split
+   evenly the way the career summary's are - table-layout:auto lets the label
+   size to its text and leaves the rest of the width to the figures. */
+.logbook-summary-table:has(.logbook-typerow-label){table-layout:auto}
+
+/* Certification block - print only. */
+.print-only{display:none}
+.logbook-certify-sigs{display:flex;gap:34px;margin-top:26px}
+.logbook-certify-sigs > div{flex:1;font-size:11px;text-align:center}
+.logbook-sigline{border-bottom:1px solid #555;height:34px;margin-bottom:5px}
+
+@media print{
+  /* Page setup, including the "1/12" running header - see the note beside the
+     signature rules at the foot of this block. The top margin is 9mm rather than
+     2mm purely to leave room for that header. */
+  @page{
+    size:A4 landscape;
+    margin:9mm 2mm 2mm 2mm;
+    @top-right{
+      content:counter(page) "/" counter(pages);
+      font-family:system-ui,sans-serif;
+      font-size:8pt;
+      color:#333;
+    }
+  }
+  /* Print legibility: never break a word or a figure onto a second line
+     inside a cell - a duty/hours value split as "12345:" / "30" is
+     unreadable. Columns size to their content instead. */
+  .logbook-print-area th,
+  .logbook-print-area td{white-space:nowrap;word-break:normal;overflow-wrap:normal;hyphens:none}
+
+  /* 19 columns of nowrap text does not fit A4 landscape at the screen font
+     size: the right-hand columns ran off the page and dates/times wrapped
+     mid-value ("01/08 /2025", "07:0 0") because the cells were being squeezed
+     below their content width. Shrink the type and padding for print instead,
+     and let the table lay out to the page rather than to its content, so every
+     column is present and legible on one page width.
+     table-layout:auto + width:100% is what actually stops the overflow -
+     min-width:100% (the screen rule) lets the table grow past the page. */
+  .logbook-print-area .logbook-table{font-size:7.2pt;width:100%;min-width:0;table-layout:auto}
+  .logbook-print-area .logbook-table th,
+  .logbook-print-area .logbook-table td{padding:1.5px 2px}
+  /* The route is the only free-text column and the only one that may wrap -
+     it is what absorbs the leftover width. */
+  .logbook-print-area .logbook-table td.logbook-route{white-space:normal;max-width:none;font-size:6.8pt}
+  /* The date is a fixed-width value and must never wrap ("01/08/202" / "5").
+     table-layout:auto will otherwise squeeze it to give the route more room, so
+     the first column is given an explicit floor. Same for the two clock times. */
+  .logbook-print-area .logbook-table td:first-child,
+  .logbook-print-area .logbook-table th:first-child{min-width:52pt;white-space:nowrap}
+  .logbook-print-area .logbook-letterhead{margin-bottom:6px}
+  .logbook-print-area .logbook-title{font-size:12pt}
+  .logbook-print-area .logbook-sub{font-size:7.5pt}
+  .logbook-print-area .logbook-idblock{font-size:7.5pt;gap:2px 14px;margin-top:4px}
+  /* Scoped to body:has(.logbook-page) so this global visibility reset only
+     kicks in while the Logbook page is mounted - otherwise, since this CSS
+     is loaded app-wide once the module is imported, it would hide everything
+     when printing from any other page too. */
+  body:has(.logbook-page) *{visibility:hidden}
+  body:has(.logbook-page) .no-print{display:none!important}
+  body:has(.logbook-page) .logbook-print-area,
+  body:has(.logbook-page) .logbook-print-area *{visibility:visible}
+  .logbook-print-area{position:absolute;top:0;left:0;width:100%;background:white;border:none;color:black;padding:0}
+  /* Undo the screen view's internal scroll/height cap - printing needs the
+     full table to flow across page(s), not clipped to a 70vh viewport. */
+  .logbook-scroll{overflow:visible;max-height:none}
+  .logbook-title,.logbook-sub{color:black}
+  .logbook-table th,.logbook-table td{border-color:#999;color:black}
+  .logbook-table thead th{background:#eee;color:black!important}
+  .logbook-table tfoot td{background:#f2f2f2}
+  .logbook-table td.logbook-strong{color:black}
+
+  /* A 12-month extract runs to several pages, so the column headings have to
+     repeat on each one - a page of unlabelled hour columns is unreadable, and
+     this is what made the old export unusable as a real logbook. thead is the
+     browser's repeating region, hence display:table-header-group. The sticky
+     positioning that the on-screen view needs would break that, so it is
+     explicitly undone here. */
+  .logbook-table thead{display:table-header-group;position:static}
+  .logbook-table tfoot{display:table-row-group}
+  /* Never split a flight across two pages, and keep a month's subtotal with
+     at least some of its rows. */
+  .logbook-table tr{page-break-inside:avoid;break-inside:avoid}
+  .logbook-monthhead td{background:#e3edfb!important;color:black!important;page-break-after:avoid;break-after:avoid}
+  .logbook-subtotal td{background:#f2f2f2!important;color:black!important}
+  .logbook-idblock,.logbook-idblock b{color:black}
+  /* Keep the whole summary on one page - a career total split across a page
+     break is exactly the sort of thing someone misreads. */
+  .logbook-summary{margin-top:10px;background:none;border:none;border-radius:0;padding:0;page-break-inside:avoid;break-inside:avoid}
+  .logbook-summary-title{color:black;font-size:8.5pt;margin-bottom:4px;font-weight:900}
+  .logbook-summary-table th,.logbook-summary-table td{border-color:#999;color:black;padding:2px 3px}
+  .logbook-summary-table th{background:#eee;font-size:6pt}
+  .logbook-summary-table td{color:black;font-size:8pt}
+  /* Highlight the two headline figures with a light fill, NOT a colour - a
+     coloured figure can print as near-white on a mono printer. */
+  .logbook-summary-table th.logbook-summary-lead{background:#dbeafe}
+  .logbook-summary-table td.logbook-summary-lead{background:#eff6ff;color:black}
+  /* Aircraft-type table on paper. The label column keeps its left alignment so
+     the two rows read as "Last 90 days: ..." rather than as more figures. */
+  .logbook-typerow-label{text-align:left!important;font-size:7pt!important;color:black!important;background:#f6f6f6}
+  .logbook-summary-note{font-size:6.5pt;color:#333;margin-top:2px}
+  /* SIGNATURES STAY WITH THE LAST ROWS OF DATA.
+     break-inside alone only stopped the block splitting down the middle - it did
+     not stop the whole block being pushed onto a page of its own, which is what
+     happened whenever the table ended near a page boundary. A signature page
+     carrying no flight data is not evidence of anything.
+     break-before:avoid asks the browser to keep it attached to what precedes it;
+     the tfoot grand-total row is told not to break after itself for the same
+     reason, so the chain total -> signatures holds together. */
+  /* The whole tail - career summary + certification - moves as one block.
+     See the note in MyLogbook.jsx: keeping each piece unbreakable individually
+     still let the pair be split across two pages, which put the signature lines
+     on a page of their own with no flight data above them. */
+  .logbook-tail{page-break-inside:avoid;break-inside:avoid}
+  .logbook-certify{margin-top:14px;page-break-inside:avoid;break-inside:avoid}
+  .logbook-table tfoot tr{page-break-after:avoid;break-after:avoid}
+  .logbook-certify-text{font-size:11px;color:black}
+  body:has(.logbook-page) .print-only{display:block}
+}
+
+/* Month count + End-of-month toggle. */
+.logbook-months{width:88px;padding:8px 10px;border-radius:8px;border:1px solid #cbd5e1;background:#64748b;color:#fff;font-size:14px;font-weight:700;text-align:center;font-variant-numeric:tabular-nums}
+.logbook-months:focus{outline:none;border-color:#1677ff;box-shadow:0 0 0 2px rgba(22,119,255,.35)}
+.logbook-eom{min-width:270px}
+.logbook-check{display:flex;align-items:flex-start;gap:9px;cursor:pointer;font-size:13px;color:#e2e8f0;font-weight:600}
+.logbook-check input{width:17px;height:17px;accent-color:#1677ff;cursor:pointer;margin-top:1px;flex:none}
+.logbook-check small{display:block;font-weight:400;color:#94a3b8;font-size:11.5px;line-height:1.45;margin-top:2px}
+

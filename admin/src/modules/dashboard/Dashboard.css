@@ -1,0 +1,71 @@
+.dashboard-page{color:white}
+.dashboard-page .module-header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.dashboard-page .module-header h1{margin:0;font-size:28px;font-weight:900}
+.dashboard-page .module-header p{margin:6px 0 0;color:#94a3b8;font-size:13px}
+.dashboard-page .module-header button{padding:10px 16px;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:700;cursor:pointer}
+.dashboard-email-status{font-size:11px;color:#64748b;display:flex;align-items:center;gap:6px}
+
+.dashboard-health-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;background:#64748b}
+.dashboard-health-dot.active{background:#4ade80;box-shadow:0 0 6px #4ade80}
+.dashboard-health-dot.stale{background:#ef4444}
+.dashboard-health-dot.unknown{background:#64748b}
+
+.dashboard-alert-status{margin-bottom:26px}
+.dashboard-alert-status-item{display:flex;align-items:center;gap:14px;background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.18);border-radius:14px;padding:14px 18px}
+.dashboard-alert-status-text{font-size:13px;color:#cbd5e1;display:flex;flex-direction:column;gap:2px}
+.dashboard-alert-status-hint{margin-top:8px;font-size:12px;color:#f59e0b;padding:0 2px}
+
+.dashboard-empty{color:#94a3b8;font-size:13px;padding:16px 2px}
+
+.dashboard-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:26px}
+.dashboard-stat{background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.18);border-radius:14px;padding:18px;text-align:center}
+.dashboard-stat-value{font-size:32px;font-weight:900;font-family:monospace}
+.dashboard-stat-label{margin-top:6px;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em}
+.dashboard-stat.ok .dashboard-stat-value{color:#4ade80}
+.dashboard-stat.warn .dashboard-stat-value{color:#f59e0b}
+.dashboard-stat.exc .dashboard-stat-value{color:#ef4444}
+
+.dashboard-section{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px}
+
+.dashboard-recs{display:flex;flex-direction:column;gap:8px}
+.dashboard-rec{display:flex;align-items:center;gap:12px;background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.15);border-radius:10px;padding:12px 14px;font-size:13px;color:#e2e8f0}
+.dashboard-rec.exc{border-left:3px solid #ef4444}
+.dashboard-rec.warn{border-left:3px solid #f59e0b}
+
+.dashboard-export-msg{margin:-8px 0 14px;font-size:12px;color:#94a3b8}
+.dashboard-print-brand{display:none}
+.dashboard-print-title{display:none}
+
+/* Scoped print pattern - same approach as All Status/Hours Summary. */
+@media print{
+  @page{size:A4 portrait;margin:2mm}
+  /* Print legibility: never break a word or a figure onto a second line
+     inside a cell - a duty/hours value split as "12345:" / "30" is
+     unreadable. Columns size to their content instead. */
+  .dashboard-print-area th,
+  .dashboard-print-area td{white-space:nowrap;word-break:normal;overflow-wrap:normal;hyphens:none}
+  body:has(.dashboard-page) *{visibility:hidden}
+  body:has(.dashboard-page) .no-print{display:none!important}
+  body:has(.dashboard-page) .dashboard-print-area,
+  body:has(.dashboard-page) .dashboard-print-area *{visibility:visible}
+  .dashboard-print-area{position:absolute;top:0;left:0;width:100%;background:white;color:black}
+  .dashboard-print-brand{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:6px}
+  .dashboard-print-brand img{height:34px;width:auto;object-fit:contain}
+  .dashboard-print-brand span{font-weight:800;font-size:14px;color:black}
+  .dashboard-print-title{display:block;font-size:16px;font-weight:900;color:black;margin-bottom:10px}
+  .dashboard-section{color:#444}
+  .dashboard-stat{background:white;border-color:#ccc}
+  .dashboard-stat-label{color:#555}
+  .dashboard-rec{background:white;border-color:#ccc;color:black}
+  .dashboard-alert-status-item{background:white;border-color:#ccc}
+  .dashboard-alert-status-text{color:#333}
+  .dashboard-alert-status-hint{display:none}
+}
+
+/* Fatigue Index summary. Reuses .dashboard-rec so a fatigue row looks like the
+   FTL/Training rows beneath it - one visual language for "this needs action". */
+.dashboard-fatigue-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+/* Not .no-print: a printed fleet summary computed from unapproved criteria has
+   to carry the same caveat as the screen. */
+.dashboard-fatigue-warn{background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.5);border-radius:10px;padding:10px 13px;font-size:12.5px;color:#fbbf24;line-height:1.5;margin:0 0 10px}
+@media print{.dashboard-fatigue-warn{background:#fff8e1;border:1.5px solid #b45309;color:#7c2d12;font-weight:600}}

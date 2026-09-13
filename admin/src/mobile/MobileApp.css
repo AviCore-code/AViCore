@@ -1,0 +1,35 @@
+html, body, #root { height: 100%; margin: 0; background: #0b1220; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+.mobile-loading { color: #94a3b8; display: flex; align-items: center; justify-content: center; height: 100vh; font-size: 14px; }
+
+.mobile-app { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: #0b1220; color: white; font-family: -apple-system, Roboto, sans-serif; }
+
+.mobile-header { display: flex; align-items: center; gap: 10px; padding: 14px 16px calc(10px + env(safe-area-inset-top, 0px)); padding-top: calc(14px + env(safe-area-inset-top, 0px)); background: linear-gradient(180deg, #0f1c33, #0b1526); border-bottom: 1px solid rgba(148, 163, 184, .15); }
+.mobile-header-logo { height: 22px; width: auto; max-width: 60px; object-fit: contain; border-radius: 4px; }
+.mobile-header-title { font-weight: 900; font-size: 15px; flex: 1; }
+.mobile-header-pilot { font-size: 12px; font-weight: 800; color: #7dd3fc; background: rgba(22, 119, 255, .15); border: 1px solid rgba(22, 119, 255, .35); border-radius: 999px; padding: 4px 10px; cursor: pointer; }
+.mobile-sync-btn { font-size: 11px; font-weight: 800; padding: 6px 10px; border-radius: 999px; border: 1px solid #334155; background: transparent; color: #cbd5e1; cursor: pointer; }
+.mobile-sync-btn.error { border-color: rgba(239, 68, 68, .4); color: #fca5a5; background: rgba(239, 68, 68, .1); }
+.mobile-sync-btn:disabled { opacity: .6; }
+
+.mobile-sync-error { margin: 10px 14px 0; padding: 8px 12px; border-radius: 10px; background: rgba(239, 68, 68, .12); border: 1px solid rgba(239, 68, 68, .35); color: #fca5a5; font-size: 12px; line-height: 1.4; word-break: break-word; }
+
+.mobile-content { flex: 1; overflow-y: auto; padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px)); }
+
+.mobile-tabbar { display: flex; border-top: 1px solid rgba(148, 163, 184, .15); background: #0b1526; }
+.mobile-tabbar button { flex: 1; padding: 12px 4px; background: transparent; border: none; color: #64748b; font-size: 11px; font-weight: 800; cursor: pointer; }
+.mobile-tabbar button.active { color: #7dd3fc; }
+
+.mobile-footer { text-align: center; font-size: 10px; color: #475569; background: #0b1526; padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid rgba(148, 163, 184, .08); }
+
+.pilot-login { display: flex; align-items: center; justify-content: center; min-height: 100vh; min-height: 100dvh; background: #0b1220; padding: 20px; }
+.pilot-login-card { width: 100%; max-width: 360px; background: rgba(15, 23, 42, .7); border: 1px solid rgba(148, 163, 184, .18); border-radius: 16px; padding: 24px 20px; display: flex; flex-direction: column; gap: 12px; color: white; font-family: -apple-system, Roboto, sans-serif; }
+.pilot-login-card h1 { margin: 0; font-size: 20px; font-weight: 900; }
+.pilot-login-card p { margin: 0; color: #94a3b8; font-size: 13px; }
+.pilot-login-card select { padding: 12px; border-radius: 10px; border: 1px solid #334155; background: #0f172a; color: white; font-size: 14px; }
+.pilot-login-card button { padding: 12px; border-radius: 10px; border: 1px solid #334155; background: transparent; color: white; font-weight: 800; font-size: 14px; cursor: pointer; }
+.pilot-login-card button.primary { background: linear-gradient(90deg, #06b6d4, #7c3aed); border: none; }
+.pilot-login-card button:disabled { opacity: .5; }
+.pilot-login-status { font-size: 13px; color: #94a3b8; }
+.pilot-login-status.error { color: #fca5a5; }

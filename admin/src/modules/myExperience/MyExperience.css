@@ -1,0 +1,215 @@
+.myexp-page{color:white}
+.myexp-page .module-header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.myexp-page .module-header h1{margin:0;font-size:28px;font-weight:900}
+.myexp-page .module-header p{margin:6px 0 0;color:#94a3b8;font-size:13px}
+.myexp-header-actions{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.myexp-controls{display:flex;gap:8px}
+.myexp-controls button{padding:10px 16px;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:800;cursor:pointer;transition:filter .15s}
+.myexp-controls button:hover{filter:brightness(1.15)}
+.myexp-controls button.primary{background:linear-gradient(135deg,#1677ff,#0ea5e9);border-color:transparent;color:white}
+.myexp-controls button:disabled{opacity:.5;cursor:not-allowed}
+.myexp-msg{font-size:12px;color:#4ade80}
+.myexp-pilot{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#94a3b8}
+.myexp-pilot select{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:white;min-width:220px}
+.myexp-pilot-name{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:white;min-width:220px;font-weight:700;display:inline-block}
+.myexp-empty{color:#94a3b8;font-size:13px;padding:16px 2px}
+.myexp-print-brand{display:none}
+
+/* Self-scrolling (both axes) so the thead sticky below has a short,
+   direct scroll ancestor - see the long comment on .allstatus-scroll in
+   AllStatus.css for why a distant page-level scroll ancestor doesn't work. */
+.myexp-card{background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.18);border-radius:14px;padding:20px;overflow:auto;max-height:70vh}
+/* Code / Name / Licence No. / Update on ONE row.
+   auto-fit reflowed them by available width, so on a narrower window they
+   wrapped onto two or three lines - which changed the block's height and, on
+   export, helped push the sheet onto a second page. Four fixed columns keep
+   the identity line one row everywhere. */
+.myexp-head{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px;font-size:13px;color:#e2e8f0}
+.myexp-head b{color:#94a3b8;font-weight:700;margin-right:6px}
+
+.myexp-table{border-collapse:collapse;width:100%;margin-bottom:14px;font-size:12.5px}
+.myexp-table th,.myexp-table td{border:1px solid rgba(148,163,184,.2);padding:7px 10px;text-align:center}
+.myexp-table thead{position:sticky;top:0;z-index:1}
+.myexp-table thead th{background:rgba(30,41,59,.95);color:#cbd5e1;font-weight:800}
+.myexp-table td.myexp-none{color:#64748b}
+
+.myexp-aircraft-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px}
+.myexp-aircraft-grid .myexp-table th,.myexp-aircraft-grid .myexp-table td{padding:6px 5px;font-size:11.5px}
+.myexp-aircraft-grid tr.myexp-row-updated td{background:rgba(22,119,255,.12);color:#93c5fd}
+.myexp-time{font-family:"Courier New",Courier,monospace;font-size:14px;font-weight:700;white-space:nowrap}
+
+.myexp-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:6px}
+.myexp-totals>div{background:rgba(15,23,42,.7);border:1px solid rgba(148,163,184,.18);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
+.myexp-totals span{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em}
+.myexp-totals b{font-family:monospace;font-size:16px}
+.myexp-grand{background:rgba(74,222,128,.1)!important;border-color:rgba(74,222,128,.4)!important}
+.myexp-grand b{color:#4ade80;font-size:18px}
+
+/* Exactly three across, not auto-fit. auto-fit reflows by available width, so
+   the six totals landed as 6/3/2/1 per row depending on the window - which
+   changed the block's height and, on export, decided whether the document fitted
+   one page. Three fixed columns keep the two rows the same shape everywhere. */
+.myexp-current{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.myexp-row-totals{margin-top:8px}
+.myexp-current>div{background:rgba(22,119,255,.1);border:1px solid rgba(22,119,255,.35);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px}
+.myexp-current span{font-size:10px;color:#93c5fd;text-transform:uppercase;letter-spacing:.05em}
+.myexp-current b{font-family:monospace;font-size:16px;color:#e2e8f0}
+
+
+/* Certification block: paper only. Defined here rather than relying on the
+   Logbook's .print-only, which is scoped to that page's stylesheet and is not
+   guaranteed to be loaded when this page renders. */
+.myexp-certify{display:none}
+.myexp-certify-sigs{display:flex;gap:34px;margin-top:26px}
+.myexp-certify-sigs > div{flex:1;font-size:11px;text-align:center}
+.myexp-sigline{border-bottom:1px solid #555;height:34px;margin-bottom:5px}
+
+@media print{
+  @page{size:A4 landscape;margin:0}
+  /* This document is intentionally one sheet. Clamp the root print canvas to
+     exactly one landscape A4 page; browser headers/footers are also suppressed
+     by the zero @page margin instead of consuming their own page fragments. */
+  html:has(.myexp-page),
+  body:has(.myexp-page),
+  body:has(.myexp-page) #root,
+  body:has(.myexp-page) .web-app,
+  body:has(.myexp-page) .app-body,
+  body:has(.myexp-page) .app-content,
+  body:has(.myexp-page) .admin-workspace-content{
+    width:297mm!important;height:209mm!important;min-height:0!important;
+    max-height:209mm!important;margin:0!important;padding:0!important;
+    overflow:hidden!important;
+  }
+  body:has(.myexp-page){position:relative!important}
+  /* Print legibility: never break a word or a figure onto a second line
+     inside a cell - a duty/hours value split as "12345:" / "30" is
+     unreadable. Columns size to their content instead. */
+  .myexp-print-area th,
+  .myexp-print-area td{white-space:nowrap;word-break:normal;overflow-wrap:normal;hyphens:none}
+  /* CONTENT WAS BEING CUT OFF AT THE BOTTOM OF PAGE 1.
+
+     The old rules hid everything with visibility:hidden, revealed the card,
+     and pinned it with position:absolute. An absolutely-positioned element is
+     out of normal flow, so the browser has nothing to paginate: it renders one
+     page and CLIPS the rest. A pilot's experience record is exactly the kind of
+     document that runs past one page (specialty + aircraft tables + totals),
+     so the tail was silently lost.
+
+     Hiding the siblings with display:none instead leaves the card in flow,
+     where it breaks across pages normally. */
+  body:has(.myexp-page) .no-print{display:none!important}
+  body:has(.myexp-page) .myexp-page > *:not(.myexp-print-area){display:none!important}
+
+  /* The app shell sits OUTSIDE .myexp-page - the Crew app's header and tab bar
+     are siblings of <main>, not children of the page - so hiding the page's own
+     children still left the navigation printed across the top of the sheet.
+     The shell has no print rules of its own, so they are stated here. */
+  body:has(.myexp-page) .web-header,
+  body:has(.myexp-page) .flightcrews-tabs,
+  body:has(.myexp-page) .web-footer{display:none!important}
+  /* The Experience page is nested inside FlightCrews. Once its tab menu is
+     removed, also release the screen-only flex heights so the printable card
+     begins at the page origin and is measured from its natural content. */
+  body:has(.myexp-page) .flightcrews-page,
+  body:has(.myexp-page) .flightcrews-tab-body{
+    display:block!important;height:auto!important;min-height:0!important;
+    overflow:visible!important;margin:0!important;padding:0!important;
+  }
+  /* The sheet itself contributes no flow height. Its printable card is fixed
+     to the physical page below, so centring cannot manufacture blank pages. */
+  body:has(.myexp-page) .myexp-page{
+    display:block!important;position:static!important;
+    width:0!important;height:0!important;min-height:0!important;
+    margin:0!important;padding:0!important;overflow:visible!important;
+  }
+  /* Undo the screen view's internal scroll/height cap (added for the
+     sticky thead) before measuring/shrinking it below - the fit needs the
+     card's true natural size, not the 70vh-clamped screen box. */
+  .myexp-print-area{width:auto;background:white;border:none;color:black;padding:0;max-height:none;box-shadow:none;margin:0}
+  /* Always exactly one page. --print-fit-scale/-w/-h come from usePrintFit
+     (MyExperience.jsx), measured off the real rendered card - specialty rows,
+     both aircraft-group columns and all - rather than a fixed height guess.
+     transform doesn't change the element's own layout box, which is what
+     paginates print output - the explicit height here does, sized to exactly
+     the shrunk visual size so nothing spills onto a second page. This
+     replaces the previous "let it paginate, never clip" approach (see the
+     CONTENT WAS BEING CUT OFF note below) now that shrinking removes the
+     reason a second page was ever needed. */
+  .myexp-print-area{
+    position:absolute!important;top:50%!important;left:50%!important;
+    transform:translate(-50%,-50%) scale(var(--print-fit-scale,1));transform-origin:center center;
+    width:var(--print-fit-w,auto);
+    height:auto!important;max-height:none!important;
+    overflow:visible!important;margin:0!important;
+  }
+  /* The sticky header is a screen affordance; while printing it can overlap
+     the rows it is supposed to label. */
+  .myexp-print-area thead{position:static}
+  .myexp-print-brand{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:4px}
+  .myexp-print-brand img{height:26px;width:auto;object-fit:contain}
+  .myexp-print-brand span{font-weight:800;font-size:14px;color:black}
+  .myexp-head{color:black;margin-bottom:6px}
+  .myexp-head b{color:#333}
+  .myexp-table{margin-bottom:5px;font-size:10.5px}
+  .myexp-table th,.myexp-table td{border-color:#999;color:black;padding:2px 6px;line-height:1.25}
+  .myexp-table thead th{background:#eee!important;color:black!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  /* On grids and pagination:
+     A CSS grid container is not broken across printed pages the way a block is
+     - anything past the first page is dropped rather than continued, which is
+     what once cut this record off. The fix is NOT to flatten every grid: doing
+     that here doubled the sheet's height and pushed it onto a second page.
+     What matters is that each grid ITEM fits a page, which the aircraft tables
+     do, so break-inside:avoid on the items can be honoured and nothing is
+     lost. Two columns therefore stay. */
+  /* TWO COLUMNS, not one.
+     An earlier version flattened this grid to a single column so that a grid
+     could not be dropped at a page boundary. That doubled the height and was
+     the main reason the sheet ran onto a second page. Two columns is both the
+     layout Capt. Weera confirmed and roughly half the height; each table is
+     short enough that break-inside:avoid can actually be honoured, so nothing
+     is dropped. */
+  .myexp-aircraft-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:6px 10px}
+  .myexp-aircraft-grid > *{margin-bottom:0;break-inside:avoid;page-break-inside:avoid}
+  /* Same reason: the header block is a grid too. */
+  /* Kept as one four-column row, not flattened. A single short row cannot
+     outgrow a page, so there is no pagination risk in leaving it a grid - and
+     as blocks the four identity fields stacked into four lines. */
+  .myexp-head{display:grid!important;grid-template-columns:repeat(4,1fr)!important;break-inside:avoid}
+  .myexp-aircraft-grid .myexp-table th,.myexp-aircraft-grid .myexp-table td{padding:2px 4px;font-size:9.5px;line-height:1.2}
+  .myexp-aircraft-grid tr.myexp-row-updated td{background:#e0f2fe!important;color:black!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .myexp-current{margin-top:4px}
+  .myexp-totals>div,.myexp-current>div{background:#f8fafc!important;border-color:#ccc!important;padding:4px 8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .myexp-totals b,.myexp-current b,.myexp-current span{color:black}
+  .myexp-grand{background:#dcfce7!important}
+  .myexp-grand b{color:#166534!important}
+  /* Keep the SUMMARY blocks together, but let the TABLES break.
+     `break-inside:avoid` on .myexp-table was part of the missing-content
+     problem: a table taller than the remaining page cannot be kept whole, and
+     the browser's fallback is to push or clip it. Rows are the right unit to
+     keep intact - a single row split across two pages is unreadable, a table
+     spanning two pages is normal. */
+  /* Kept as three-across rows, not flattened.
+     An earlier version forced these to display:block so a grid could not be
+     dropped at a page boundary - but that stacked the six totals into six
+     rows, which is both wrong (PIC/PICUS/SIC belong on one line) and tall
+     enough to push the sheet onto a second page. break-inside:avoid keeps each
+     row whole instead; a 3-cell row always fits, so it is never dropped. */
+  .myexp-totals,.myexp-current{break-inside:avoid;page-break-inside:avoid}
+  .myexp-totals{display:grid!important;grid-template-columns:repeat(3,1fr)!important}
+  .myexp-current{display:grid!important;grid-template-columns:repeat(3,1fr)!important}
+  .myexp-table tr{break-inside:avoid;page-break-inside:avoid}
+  .myexp-table thead{display:table-header-group}   /* repeat headings on page 2+ */
+
+  /* Fit the width to the sheet. The aircraft grid is two columns on screen;
+     at A4 landscape it fits, but any overflow would be cropped rather than
+     wrapped, so nothing is allowed to exceed the printable width. */
+  .myexp-print-area,
+  .myexp-print-area table,
+  .myexp-aircraft-grid{max-width:100%}
+  .myexp-print-area table{table-layout:auto;width:100%}
+
+  /* Shown only on paper - a record needs to say who certified it. */
+  body:has(.myexp-page) .myexp-certify{display:block;margin-top:8px;page-break-inside:avoid;break-inside:avoid}
+  .myexp-certify-text{font-size:10.5px;color:black}
+  .myexp-certify-sigs > div{color:black}
+}

@@ -1,0 +1,76 @@
+.mystatus-page{color:white}
+.mystatus-page .module-header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.mystatus-page .module-header h1{margin:0;font-size:28px;font-weight:900}
+.mystatus-page .module-header p{margin:6px 0 0;color:#94a3b8;font-size:13px}
+.mystatus-pilot{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#94a3b8}
+.mystatus-pilot select{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:white;min-width:220px}
+.mystatus-pilot-name{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:white;min-width:220px;font-weight:700;display:inline-block}
+
+.mystatus-empty{color:#94a3b8;font-size:13px;padding:16px 2px}
+.mystatus-section{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin:22px 0 10px}
+.mystatus-section:first-of-type{margin-top:0}
+
+.mystatus-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+
+/* "Available for Tomorrow" planning cards */
+.mystatus-avail{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.mystatus-avail-card{display:flex;flex-direction:column;gap:4px;background:rgba(22,119,255,.08);border:1px solid rgba(125,211,252,.28);border-radius:12px;padding:14px 16px}
+.mystatus-avail-label{font-size:12px;font-weight:800;color:#7dd3fc;text-transform:uppercase;letter-spacing:.04em}
+.mystatus-avail-value{font-size:26px;font-weight:900;color:#e2e8f0;font-family:monospace;line-height:1}
+.mystatus-avail-note{font-size:11px;color:#94a3b8}
+.mystatus-avail-foot{font-size:11.5px;color:#94a3b8;margin:8px 0 0;line-height:1.5}
+.mystatus-bar{background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:14px}
+.mystatus-bar-head{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:800;margin-bottom:8px}
+.mystatus-bar-track{height:8px;background:#1e293b;border-radius:4px;overflow:hidden}
+.mystatus-bar-fill{height:100%;border-radius:4px}
+.mystatus-bar-fill.ok{background:#4ade80}
+.mystatus-bar-fill.warn{background:#f59e0b}
+.mystatus-bar-fill.exc{background:#ef4444}
+.mystatus-bar-value{margin-top:6px;font-family:monospace;font-size:12px;color:#94a3b8}
+
+.mystatus-metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.mystatus-metric{background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:14px}
+.mystatus-metric-label{font-size:11px;color:#94a3b8;letter-spacing:.05em;margin-bottom:6px}
+.mystatus-metric-row{display:flex;justify-content:space-between;align-items:center;font-family:monospace;font-size:16px}
+.mystatus-metric-row small{font-size:11px;color:#64748b;margin-left:4px;font-family:sans-serif}
+
+.mystatus-badge{font-size:10px;font-weight:800;letter-spacing:.04em;padding:3px 8px;border-radius:6px}
+.mystatus-badge.ok{background:rgba(74,222,128,.15);color:#4ade80}
+.mystatus-badge.warn{background:rgba(245,158,11,.15);color:#f59e0b}
+.mystatus-badge.exc{background:rgba(239,68,68,.15);color:#ef4444}
+.mystatus-badge.info{background:rgba(148,163,184,.15);color:#94a3b8}
+
+.mystatus-note{margin-top:8px;font-size:11px;color:#f59e0b}
+.mystatus-note.exc{color:#ef4444}
+
+.mystatus-standby-list{display:flex;flex-direction:column;gap:10px}
+.mystatus-standby-row{background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.18);border-radius:12px;padding:14px}
+.mystatus-standby-row .mystatus-metric-row{font-size:13px;font-family:inherit;gap:10px}
+
+.mystatus-export-msg{margin:-8px 0 14px;font-size:12px;color:#94a3b8}
+.mystatus-print-brand{display:none}
+.mystatus-print-title{display:none}
+
+/* Scoped print pattern - same approach as All Status/Hours Summary. */
+@media print{
+  @page{size:A4 portrait;margin:2mm}
+  /* Print legibility: never break a word or a figure onto a second line
+     inside a cell - a duty/hours value split as "12345:" / "30" is
+     unreadable. Columns size to their content instead. */
+  .mystatus-print-area th,
+  .mystatus-print-area td{white-space:nowrap;word-break:normal;overflow-wrap:normal;hyphens:none}
+  body:has(.mystatus-page) *{visibility:hidden}
+  body:has(.mystatus-page) .no-print{display:none!important}
+  body:has(.mystatus-page) .mystatus-print-area,
+  body:has(.mystatus-page) .mystatus-print-area *{visibility:visible}
+  .mystatus-print-area{position:absolute;top:0;left:0;width:100%;background:white;color:black}
+  .mystatus-print-brand{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:6px}
+  .mystatus-print-brand img{height:34px;width:auto;object-fit:contain}
+  .mystatus-print-brand span{font-weight:800;font-size:14px;color:black}
+  .mystatus-print-title{display:block;font-size:16px;font-weight:900;color:black;margin-bottom:10px}
+  .mystatus-section{color:#444}
+  .mystatus-bar{background:white;border-color:#ccc}
+  .mystatus-metric{background:white;border-color:#ccc}
+  .mystatus-standby-row{background:white;border-color:#ccc}
+  .mystatus-bar-value,.mystatus-metric-row{color:black}
+}

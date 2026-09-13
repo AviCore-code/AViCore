@@ -1,0 +1,141 @@
+
+.pe-page{color:white}.module-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:20px}.module-header h1{margin:0;font-size:28px}.module-header p{margin:5px 0 0;color:#cbd5e1}.header-tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.header-tools input,.header-tools button,.file-btn{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#020617;color:white;font-weight:800}.header-tools .primary,.file-btn.primary{background:#1677ff;border-color:#1677ff}.header-tools .danger{background:#dc2626;border-color:#dc2626}.file-btn{cursor:pointer}.saved-strip{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}.saved-strip button{background:#0f172a;color:white;border:1px solid #334155;padding:8px 12px;border-radius:12px;font-weight:800}.saved-strip small{display:block;color:#94a3b8;font-size:11px}.paper{background:white;color:#111827;max-width:1120px;min-width:980px;margin:auto;padding:30px;border-radius:8px;font-family:Arial,sans-serif;box-shadow:0 30px 80px rgba(0,0,0,.35);overflow:auto;max-height:78vh}.paper-head{display:grid;grid-template-columns:120px 1fr 120px;gap:20px;align-items:start;margin-bottom:25px}.title-area{text-align:center}.title-area h2{margin:0 0 15px;font-size:28px}.line{display:flex;justify-content:center;gap:20px;margin:8px 0}.line input{width:300px;border:0;border-bottom:1px solid #64748b;text-align:center;font-weight:800;color:#111827;-webkit-text-fill-color:#111827;background:transparent}.image-wrap{display:flex;flex-direction:column;align-items:center;gap:6px}.image-box{width:95px;height:95px;border:1px dashed #64748b;display:flex;align-items:center;justify-content:center;overflow:hidden;font-weight:900;color:#64748b}.image-box img{width:100%;height:100%;object-fit:cover}.image-wrap:first-child .image-box{border-radius:50%}.image-wrap:first-child .image-box img{object-fit:contain}.upload-btn{font-size:11px;cursor:pointer;padding:4px 8px;background:#f8fafc;color:#111827;border:1px solid #cbd5e1;border-radius:8px;font-weight:900}.image-box-actions{display:flex;gap:4px;flex-wrap:wrap;justify-content:center}.remove-btn{font-size:11px;cursor:pointer;padding:4px 8px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:8px;font-weight:900}.top-grid,.exp-grid{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:15px}table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:13px}th,td{border:1px solid #365899;padding:6px;text-align:center;height:28px}th{background:#f8fafc;font-weight:900}.paper table thead{position:sticky;top:0;z-index:1}td input{width:100%;border:0;background:transparent;text-align:center;font-weight:700;outline:0;color:#111827;-webkit-text-fill-color:#111827}button{cursor:pointer}.total td{font-weight:900;background:#f8fafc}.summary{display:grid;border:1px solid #365899;margin-top:18px;height:42px;text-align:center;align-items:center}.summary>*{height:100%;display:flex;align-items:center;justify-content:center;border-right:1px solid #365899}.summary>*:last-child{border-right:0}.six{grid-template-columns:1.2fr .9fr 1.2fr .9fr 1.2fr .9fr}.four{grid-template-columns:1.5fr .9fr 1.5fr .9fr}.grand{margin-top:18px;display:grid;grid-template-columns:1fr 260px 1fr;border:1px solid #365899;height:52px;align-items:center;text-align:center;font-size:18px;font-weight:900}.grand b{background:#16a34a;color:white;height:100%;display:flex;align-items:center;justify-content:center}.footer{margin-top:28px;display:grid;grid-template-columns:1fr 1fr 120px;gap:20px}.footer input{border:0;border-bottom:1px solid #64748b;width:130px;text-align:center;color:#111827;-webkit-text-fill-color:#111827;background:transparent}
+
+/* The form sits on a WHITE sheet inside a dark app. Form controls do not
+   inherit colour from their container, so they were falling back to the dark
+   theme's white text - white on white. Every field looked empty and unusable;
+   the typing had been working all along, it just could not be seen.
+   Set explicitly here, once, for every control on the paper. */
+.paper input,
+.paper select,
+.paper textarea{color:#111827;-webkit-text-fill-color:#111827;caret-color:#111827}
+.paper input::placeholder{color:#9ca3af;-webkit-text-fill-color:#9ca3af}
+/* Read-only cells (Total Type) are computed, not broken - shown greyer so the
+   difference is visible rather than mysterious. */
+.paper input[readonly]{color:#4b5563;-webkit-text-fill-color:#4b5563;background:#f8fafc}
+/* Chrome's autofill repaints the field with its own colours; keep it legible. */
+.paper input:-webkit-autofill{-webkit-text-fill-color:#111827}
+
+/* THE FIELD BEING EDITED.
+   The table cells set `outline:0` and a transparent background, so clicking one
+   gave no feedback at all - on a dense grid of identical boxes there was no way
+   to tell which cell the keystrokes were going into, and it is easy to type a
+   figure into the row above or below. A grey fill marks it clearly and, unlike
+   an outline, is still obvious on a cell whose borders are already drawn. */
+.paper input:focus,
+.paper select:focus,
+.paper textarea:focus,
+.paper td input:focus{
+  background:#e2e8f0;
+  color:#111827;
+  -webkit-text-fill-color:#111827;
+  outline:2px solid #1677ff;
+  outline-offset:-2px;
+  border-radius:3px;
+}
+/* Read-only cells are computed: show they are focusable but not editable
+   rather than inviting a change that will be overwritten. */
+.paper input[readonly]:focus{
+  background:#f1f5f9;
+  outline:2px dashed #94a3b8;
+  outline-offset:-2px;
+}
+/* The whole row the caret sits in, so the eye can follow a long row across. */
+.paper tbody tr:focus-within{ background:#f8fafc; }
+
+/* ---------------------------------------------------------------------------
+   PRINT / EXPORT PDF  —  A4 LANDSCAPE
+   ---------------------------------------------------------------------------
+   This page had NO print stylesheet at all, so printing produced the whole dark
+   app chrome around a sheet sized for the screen, broken across portrait pages.
+
+   Landscape to match the Logbook, because the experience form is a wide
+   two-column grid; forced to portrait the right-hand column either shrinks to
+   unreadable or spills onto its own page away from its headings. */
+.pe-certify{display:none}
+
+@media print{
+  @page{size:A4 landscape;margin:8mm}
+
+  /* Only the sheet prints. Everything else is app furniture.
+     Hidden with display:none rather than visibility:hidden + absolute
+     positioning: the latter takes the sheet out of normal flow, and content
+     taller than one page is then CLIPPED at the first page instead of
+     paginating - which on a full experience record silently loses rows. */
+  .pe-page .paper{
+    width:auto;max-width:none;min-width:0;
+    margin:0;padding:0;
+    box-shadow:none;border-radius:0;
+    max-height:none;   /* the screen's 78vh scroll box would clip the page before it can be measured */
+    background:white;color:#000;
+  }
+  /* Always exactly one page, however many aircraft/sim rows a pilot has.
+     --print-fit-scale/-w/-h come from usePrintFit (PilotExperienceBuilder.jsx),
+     measured off the real rendered sheet rather than a fixed row-count guess.
+     transform doesn't change the element's own layout box, which is what
+     paginates print output - the explicit height here does, sized to exactly
+     the shrunk visual size so nothing spills onto a second page. This
+     replaces the previous "let it paginate, never clip" approach (see the
+     GRID DOES NOT PAGINATE note below) now that shrinking removes the reason
+     a second page was ever needed. */
+  .pe-page .paper{
+    transform:scale(var(--print-fit-scale,1));transform-origin:top left;
+    width:var(--print-fit-w,auto);
+    height:calc(var(--print-fit-h,0px) * var(--print-fit-scale,1));
+    overflow:hidden;
+  }
+  .module-header,.header-tools,.saved-strip,.upload-btn,.image-box-actions,.remove-btn{display:none !important}
+  /* The on-screen footer carries its own "Signature : ____" line. Left in, the
+     printed sheet would show two signature areas one above the other. The
+     Update date it also holds is reprinted inside the block below. */
+  .footer{display:none !important}
+
+  /* The photo and logo are part of the record - a signed experience summary
+     without the pilot's photograph is not the same document. Print colours are
+     forced because browsers drop background images and tints by default. */
+  .paper img{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .image-box{border:1px solid #666}
+  .grand b,th,.total td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* Fields are data here, not controls: no boxes, no grey fills. */
+  .paper input,.paper select,.paper textarea{
+    background:transparent !important;color:#000 !important;
+    -webkit-text-fill-color:#000 !important;
+    outline:0 !important;box-shadow:none !important;
+  }
+  .paper input[readonly]{background:transparent !important;color:#000 !important;-webkit-text-fill-color:#000 !important}
+  .paper tbody tr:focus-within{background:transparent !important}
+
+  /* GRID DOES NOT PAGINATE.
+     .top-grid / .exp-grid are two-column CSS grids holding the experience
+     tables. A grid container is not broken across printed pages the way a
+     block is, so anything past page 1 is dropped rather than continued - which
+     silently loses the bottom of a long record. Laid out as blocks for print
+     so the tables stack and break normally.
+     .paper-head, .summary and .grand are grids too but are single-row and
+     short, so they are left alone - their layout is the point (photo left,
+     title centre, photo right) and they cannot outgrow a page. */
+  .top-grid,.exp-grid{display:block!important}
+  .top-grid > *,.exp-grid > *{margin-bottom:12px}
+
+  table{font-size:10.5px}
+  th,td{height:auto;padding:3px 4px}
+  /* Rows, not whole tables. `break-inside:avoid` on a table taller than the
+     page cannot be honoured, and the browser's fallback is to push or clip it -
+     which loses the bottom of a long experience record. A row split across two
+     pages is unreadable; a table spanning two pages is normal. */
+  tr,td,th{page-break-inside:avoid;break-inside:avoid}
+  thead{display:table-header-group}          /* repeat headings on page 2+ */
+
+  /* Signature block, same shape as the Logbook's so the two documents read as
+     a set. Screen-hidden: on screen it is an editor, on paper it is a record
+     that has to say who certified it. */
+  .pe-certify{
+    display:block;margin-top:16px;
+    page-break-inside:avoid;break-inside:avoid;
+  }
+  .pe-certify-text{font-size:10.5px;color:#000;margin-bottom:4px}
+  .pe-certify-sigs{display:flex;gap:34px;margin-top:24px}
+  .pe-certify-sigs > div{flex:1;font-size:10.5px;text-align:center;color:#000}
+  .pe-sigline{border-bottom:1px solid #555;height:32px;margin-bottom:5px}
+}

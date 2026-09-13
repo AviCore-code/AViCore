@@ -1,0 +1,92 @@
+.allstatus-page{color:white;display:flex;flex-direction:column;flex:1;min-height:0}
+.allstatus-page .module-header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.allstatus-page .module-header h1{margin:0;font-size:28px;font-weight:900}
+.allstatus-page .module-header p{margin:6px 0 0;color:#94a3b8;font-size:13px}
+
+.allstatus-controls{display:flex;gap:10px;align-items:center}
+.allstatus-filter{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px;min-width:220px}
+.allstatus-controls button{padding:10px 16px;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:700;cursor:pointer}
+.allstatus-controls button.primary{background:linear-gradient(135deg,#1677ff,#0ea5e9);border-color:transparent;color:white}
+.allstatus-controls button:disabled{opacity:.5;cursor:default}
+
+.allstatus-page.allstatus-fullscreen{position:fixed;inset:0;z-index:500;background:#020617;padding:22px}
+.allstatus-print-area{display:flex;flex-direction:column;flex:1;min-height:0}
+
+/* 12 columns doesn't fit a normal window at readable widths, so this
+   scrolls horizontally (same pattern as the wide Report B table). It also
+   scrolls vertically WITHIN ITSELF (flex:1 + overflow-y:auto, filling
+   whatever the app shell leaves below the title row/controls above it)
+   rather than letting the whole page scroll around it - that's the only
+   configuration where .allstatus-head's position:sticky reliably works:
+   any non-"auto" overflow-y here (visible/clip/hidden) still creates its
+   own clipping context per the CSS overflow spec (a "visible" axis gets
+   force-upgraded to "auto" whenever the other axis isn't visible, so you
+   can't have one scrollable axis and a truly passthrough other axis on
+   the same element), and that context never itself scrolls if height is
+   left unconstrained - so sticky has nothing to visibly stick against. */
+.allstatus-scroll{flex:1;min-height:0;overflow:auto}
+.allstatus-table{display:flex;flex-direction:column;gap:6px;min-width:1180px}
+.allstatus-row{display:grid;grid-template-columns:1.8fr .8fr .9fr repeat(9,1fr);gap:10px;align-items:center;padding:12px 14px}
+.allstatus-head{font-size:10.5px;font-weight:800;color:#cbd5e1;text-transform:uppercase;letter-spacing:.05em;padding:8px 14px;position:sticky;top:0;z-index:2;background:linear-gradient(180deg,#0f1c33,#0b1526);border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+.allstatus-head span{white-space:nowrap}
+
+.allstatus-rowgroup{background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.15);border-radius:12px;overflow:hidden}
+.allstatus-rowgroup.open{border-color:rgba(22,119,255,.4)}
+.allstatus-row-btn{width:100%;background:transparent;border:none;cursor:pointer;font-family:inherit;text-align:left}
+.allstatus-row-btn:hover{background:rgba(148,163,184,.06)}
+.allstatus-name{font-weight:700;font-size:13px;color:#f1f5f9}
+
+.allstatus-cell{font-family:monospace;font-size:12.5px}
+.allstatus-cell small{color:#64748b;font-size:11px}
+.allstatus-cell.ok{color:#4ade80}
+.allstatus-cell.warn{color:#f59e0b}
+.allstatus-cell.exc{color:#ef4444}
+
+.allstatus-detail{padding:4px 16px 18px;border-top:1px solid rgba(148,163,184,.15)}
+.allstatus-detail .mystatus-section:first-of-type{margin-top:18px}
+
+.allstatus-export-msg{margin:-8px 0 14px;font-size:12px;color:#94a3b8}
+
+.allstatus-print-brand{display:none}
+.allstatus-print-title{display:none}
+
+/* Same letterhead + scoped print-area pattern used by Reports/MyExperience
+   (see the long comment on .myexp-print-brand in MyExperience.css): only
+   .allstatus-print-area stays visible when printing, everything else in
+   the app shell (sidebar, TopBar, filter/refresh controls, per-row expand
+   detail) is hidden. The printed report is always the flat summary table -
+   per-pilot expanded detail is a screen-only affordance, not part of the
+   report, so .allstatus-detail is force-hidden here regardless of the
+   on-screen expanded state. */
+@media print{
+  @page{size:A4 landscape;margin:2mm}
+  /* Print legibility: never break a word or a figure onto a second line
+     inside a cell - a duty/hours value split as "12345:" / "30" is
+     unreadable. Columns size to their content instead. */
+  .allstatus-print-area th,
+  .allstatus-print-area td,
+  .allstatus-print-area .allstatus-row > *,
+  .allstatus-print-area .allstatus-head > *{white-space:nowrap;word-break:normal;overflow-wrap:normal;hyphens:none;overflow:hidden;text-overflow:ellipsis}
+  body:has(.allstatus-page) *{visibility:hidden}
+  body:has(.allstatus-page) .no-print{display:none!important}
+  body:has(.allstatus-page) .allstatus-print-area,
+  body:has(.allstatus-page) .allstatus-print-area *{visibility:visible}
+  .allstatus-print-area{position:absolute;top:0;left:0;width:100%;background:white;color:black}
+  .allstatus-print-brand{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:6px}
+  .allstatus-print-brand img{height:34px;width:auto;object-fit:contain}
+  .allstatus-print-brand span{font-weight:800;font-size:14px;color:black}
+  .allstatus-print-title{display:block;font-size:16px;font-weight:900;color:black;margin-bottom:10px}
+
+  .allstatus-scroll{overflow:visible;max-height:none}
+  .allstatus-table{min-width:0}
+  .allstatus-row{grid-template-columns:1.6fr .7fr .8fr repeat(9,.7fr);gap:6px;padding:6px 8px}
+  .allstatus-head{position:static;background:#eee!important;color:black!important;box-shadow:none;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .allstatus-rowgroup{background:white;border-color:#999;border-radius:0;break-inside:avoid}
+  .allstatus-name{color:black;font-size:11px}
+  .allstatus-cell{font-size:10.5px}
+  .allstatus-cell.ok{color:#166534}
+  .allstatus-cell.warn{color:#92400e}
+  .allstatus-cell.exc{color:#991b1b}
+  .mystatus-badge{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .allstatus-detail{display:none!important}
+}

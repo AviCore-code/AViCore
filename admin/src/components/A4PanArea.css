@@ -1,0 +1,43 @@
+/* Layout mode toggle (Fit to Screen / A4 Layout) - same visual language as
+   the existing Flight Duty / Non-Flight Duty tab pair in DutyEntry.css
+   (.duty-entry-tabs), so it reads as "another tab-like control" rather than
+   a foreign widget. */
+.a4-mode-toggle{display:flex;gap:8px}
+.a4-mode-toggle button{padding:8px 14px;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap}
+.a4-mode-toggle button.active{background:#1677ff;border-color:#1677ff;color:white}
+
+/* The clipped window the A4 sheet pans around inside. Sized by its parent
+   (DutyEntry gives it a tall min-height so there's real room to pan on a
+   phone, rather than a sliver just big enough for one field). touch-action:
+   none hands ALL touch gestures inside this box to the JS pointer handlers -
+   without it, a phone browser's own scroll/pull-to-refresh fights the drag,
+   producing a viewport that scrolls the PAGE instead of panning the SHEET. */
+.a4pan-viewport{position:relative;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none;background:rgba(2,6,23,.35);border:1px solid rgba(148,163,184,.18);border-radius:14px;cursor:grab}
+.a4pan-viewport:active{cursor:grabbing}
+
+/* The fixed-size "sheet" - always A4_WIDTH x A4_HEIGHT CSS px (see
+   A4PanArea.jsx), scaled and translated entirely via the inline transform
+   set from JS. transform-origin stays at the default (top left) to match
+   the translate math in A4PanArea.jsx (pan.x/pan.y position the sheet's
+   top-left corner). A visible page-like background/shadow makes it read as
+   "a sheet of paper" sitting inside the darker viewport, and gives an
+   unambiguous edge to drag against. */
+.a4pan-sheet{position:absolute;top:0;left:0;transform-origin:0 0;background:#0b1220;border:1px solid rgba(148,163,184,.35);border-radius:6px;box-shadow:0 18px 44px rgba(0,0,0,.5);padding:22px;box-sizing:border-box;overflow:visible}
+
+/* Content inside the sheet keeps using its own existing classes (.duty-form
+   etc.) - this just resets the outer margin those blocks normally carry
+   (they were designed to sit directly in the page flow, with their own
+   margin-bottom) so nothing is fighting the fixed A4 canvas size. */
+.a4pan-sheet > *:last-child{margin-bottom:0!important}
+
+.a4pan-hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);font-size:11px;font-weight:700;letter-spacing:.03em;color:#cbd5e1;background:rgba(15,23,42,.82);border:1px solid rgba(148,163,184,.25);border-radius:999px;padding:5px 12px;pointer-events:none;opacity:1;animation:a4pan-hint-fade 4s ease forwards}
+@keyframes a4pan-hint-fade{0%,55%{opacity:1}100%{opacity:0}}
+
+/* Phones (portrait or landscape): give the pan viewport real vertical room.
+   On a wide desktop window the fit-to-screen scale is already close to 1
+   (little/no panning needed), so this taller minimum height is scoped to
+   small screens specifically - a tall empty viewport would be wasted space
+   on desktop otherwise. */
+@media (max-width:820px){
+  .a4pan-viewport{min-height:70vh}
+}

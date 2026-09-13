@@ -1,0 +1,177 @@
+.fatigue-page{color:white;display:flex;flex-direction:column;flex:1;min-height:0}
+.fatigue-page .module-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.fatigue-page .module-header h1{margin:0;font-size:28px;font-weight:900}
+.fatigue-page .module-header p{margin:6px 0 0;color:#94a3b8;font-size:13px;max-width:720px}
+
+.fatigue-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fatigue-actions label{font-size:12px;color:#94a3b8;display:flex;align-items:center;gap:6px}
+.fatigue-actions button,.fatigue-actions input{padding:9px 14px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:#cbd5e1;font-weight:800;font-size:12.5px;cursor:pointer;color-scheme:dark}
+.fatigue-actions button:hover{border-color:#475569}
+
+/* The sheet itself is rendered on WHITE even in the dark app, because it is a
+   reproduction of a printed control document - the Crew Scheduler compares it
+   side by side with the Excel original, and a dark recolour makes that harder,
+   not easier. */
+.fatigue-sheet{background:white;color:#111;border-radius:12px;padding:12px;display:flex;flex-direction:column;flex:1;min-height:0}
+.fatigue-sheet-head{flex:none;display:flex;align-items:center;gap:14px;margin-bottom:8px}
+.fatigue-asof{font-weight:900;color:#1d4ed8;font-size:13px;border:1px solid #c7d2fe;background:#eef2ff;padding:4px 10px;border-radius:6px}
+.fatigue-sheet-title{font-weight:900;color:#1d4ed8;font-size:14px}
+
+/* Fills whatever the app shell leaves below the title/date row, and scrolls
+   within itself - same auto-fill pattern as Pilot Roster/All Status, so the
+   sheet always reaches the bottom of the screen instead of a fixed 66vh
+   guess that left dead space on a tall monitor or cut rows short on a
+   laptop. */
+.fatigue-scroll{flex:1;min-height:0;overflow:auto;border:1px solid #cbd5e1;border-radius:8px}
+/* EVERY column shrinks to its content.
+   width:auto on the table (not 100%) plus nowrap everywhere means the browser
+   sizes each column to its widest cell and stops - no column is padded out to
+   fill space it doesn't need, which is what the fixed widths here used to do.
+   The table then sits at its natural width instead of being stretched. */
+.fatigue-table{border-collapse:separate;border-spacing:0;font-size:11.5px;width:auto}
+.fatigue-table th,.fatigue-table td{
+  border-right:1px solid #d7dee7;border-bottom:1px solid #d7dee7;
+  padding:4px 9px;text-align:center;white-space:nowrap
+}
+.fatigue-table thead th{
+  position:sticky;top:0;z-index:2;
+  background:linear-gradient(#eef3fa,#dde6f3);color:#0f2547;
+  font-weight:800;font-size:10.5px;line-height:1.3;
+  border-bottom:2px solid #9fb3cd;padding:5px 9px
+}
+/* The unit/limit caption under each heading, e.g. "(0.0-2.50)". Forced onto its
+   own line - inline it ran straight into the label and read as one long word. */
+.fatigue-table thead th small{display:block;font-weight:700;color:#5b6b80;font-size:9px;margin-top:2px;line-height:1.2}
+/* The seven day columns are the only repeating group, so they are given one
+   shared width and centred. Without this each sized itself to its own content
+   ("6:55" wider than "0:00") and the grid looked ragged; the date headings also
+   broke across two lines in the narrower ones. */
+.fatigue-table th.fatigue-day,
+.fatigue-table td.fatigue-day{
+  width:58px;min-width:58px;text-align:center;
+  white-space:nowrap!important;word-break:keep-all;
+  font-variant-numeric:tabular-nums
+}
+/* The date heading is a single token ("28-Jul") and must never be split at the
+   hyphen - "28-" above "Jul" is unreadable at a glance, which defeats the
+   point of a date column. */
+.fatigue-table th.fatigue-day{hyphens:none;overflow-wrap:normal;font-size:10px;padding-left:4px;padding-right:4px}
+
+/* Zebra striping, so the eye can follow a row of 15 figures across without
+   losing its place. Kept very light - the meaningful colour on this sheet is
+   the action band, and stripes must not compete with it.
+   Scoped to the plain day cells only: the tinted columns below carry meaning
+   through their colour, and a stripe painted over them would erase the very
+   grouping that makes the sheet readable. */
+.fatigue-table tbody tr:nth-child(even) td.fatigue-day,
+.fatigue-table tbody tr:nth-child(even) td.fatigue-no{background-color:#f4f7fb}
+.fatigue-table tbody tr:hover td.fatigue-day,
+.fatigue-table tbody tr:hover td.fatigue-no{background-color:#e8f2ff}
+
+/* Column identities. Three groups, each with its own tint:
+     green  - who the pilot is, and the flight-time totals
+     red    - duty and the index figures (the regulated numbers)
+     plain  - the day cells
+   The tints are what make a 15-column sheet readable at a glance; without them
+   it is a wall of digits. */
+.fatigue-no{color:#64748b;font-size:10.5px;padding-left:8px;padding-right:8px}
+/* white-space:nowrap is inherited from the shared th/td rule, but a long name
+   was still wrapping because the column had no room to grow. width:1% asks the
+   browser to give this column exactly its content width and no less. */
+.fatigue-name-col{text-align:left!important;background-color:#eaf3ea;font-weight:700;color:#14532d;padding-right:14px;width:1%;white-space:nowrap!important}
+.fatigue-code{background-color:#eaf3ea;font-weight:900;color:#166534;letter-spacing:.3px}
+.fatigue-dt{background-color:#fdeaea;color:#b91c1c;font-weight:800}
+.fatigue-day{color:#334155}
+/* A day with hours flown reads darker than an untouched 0:00, so the pattern of
+   a pilot's week is visible without reading every figure. */
+.fatigue-day.on{font-weight:800;color:#0f172a}
+.fatigue-total7{background-color:#e3f0e3;font-weight:800;color:#14532d;border-left:2px solid #b6cdb6}
+.fatigue-value{background-color:#fdeaea;font-weight:800;color:#7f1d1d;border-left:2px solid #e8bcbc}
+.fatigue-idx{background-color:#fdf3f3;font-weight:700;color:#7f1d1d}
+.fatigue-index-total{background-color:#fbe3e3;font-weight:900;color:#7f1d1d;border-left:2px solid #e8bcbc}
+
+/* Captain / Co-Pilot band rows. -webkit-print-color-adjust here as well as in
+   the print block: without it some renderers drop the fill and the two blocks
+   run together as one long list, which is exactly what the band is there to
+   prevent. */
+.fatigue-group td{
+  background:linear-gradient(#ccdcf0,#bcd0ea)!important;font-weight:900;color:#0f2547;
+  text-align:left;letter-spacing:1.2px;text-transform:uppercase;font-size:10.5px;
+  padding:5px 12px!important;border-top:2px solid #8fa9c8;border-bottom:2px solid #8fa9c8;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact
+}
+
+/* The two action bands. Only these get a strong fill - colouring by magnitude
+   would make perfectly legal figures look alarming and train people to ignore
+   the page. !important because the zebra stripe would otherwise win on even
+   rows, and the band is the one colour on this sheet that must never be lost. */
+/* Written at table-scope specificity, not just .class.class, so neither the
+   zebra stripe nor a hover state can ever repaint over an action band. This is
+   the one colour on the sheet that carries a regulatory instruction - if it is
+   lost, the page silently stops doing its job. */
+.fatigue-table tbody td.fatigue-index-total.monitor,
+.fatigue-table tbody tr:hover td.fatigue-index-total.monitor{
+  background-color:#fbbf24!important;background-image:none!important;
+  color:#452003!important;font-weight:900
+}
+.fatigue-table tbody td.fatigue-index-total.rest,
+.fatigue-table tbody tr:hover td.fatigue-index-total.rest{
+  background-color:#dc2626!important;background-image:none!important;
+  color:#ffffff!important;font-weight:900
+}
+
+/* The swatches here must be the SAME colours as the table cells above, or the
+   legend stops explaining the table. */
+.fatigue-legend{border-collapse:collapse;margin-top:14px;font-size:11px;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden}
+.fatigue-legend td{border:1px solid #d7dee7;padding:6px 10px;color:#111}
+.fatigue-legend-title{background:#e3f0e3;font-weight:900;text-align:center;width:150px;color:#14532d}
+.fatigue-legend-band{font-weight:900;text-align:center;width:76px}
+.fatigue-legend-band.monitor{background:#fbbf24;color:#452003}
+.fatigue-legend-band.rest{background:#dc2626;color:#fff}
+.fatigue-legend-text{background:white;color:#334155}
+
+.fatigue-empty{padding:20px;color:#64748b;text-align:center}
+.fatigue-flagged{margin-top:10px;padding:8px 12px;border-radius:8px;background:rgba(239,68,68,.14);border:1px solid rgba(239,68,68,.4);color:#fca5a5;font-size:12px}
+.fatigue-note{margin-top:8px;color:#94a3b8;font-size:11.5px;line-height:1.6}
+
+@media print{
+  @page{size:A4 landscape;margin:6mm}
+  body:has(.fatigue-page) *{visibility:hidden}
+  body:has(.fatigue-page) .no-print{display:none!important}
+  body:has(.fatigue-page) .fatigue-page,
+  body:has(.fatigue-page) .fatigue-page *{visibility:visible}
+  .fatigue-page{position:absolute;top:0;left:0;width:100%;color:black}
+  .fatigue-sheet{background:white;padding:0;border-radius:0}
+  .fatigue-scroll{overflow:visible;max-height:none}
+  .fatigue-table{font-size:7.5pt}
+  .fatigue-table th,.fatigue-table td{padding:1.5px 3px;border-color:#666}
+  /* thead is the browser's repeating region; sticky would break that. */
+  .fatigue-table thead{display:table-header-group}
+  .fatigue-table thead th{position:static;background:#dbe4f0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .fatigue-table tr{page-break-inside:avoid;break-inside:avoid}
+  .fatigue-group td{page-break-after:avoid;break-after:avoid}
+  /* Every fill has to survive the printer, or the sheet prints as grey digits.
+     print-color-adjust:exact is what stops the browser "helpfully" dropping
+     backgrounds to save ink. */
+  .fatigue-page *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .fatigue-name-col,.fatigue-code{background:#eaf3ea!important}
+  .fatigue-total7{background:#e3f0e3!important}
+  .fatigue-dt,.fatigue-value{background:#fdeaea!important}
+  .fatigue-idx{background:#fdf3f3!important}
+  .fatigue-index-total{background:#fbe3e3!important}
+  .fatigue-group td{background:#ccdcf0!important;color:#0f2547!important}
+  /* Same table-scope specificity as the screen rules - the plain
+     .fatigue-index-total fill above must never win over an action band. */
+  .fatigue-table tbody td.fatigue-index-total.monitor{background:#fbbf24!important;color:#452003!important}
+  .fatigue-table tbody td.fatigue-index-total.rest{background:#dc2626!important;color:#fff!important}
+  .fatigue-legend{page-break-inside:avoid;break-inside:avoid}
+  .fatigue-legend-band.monitor{background:#fbbf24!important;color:#452003!important}
+  .fatigue-legend-band.rest{background:#dc2626!important;color:#fff!important}
+}
+
+/* Shown when scoring criteria differ from the approved manual. Deliberately
+   NOT .no-print: a printout that reaches the regulator must carry the same
+   caveat as the screen. */
+.fatigue-criteria-warn{background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.5);border-radius:10px;padding:11px 14px;font-size:13px;color:#b45309;line-height:1.55;margin:0 0 12px}
+@media screen{.fatigue-criteria-warn{color:#fbbf24}}
+@media print{.fatigue-criteria-warn{background:#fff8e1;border:1.5px solid #b45309;color:#7c2d12;font-weight:600}}

@@ -1,0 +1,6 @@
+.datefield,.timefield{position:relative;display:flex;align-items:center;gap:0}
+.datefield input[type=text],.timefield input[type=text]{width:100%;padding:9px 30px 9px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px}
+.datefield input[type=text].invalid,.timefield input[type=text].invalid{border-color:#f87171;background:rgba(248,113,113,.08)}
+.datefield-pick,.timefield-pick{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:linear-gradient(90deg,#22d3ee,#7c3aed);border:none;font-size:12px;line-height:1;cursor:pointer;padding:5px 6px;border-radius:6px;opacity:.9}
+.datefield-pick:hover,.timefield-pick:hover{opacity:1;transform:translateY(-50%) scale(1.06)}
+.datefield-native,.timefield-native{position:absolute;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none;border:none}

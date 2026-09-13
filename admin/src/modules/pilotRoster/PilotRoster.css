@@ -1,0 +1,568 @@
+.pilotroster-tabwrap{color:white}
+.pilotroster-tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid rgba(148,163,184,.18);margin-bottom:18px;padding-bottom:0}
+.pilotroster-tab{padding:10px 16px;border-radius:10px 10px 0 0;border:1px solid transparent;background:transparent;color:#94a3b8;font-weight:800;font-size:12.5px;cursor:pointer;letter-spacing:.02em}
+.pilotroster-tab:hover{color:#e2e8f0}
+.pilotroster-tab.active{color:white;background:rgba(22,119,255,.14);border-color:rgba(22,119,255,.4);border-bottom-color:transparent}
+
+.roster-page{color:white}
+.roster-page .module-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;gap:20px}
+.roster-page .module-header h1{margin:0;font-size:28px;font-weight:900}
+.roster-page .module-header p{margin:6px 0 0;color:#94a3b8;font-size:13px}
+.roster-page .header-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.roster-page .header-tools button{padding:10px 16px;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:700;cursor:pointer}
+.roster-page .header-tools .primary{border:1px solid #1677ff;background:#1677ff;color:white;font-weight:800;cursor:pointer;transition:filter .15s}
+.roster-page .header-tools .primary:hover{filter:brightness(1.1)}
+.roster-page .header-tools button:disabled{opacity:.5;cursor:default}
+
+/* The standing "Suggest roster changes" tick, sat inline with the plan
+   buttons - a permanent preference, not something that only shows up after
+   a plan has already run. */
+.wplan-writeback-toggle{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#cbd5e1;cursor:pointer;white-space:nowrap}
+.wplan-writeback-toggle input{cursor:pointer}
+
+/* Destructive-but-confirmed action (Clear this range in Set Work Pattern) -
+   a red outline is enough distinction; it still goes through window.confirm()
+   before anything is deleted, so this isn't the only safeguard. */
+.roster-danger-btn{border:1px solid #ef4444!important;color:#fca5a5!important;background:transparent}
+.roster-danger-btn:hover:not(:disabled){background:rgba(239,68,68,.12)}
+
+/* Full Screen - same "takeover the viewport" pattern as All Status
+   (.allstatus-fullscreen). Shared by both Duty Schedule and Hours Summary
+   since they're both wrapped in .roster-page. */
+.roster-page.roster-fullscreen{position:fixed;inset:0;z-index:500;background:#020617;padding:22px;box-sizing:border-box;height:100vh;overflow:hidden}
+.roster-page:fullscreen{width:100vw;height:100vh;margin:0;background:#020617}
+
+/* A fixed-position flex page has no intrinsic block height for this nested
+   print wrapper in Chromium/PWA.  Its flex child (.roster-scroll) therefore
+   collapsed to the horizontal scrollbar only.  Give the Duty Schedule's
+   content region a viewport-derived height; the table keeps its normal scale
+   and scrolls inside this region when the roster is wider/taller. */
+.roster-page.roster-fullscreen .duty-print-area{
+  flex:0 0 auto;
+  height:calc(100vh - 210px);
+  min-height:260px;
+  overflow:hidden;
+}
+.roster-page.roster-fullscreen .duty-print-area .roster-scroll{
+  flex:1 1 auto;
+  height:auto;
+  min-height:180px;
+}
+
+.roster-export-msg{margin:-8px 0 14px;font-size:12px;color:#94a3b8}
+
+/* Fills the app's content pane down to the bottom of the screen automatically
+   and scrolls within itself - not via the whole page - so the app header and
+   sidebar rail never move. .roster-page stretches to the exact space the
+   shell (WebApp.css's .web-content) leaves below the app header/sidebar;
+   the print-area wrapper between it and .roster-scroll passes that space
+   straight through (flex:1;min-height:0) so .roster-scroll's own flex:1
+   claims whatever is left after the title row / month nav / legend above it
+   - real remaining space, not a hand-tuned pixel guess that drifts out of
+   sync whenever that chrome above it changes. */
+.roster-page{display:flex;flex-direction:column;flex:1;min-height:0}
+.duty-print-area,.hours-print-area,.weekly-print-area{display:flex;flex-direction:column;flex:1;min-height:0}
+.roster-scroll{flex:1;min-height:0;overflow:auto;background:rgba(15,23,42,.7);border:1px solid rgba(148,163,184,.15);border-radius:16px;padding:6px;box-shadow:0 20px 45px rgba(0,0,0,.25)}
+/* width:100% so the columns spread across the whole screen instead of
+   bunching up on the left; the table still scrolls sideways when its natural
+   (min-width) size is wider than the screen, e.g. a 31-day month. */
+.roster-table{border-collapse:separate;border-spacing:0;white-space:nowrap;font-size:13px;width:100%}
+
+.roster-table th,.roster-table td{padding:10px 14px;text-align:center;border-bottom:1px solid rgba(148,163,184,.14)}
+.roster-table th{border-bottom:1px solid rgba(148,163,184,.25)}
+
+.roster-table thead{position:sticky;top:0;z-index:1}
+.roster-table thead th{background:#111a2c;font-weight:800;color:#cbd5e1;font-size:11px;letter-spacing:.05em;text-transform:uppercase}
+.roster-table thead tr:first-child th{padding-top:14px}
+.roster-table thead tr:last-child th{padding-top:6px;padding-bottom:12px;color:#8ba4c9;font-size:10.5px}
+
+.roster-table tbody tr:nth-child(even){background:rgba(148,163,184,.04)}
+.roster-table tbody tr:hover{background:rgba(22,119,255,.08)}
+.roster-table tbody tr:last-child td{border-bottom:none}
+
+.roster-table td.name-cell{text-align:left;font-weight:700;color:#f1f5f9}
+.roster-table td.grand-cell{font-weight:800;color:#4ade80;background:rgba(74,222,128,.08)}
+.roster-table td.empty{padding:32px;color:#94a3b8;white-space:normal;text-align:center;font-size:13px}
+
+.roster-table thead tr:first-child th:nth-child(4),
+.roster-table thead tr:first-child th:nth-child(5){background:#152238}
+.roster-table thead tr:last-child th:nth-child(-n+5){background:#0f1a2e}
+
+/* ===================== Import panels ===================================
+   Shared by RosterImportPanel and WeeklyPlanImportPanel. These class names
+   were being used with no styling behind them, so the panels rendered as
+   unstyled blocks - given their own look here rather than borrowing
+   Settings.css, which isn't loaded on every build that shows them. */
+.roster-import-panel{background:rgba(15,23,42,.75);border:1px solid rgba(148,163,184,.2);border-radius:14px;padding:18px 20px;margin-bottom:18px;color:#e2e8f0}
+.roster-import-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:6px}
+.roster-import-head h2{margin:0;font-size:17px;font-weight:800}
+.roster-import-head button{padding:7px 14px;border-radius:9px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:700;cursor:pointer}
+.roster-import-fields{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0}
+.roster-import-fields .settings-field{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#94a3b8;font-weight:700}
+.roster-import-fields select,.roster-import-fields input{padding:9px 11px;border-radius:9px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px;min-width:180px}
+.roster-import-panel .settings-toggle{display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:#cbd5e1;line-height:1.5;margin:4px 0 12px;cursor:pointer}
+.roster-import-panel .settings-toggle input{margin-top:2px;flex:none}
+.roster-import-preview{background:rgba(148,163,184,.06);border-radius:10px;padding:12px 14px;font-size:13px;display:flex;flex-direction:column;gap:8px}
+.roster-import-panel .settings-actions{display:flex;gap:10px;flex-wrap:wrap}
+.roster-import-panel .settings-actions button{padding:9px 18px;border-radius:9px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:800;cursor:pointer}
+.roster-import-panel .settings-actions button.primary{background:#1677ff;border-color:#1677ff;color:white}
+.roster-import-panel .settings-actions button:disabled{opacity:.55;cursor:default}
+.roster-import-panel .settings-msg{font-size:12.5px;border-radius:9px;padding:9px 12px;line-height:1.5}
+.roster-import-panel .settings-msg.ok{background:rgba(74,222,128,.12);color:#86efac}
+.roster-import-panel .settings-msg.error{background:rgba(248,113,113,.12);color:#fca5a5}
+.roster-import-panel code{font-family:ui-monospace,Consolas,monospace;background:rgba(148,163,184,.14);padding:1px 5px;border-radius:4px;font-size:12px}
+
+/* GenerateTemplatePanel.jsx's own rows/preview/messages - previously used
+   with no styling behind them anywhere (rendered as unstyled blocks), same
+   gap the comment above already flagged for roster-import-panel itself. */
+.roster-import-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
+.roster-import-row label{font-size:12px;color:#94a3b8;font-weight:700}
+.roster-import-row select,.roster-import-row input[type="text"],.roster-import-row input[type="number"],.roster-import-row input[type="date"]{padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px}
+.roster-import-row button{padding:9px 16px;border-radius:9px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:800;cursor:pointer}
+.roster-import-row button.primary{background:#1677ff;border-color:#1677ff;color:white}
+.roster-import-row button:disabled{opacity:.55;cursor:default}
+
+.roster-msg{font-size:12.5px;border-radius:9px;padding:9px 12px;line-height:1.5;margin:8px 0}
+.roster-msg.ok{background:rgba(74,222,128,.12);color:#86efac}
+.roster-msg.error{background:rgba(248,113,113,.12);color:#fca5a5}
+
+.roster-preview{background:rgba(148,163,184,.06);border:1px solid rgba(148,163,184,.15);border-radius:12px;padding:14px 16px;margin-top:10px}
+.roster-preview h2{margin:0 0 8px;font-size:14.5px;font-weight:800;color:#f1f5f9}
+.roster-preview-list{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.roster-chip{background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.25);border-radius:999px;padding:4px 10px;font-size:11.5px;font-weight:700;color:#e2e8f0;font-family:ui-monospace,Consolas,monospace}
+.roster-preview-actions{display:flex;gap:10px;margin-top:10px}
+.roster-preview-actions button{padding:10px 18px;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:800;cursor:pointer}
+.roster-preview-actions button.primary{background:linear-gradient(135deg,#16a34a,#22c55e);border-color:transparent;color:white}
+.roster-preview-actions button.roster-danger-btn{background:linear-gradient(135deg,#dc2626,#ef4444)!important;border-color:transparent!important;color:white!important}
+.roster-preview-actions button:disabled{opacity:.55;cursor:default}
+
+/* Detect-pattern mode's own review table */
+.roster-detect-list{margin-top:8px}
+.roster-detect-table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0}
+.roster-detect-table thead th{text-align:left;padding:7px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;color:#94a3b8;border-bottom:1px solid rgba(148,163,184,.2)}
+.roster-detect-table td{padding:7px 10px;border-bottom:1px solid rgba(148,163,184,.08);color:#e2e8f0}
+.roster-detect-table tr.roster-detect-custom td{color:#fbbf24}
+.roster-detect-table tr.roster-detect-nodata td{color:#64748b}
+
+/* ===================== Weekly Schedule ================================== */
+.weekly-page .module-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:20px}
+.weekly-week-nav{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.weekly-week-nav button{padding:8px 14px;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:700;cursor:pointer}
+.weekly-week-nav input[type="date"]{padding:8px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px}
+.weekly-week-label{font-weight:800;font-size:13px;color:#e2e8f0}
+
+.weekly-table{border-collapse:separate;border-spacing:0;font-size:12.5px;width:100%}
+.weekly-table th,.weekly-table td{padding:7px 10px;text-align:center;vertical-align:middle;border-bottom:1px solid rgba(15,23,42,.1);border-right:1px solid rgba(15,23,42,.06)}
+.weekly-table thead th{background:#dbe1ea;color:#334155;font-weight:800;font-size:11px;position:sticky;top:0;z-index:2}
+.weekly-table thead th.today{background:#c7d7ef;box-shadow:inset 0 2px 0 #1677ff}
+.weekly-table thead th.weekend{background:#d3dae5}
+.weekly-day-num{font-weight:800;font-size:12.5px;display:block}
+.weekly-day-wd{font-size:9.5px;color:#64748b;text-transform:uppercase}
+
+.weekly-table .weekly-rowhead{position:sticky;left:0;z-index:1;background:#dbe1ea;color:#1e293b;text-align:left;min-width:150px;width:150px;padding:7px 12px;font-weight:800}
+.weekly-table thead .weekly-rowhead{z-index:3}
+.weekly-rowhead small{display:block;font-weight:600;font-size:9.5px;color:#64748b;line-height:1.35}
+.weekly-table tbody tr.section-start td{border-top:2px solid rgba(15,23,42,.22)}
+.weekly-table tbody td.weekend{background:rgba(15,23,42,.05)}
+.weekly-table tbody td.today{background:rgba(22,119,255,.1)}
+.weekly-table tbody td.dirty{background:rgba(245,158,11,.28)!important}
+
+.weekly-cell{display:inline-block;min-width:46px;font-weight:800;font-size:12px;letter-spacing:.02em;cursor:pointer}
+.weekly-cell-level{font-weight:600;color:#64748b;font-size:10.5px}
+/* "•" = computed level differs from the one imported from the spreadsheet;
+   "?" = no Experience data to compute from, so the imported figure is shown
+   unverified. Both are deliberately visible in the grid, not hidden in a
+   tooltip - a level people read and trust must show when it's uncertain. */
+.weekly-cell-level.stale{color:#b45309;font-weight:800}
+.weekly-cell-level.unverified{color:#94a3b8;font-style:italic}
+.weekly-cell-input{width:100%;min-width:52px;padding:3px;border-radius:5px;border:1px solid #1677ff;background:#fff;color:#0f172a;font-size:12px;text-align:center;font-weight:800}
+.weekly-cell.warn{color:#b45309}
+.weekly-cell.exc{color:#b91c1c;text-decoration:underline wavy rgba(185,28,28,.5)}
+.weekly-cell.off-cell{color:#475569;font-weight:700}
+.weekly-cell.crew-cell{color:#15803d}
+.weekly-cell.night-cell{color:#6d28d9}
+.weekly-cell.training-cell{color:#b45309}
+
+.weekly-warnings{margin-top:14px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.28);border-radius:12px;padding:12px 14px;font-size:12.5px;color:#fca5a5;line-height:1.6}
+.weekly-warnings h3{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#fca5a5}
+.weekly-warnings ul{margin:0;padding-left:18px}
+.weekly-warnings li{margin-bottom:3px}
+.weekly-hr-exc{color:#fca5a5}
+.weekly-hr-warn{color:#fcd34d}
+
+.weekly-warnings.clear{background:rgba(74,222,128,.08);border-color:rgba(74,222,128,.28);color:#86efac}
+.weekly-warnings.clear h3{color:#86efac}
+
+/* Used when the night line can't be planned because the Training tab has no
+   Night Currency dates - a missing prerequisite, not a normal note. */
+.weekly-note-alert{color:#fcd34d;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:9px;padding:9px 12px}
+
+/* ===================== Schedule Assistant (chat) ======================== */
+.wchat{background:rgba(15,23,42,.8);border:1px solid rgba(148,163,184,.22);border-radius:14px;margin-bottom:18px;color:#e2e8f0;display:flex;flex-direction:column;max-height:520px}
+.wchat-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid rgba(148,163,184,.15)}
+.wchat-head b{font-size:14px}
+.wchat-badge{margin-left:10px;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;border-radius:999px;background:rgba(148,163,184,.14);color:#94a3b8;font-weight:800}
+.wchat-badge.on{background:rgba(34,211,238,.16);color:#67e8f9}
+.wchat-head-actions{display:flex;gap:8px}
+.wchat-head-actions button{padding:6px 12px;border-radius:8px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-size:12px;font-weight:700;cursor:pointer}
+
+.wchat-setup{padding:14px 16px;border-bottom:1px solid rgba(148,163,184,.15);display:flex;flex-direction:column;gap:10px;background:rgba(2,6,23,.35)}
+.wchat-toggle{display:flex;align-items:center;gap:9px;font-size:12.5px;cursor:pointer}
+.wchat-field{display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:#94a3b8;font-weight:700}
+.wchat-field input,.wchat-field select{padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white;font-size:12.5px}
+.wchat-warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#fcd34d;border-radius:9px;padding:9px 12px;font-size:11.5px;line-height:1.6}
+.wchat-note{font-size:11.5px;color:#94a3b8;line-height:1.6}
+
+.wchat-log{flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;font-size:13px;line-height:1.6}
+.wchat-msg{max-width:88%;padding:9px 13px;border-radius:12px;white-space:pre-wrap}
+.wchat-user{align-self:flex-end;background:rgba(22,119,255,.18);border:1px solid rgba(22,119,255,.3)}
+.wchat-bot{align-self:flex-start;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.16)}
+.wchat-ai{align-self:flex-start;background:rgba(124,58,237,.14);border:1px solid rgba(124,58,237,.3)}
+.wchat-ai-tag{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#c4b5fd;font-weight:800;margin-bottom:5px}
+.wchat-typing{opacity:.65;font-style:italic}
+.wchat-bullet{padding-left:4px}
+
+/* Voice mode */
+.wchat-voicenote{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:9px 16px;font-size:11.5px;line-height:1.6;color:#fcd34d;background:rgba(245,158,11,.1);border-bottom:1px solid rgba(245,158,11,.25)}
+.wchat-voicenote button{background:transparent;border:none;color:#fcd34d;cursor:pointer;font-size:12px;flex:none}
+.wchat-head-actions .wchat-voice-on{border-color:rgba(34,211,238,.5);color:#67e8f9;background:rgba(34,211,238,.12)}
+.wchat-lang{padding:6px 8px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#cbd5e1;font-size:12px;font-weight:700}
+.wchat-listening{display:flex;align-items:center;gap:9px;padding:8px 16px;font-size:12.5px;color:#67e8f9;background:rgba(34,211,238,.08);border-top:1px solid rgba(34,211,238,.2)}
+.wchat-dot{width:9px;height:9px;border-radius:50%;background:#22d3ee;animation:wchat-pulse 1s ease-in-out infinite;flex:none}
+@keyframes wchat-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+.wchat-mic{width:42px;flex:none;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-size:16px;cursor:pointer}
+.wchat-mic.on{border-color:#22d3ee;background:rgba(34,211,238,.16);color:#67e8f9}
+.wchat-mic:disabled{opacity:.4;cursor:not-allowed}
+
+.wchat-input{display:flex;gap:8px;padding:12px 16px;border-top:1px solid rgba(148,163,184,.15)}
+.wchat-input input{flex:1;padding:10px 13px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px}
+.wchat-input button{padding:10px 20px;border-radius:10px;border:1px solid #1677ff;background:#1677ff;color:white;font-weight:800;cursor:pointer}
+.wchat-input button:disabled{opacity:.5;cursor:default}
+
+/* Training Pairings editor */
+.weekly-pairs-table{width:100%;border-collapse:collapse;font-size:12.5px;margin:12px 0}
+.weekly-pairs-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;padding:6px 8px;border-bottom:1px solid rgba(148,163,184,.2)}
+.weekly-pairs-table td{padding:5px 8px;border-bottom:1px solid rgba(148,163,184,.1)}
+.weekly-pairs-table input{width:100%;padding:7px 9px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white;font-size:12.5px}
+.weekly-pairs-table input[type="date"]{min-width:140px}
+.weekly-pairs-empty{color:#94a3b8;padding:16px 8px;text-align:center}
+.weekly-pairs-expired td{opacity:.55}
+.weekly-pairs-remove{background:transparent;border:1px solid rgba(248,113,113,.35);color:#fca5a5;border-radius:7px;padding:4px 9px;cursor:pointer;font-size:11px}
+.weekly-pairs-tag{margin-left:8px;font-size:10px;color:#fcd34d;text-transform:uppercase;letter-spacing:.04em}
+
+.weekly-print-brand{display:none}
+.weekly-print-title{display:none}
+
+/* ===================== Duty Schedule (calendar grid) ===================== */
+/* This whole block was missing even though DutySchedule.jsx's Full Screen /
+   Print / Export code has existed since it was first built - the buttons
+   worked (state toggled fine) but had zero supporting CSS, so Full Screen
+   didn't visually take over the screen and Print/Export rendered the raw
+   unstyled app shell instead of a clean roster grid. Rebuilt here to match
+   every class name DutySchedule.jsx actually renders (see the component for
+   the exact JSX), following the same dark-theme conventions as the rest of
+   Pilot Roster / All Status. */
+
+.roster-search{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px;min-width:200px}
+.roster-note{color:#94a3b8;font-size:11.5px;margin:0 0 10px}
+.duty-save-btn{background:linear-gradient(135deg,#16a34a,#22c55e)!important;border-color:transparent!important}
+
+.roster-month-nav{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+.roster-month-nav button{padding:8px 14px;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:700;cursor:pointer}
+.roster-month-nav input[type="month"]{padding:8px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px}
+
+.duty-print-brand{display:none}
+.duty-print-title{display:none}
+
+.duty-schedule-table{border-collapse:separate;border-spacing:0;font-size:12px;width:100%}
+.duty-schedule-table th,.duty-schedule-table td{padding:6px 8px;text-align:center;border-bottom:1px solid rgba(148,163,184,.14);border-right:1px solid rgba(148,163,184,.08);position:relative}
+.duty-schedule-table thead{position:sticky;top:0;z-index:2}
+.duty-schedule-table thead th{background:#111a2c;font-weight:800;color:#cbd5e1;font-size:10.5px}
+/* Weekend/today tints sit UNDER the code chips, so they're kept very faint -
+   stacked with the zebra striping and ~30 coloured chips per row, anything
+   stronger turns the grid into noise. Today still reads clearly thanks to
+   the blue bar on its header cell below. */
+.duty-schedule-table th.weekend,.duty-schedule-table td.weekend{background:rgba(148,163,184,.045)}
+.duty-schedule-table th.today,.duty-schedule-table td.today{background:rgba(22,119,255,.07)}
+.duty-schedule-table th.today{box-shadow:inset 0 2px 0 #1677ff}
+.day-num{font-weight:800;font-size:12px}
+.day-wd{font-size:9px;color:#8ba4c9;text-transform:uppercase}
+
+/* Code only now (no pilot name), so this column needs far less width - the
+   space goes to the day columns instead. */
+.duty-schedule-table .pilot-col{position:sticky;left:0;z-index:1;background:#0b1220;text-align:left;min-width:86px;width:86px;padding:8px 10px}
+/* The tfoot labels ("Captain on duty" etc.) are the only long text left in
+   this column - let them wrap onto two lines instead of forcing it wider. */
+.duty-schedule-table .crew-count-row .pilot-col{white-space:normal;line-height:1.25}
+.duty-schedule-table thead .pilot-col{z-index:3}
+.pilot-name{font-weight:700;font-size:12px;color:#f1f5f9;white-space:nowrap}
+/* Clicking a pilot's name/code opens "Set Work Pattern" preselected to that
+   pilot - the pointer cursor plus a hover underline is the only hint needed,
+   since the tooltip (title) already explains it on hover. */
+.pilot-col-clickable{cursor:pointer}
+.pilot-col-clickable:hover .pilot-name{text-decoration:underline}
+
+.duty-schedule-table tbody tr:nth-child(even) td:not(.pilot-col){background:rgba(148,163,184,.02)}
+.duty-schedule-table tbody tr:hover td:not(.pilot-col){background:rgba(22,119,255,.07)}
+.duty-schedule-table tbody td{cursor:pointer;min-width:30px;height:30px}
+.duty-schedule-table tbody td.dirty{background:rgba(245,158,11,.18)!important}
+.duty-schedule-table tbody td.cell-selected{outline:2px solid #1677ff;outline-offset:-2px}
+.duty-schedule-table tbody td.cell-in-range{background:rgba(22,119,255,.12)!important}
+
+/* Full fill chip, matching the company's "Roster Symbol" reference sheet -
+   each symbol fills its own colour (Settings > Roster Symbol), letters in
+   black. background/color come from the inline style (getCodeInfo's
+   style.bg/fg), so no !important here - that used to force "no fill" back
+   when cells were text-only. */
+.duty-code{display:inline-block;min-width:24px;padding:2px 6px;border-radius:5px;font-size:11.5px;font-weight:800;line-height:1.4;text-align:center}
+.duty-cell-input{width:100%;min-width:28px;padding:2px;border-radius:4px;border:1px solid #1677ff;background:#0b1220;color:white;font-size:11px;text-align:center}
+.fill-handle{position:absolute;right:1px;bottom:1px;width:7px;height:7px;background:#1677ff;border:1px solid white;cursor:crosshair}
+
+.crew-count-row td{font-size:10.5px;font-weight:800;color:#94a3b8;background:rgba(15,23,42,.5)}
+.crew-count-row .pilot-col{text-align:left;color:#cbd5e1}
+.crew-count-row.captain td{color:#7dd3fc}
+.crew-count-row.copilot td{color:#c4b5fd}
+.crew-count-row.unranked td{color:#f59e0b}
+.crew-count-row.total td{color:#4ade80;border-top:1px solid rgba(148,163,184,.25)}
+.crew-count-row.crews td{color:#f1f5f9}
+
+.roster-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:11px;color:#94a3b8}
+.legend-item{display:flex;align-items:center;gap:6px}
+/* Shows the code colour itself (cells are no longer filled) - a round dot
+   reads as "this is the text colour", not "this is a cell background". */
+.legend-swatch{display:inline-block;width:10px;height:10px;border-radius:50%}
+
+/* ===================== Light surface =====================================
+   The two roster tables sit on a light-grey panel instead of the app's dark
+   glass. A month grid is a dense wall of text and a dark background made it
+   tiring to scan for long stretches; light grey (rather than pure white)
+   keeps it soft while giving the pastel code chips - which are designed for
+   a light backdrop, see CATEGORY_STYLE - proper contrast. Scoped to
+   .roster-scroll, so the surrounding page chrome (title, buttons, month nav,
+   legend) stays on the dark theme like every other module. This block comes
+   after the rules it overrides on purpose; the print block below still wins
+   when printing. */
+.roster-scroll{background:#e9edf3;border-color:rgba(15,23,42,.14);box-shadow:0 18px 40px rgba(0,0,0,.35)}
+.roster-scroll .roster-table,
+.roster-scroll .duty-schedule-table{color:#1e293b}
+
+/* SCREEN ONLY - see the print blocks at the bottom of this file, which need
+   the opposite behaviour (table-layout:fixed at exactly 100% of the page so
+   fit-to-page works). These selectors are more specific than the print ones,
+   so they must not apply when printing or they'd silently defeat the
+   --print-font-scale fitting and push columns off the page edge.
+
+   On screen: at least as wide as the panel (so the columns spread across the
+   screen instead of bunching left), but never NARROWER than their content. A
+   plain width:100% let the browser squeeze columns below their natural size,
+   which pushed long names and hour totals up against - and past - the cell
+   edges. width:max-content + min-width:100% gives "fill the screen, then
+   grow and scroll if the content needs more". */
+@media screen{
+  .roster-scroll .roster-table,
+  .roster-scroll .duty-schedule-table{width:max-content;min-width:100%}
+}
+
+/* Everything sits dead centre in its cell, horizontally and vertically, on
+   every row - header, body and the footer count rows alike. */
+.roster-scroll th,.roster-scroll td{vertical-align:middle;text-align:center}
+.roster-scroll .duty-schedule-table .pilot-col,
+.roster-scroll .crew-count-row .pilot-col{text-align:center}
+
+/* Header rows - slightly darker grey than the surface so they read as a
+   header without a hard colour change. */
+.roster-scroll thead th{background:#dbe1ea;color:#334155}
+.roster-scroll .roster-table thead tr:last-child th{color:#475569}
+.roster-scroll .roster-table thead tr:first-child th:nth-child(4),
+.roster-scroll .roster-table thead tr:first-child th:nth-child(5),
+.roster-scroll .roster-table thead tr:last-child th:nth-child(-n+5){background:#d3dae5}
+
+/* Hours Summary cell spacing: a little more room left/right than top/bottom,
+   so the long hour figures (e.g. "12345:30") and the two-line headers keep
+   clear air on both sides instead of touching the column borders. Paired
+   with width:max-content above, this is what actually stops values running
+   into the cell edge. Screen-only for the same reason as the width rules
+   above: printing scales its own padding by --print-font-scale to fit one
+   page. */
+@media screen{
+  .roster-scroll .roster-table th,
+  .roster-scroll .roster-table td{padding:9px 16px}
+  .roster-scroll .roster-table td.name-cell{padding-right:22px}
+  .roster-scroll .roster-table thead th{padding-left:14px;padding-right:14px;white-space:nowrap}
+  /* Duty Schedule stays tight - it has ~31 day columns to fit. */
+  .roster-scroll .duty-schedule-table th,
+  .roster-scroll .duty-schedule-table td{padding:6px 9px}
+}
+
+/* Borders/zebra as light shading of the surface itself. */
+.roster-scroll th,.roster-scroll td{border-bottom-color:rgba(15,23,42,.1)}
+.roster-scroll .duty-schedule-table th,
+.roster-scroll .duty-schedule-table td{border-right-color:rgba(15,23,42,.06)}
+.roster-scroll .roster-table tbody tr:nth-child(even),
+.roster-scroll .duty-schedule-table tbody tr:nth-child(even) td:not(.pilot-col){background:rgba(15,23,42,.035)}
+.roster-scroll .roster-table tbody tr:hover,
+.roster-scroll .duty-schedule-table tbody tr:hover td:not(.pilot-col){background:rgba(22,119,255,.09)}
+.roster-scroll .duty-schedule-table th.weekend,
+.roster-scroll .duty-schedule-table td.weekend{background:rgba(15,23,42,.055)}
+.roster-scroll .duty-schedule-table th.today,
+.roster-scroll .duty-schedule-table td.today{background:rgba(22,119,255,.12)}
+
+/* Sticky pilot/code column - opaque so rows scrolling under it stay hidden. */
+.roster-scroll .duty-schedule-table .pilot-col{background:#dbe1ea}
+.roster-scroll .pilot-name{color:#0f172a}
+.roster-scroll .day-wd{color:#64748b}
+.roster-scroll .roster-table td.name-cell{color:#0f172a}
+.roster-scroll .roster-table td.grand-cell{color:#15803d;background:rgba(22,163,74,.12)}
+.roster-scroll .roster-table td.empty{color:#475569}
+
+/* Editing affordances re-tuned for the light surface. */
+.roster-scroll .duty-cell-input{background:#ffffff;color:#0f172a;border-color:#1677ff}
+.roster-scroll .duty-schedule-table tbody td.dirty{background:rgba(245,158,11,.3)!important}
+.roster-scroll .duty-schedule-table tbody td.cell-in-range{background:rgba(22,119,255,.16)!important}
+
+/* Daily headcount footer - darker hues of the same colour coding. */
+.roster-scroll .crew-count-row td{color:#475569;background:#dfe5ee}
+.roster-scroll .crew-count-row .pilot-col{color:#1e293b;background:#d3dae5}
+.roster-scroll .crew-count-row.captain td{color:#0369a1}
+.roster-scroll .crew-count-row.copilot td{color:#6d28d9}
+.roster-scroll .crew-count-row.unranked td{color:#b45309}
+.roster-scroll .crew-count-row.total td{color:#15803d;border-top-color:rgba(15,23,42,.2)}
+.roster-scroll .crew-count-row.crews td{color:#0f172a}
+
+/* Scoped print pattern for Duty Schedule - same approach as Hours Summary,
+   but its own print-area class since the two tabs' tables are structurally
+   different (calendar grid with fit-to-page font scale vs. flat 14-column
+   table). --print-font-scale is set inline per-render from
+   computePrintFontScale in DutySchedule.jsx. */
+@media print{
+  /* 5mm all round. @page is document-wide (it can't be scoped to one of the
+     two print blocks), so both roster tabs share it - and both size their
+     fit-to-page maths off the matching printable area, see
+     PRINT_PAGE_WIDTH_PX/HEIGHT_PX in DutySchedule.jsx and HoursSummary.jsx. */
+  @page{size:A4 landscape;margin:2mm}
+  body:has(.roster-page) *{visibility:hidden}
+  body:has(.roster-page) .no-print{display:none!important}
+  body:has(.roster-page) .duty-print-area,
+  body:has(.roster-page) .duty-print-area *{visibility:visible}
+  .duty-print-area{position:absolute;top:0;left:0;width:100%;background:white;color:black}
+  .duty-print-brand{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:6px}
+  .duty-print-brand img{height:34px;width:auto;object-fit:contain}
+  .duty-print-brand span{font-weight:800;font-size:14px;color:black}
+  .duty-print-title{display:block;font-size:16px;font-weight:900;color:black;margin-bottom:8px}
+
+  .roster-scroll{overflow:visible;max-height:none;background:none;border:none;box-shadow:none;padding:0}
+  .duty-schedule-table{font-size:calc(8.5px * var(--print-font-scale, 1))}
+  /* Same override as Hours Summary below - the screen block's more specific
+     selectors would otherwise reinstate max-content width / screen padding
+     and break the fit-to-page scaling. */
+  .roster-scroll .duty-schedule-table{width:100%!important;min-width:0!important}
+  .roster-scroll .duty-schedule-table th,
+  .roster-scroll .duty-schedule-table td{padding:calc(3px * var(--print-font-scale, 1)) calc(4px * var(--print-font-scale, 1))}
+  .duty-schedule-table th,.duty-schedule-table td{padding:calc(3px * var(--print-font-scale, 1)) calc(4px * var(--print-font-scale, 1));border-color:#ccc;color:black}
+  .duty-schedule-table thead th{background:#eee!important;color:black!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;position:static}
+  .duty-schedule-table th.weekend,.duty-schedule-table td.weekend{background:#f5f5f5!important}
+  .duty-schedule-table th.today,.duty-schedule-table td.today{background:#dbeafe!important;box-shadow:none}
+  .duty-schedule-table .pilot-col{position:static;background:white}
+  /* Beat the light-surface block above, which is more specific than the
+     plain selectors here. */
+  .roster-scroll .duty-schedule-table .pilot-col{background:white!important}
+  .roster-scroll .crew-count-row td,
+  .roster-scroll .crew-count-row .pilot-col{color:black!important;background:#f7f7f7!important}
+  .pilot-name{color:black}
+  .day-wd{color:#555}
+  /* The on-screen colours are already dark-on-light, so printing just needs
+     the browser told to keep them rather than dropping to black. */
+  .duty-code{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .duty-schedule-table tbody td.dirty,
+  .duty-schedule-table tbody td.cell-selected,
+  .duty-schedule-table tbody td.cell-in-range{background:none!important;outline:none}
+  .fill-handle{display:none}
+  .crew-count-row td{color:black;background:#f7f7f7!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .crew-count-row .pilot-col{color:black}
+}
+
+/* Scoped print pattern for Weekly Schedule - same approach as the other two
+   roster tabs. Only 7 day columns, so no fit-to-page scaling is needed; it
+   comfortably fits A4 landscape at a fixed size. */
+@media print{
+  @page{size:A4 landscape;margin:2mm}
+  body:has(.weekly-page) *{visibility:hidden}
+  body:has(.weekly-page) .no-print{display:none!important}
+  body:has(.weekly-page) .weekly-print-area,
+  body:has(.weekly-page) .weekly-print-area *{visibility:visible}
+  .weekly-print-area{position:absolute;top:0;left:0;width:100%;background:white;color:black}
+  .weekly-print-brand{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:6px}
+  .weekly-print-brand img{height:34px;width:auto;object-fit:contain}
+  .weekly-print-brand span{font-weight:800;font-size:14px;color:black}
+  .weekly-print-title{display:block;font-size:16px;font-weight:900;color:black;margin-bottom:8px}
+
+  .weekly-table{font-size:11px;width:100%}
+  .weekly-table th,.weekly-table td{padding:5px 6px;border-color:#ccc;color:black;white-space:nowrap;word-break:normal;hyphens:none}
+  .weekly-table thead th{background:#eee!important;color:black!important;position:static;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .weekly-table .weekly-rowhead{position:static;background:#f5f5f5!important;color:black;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .weekly-table tbody td.weekend{background:#f5f5f5!important}
+  .weekly-table tbody td.today,.weekly-table tbody td.dirty{background:none!important}
+  .weekly-cell{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .weekly-warnings{display:none}
+}
+
+.hours-print-brand{display:none}
+.hours-print-title{display:none}
+
+/* Scoped print pattern for Hours Summary - same approach as All Status
+   (.allstatus-print-area): only .hours-print-area stays visible when
+   printing, everything else in the app shell is hidden. */
+@media print{
+  /* 5mm all round. @page is document-wide (it can't be scoped to one of the
+     two print blocks), so both roster tabs share it - and both size their
+     fit-to-page maths off the matching printable area, see
+     PRINT_PAGE_WIDTH_PX/HEIGHT_PX in DutySchedule.jsx and HoursSummary.jsx. */
+  @page{size:A4 landscape;margin:2mm}
+  body:has(.roster-page) *{visibility:hidden}
+  body:has(.roster-page) .no-print{display:none!important}
+  body:has(.roster-page) .hours-print-area,
+  body:has(.roster-page) .hours-print-area *{visibility:visible}
+  .hours-print-area{position:absolute;top:0;left:0;width:100%;background:white;color:black}
+  .hours-print-brand{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:6px}
+  .hours-print-brand img{height:34px;width:auto;object-fit:contain}
+  .hours-print-brand span{font-weight:800;font-size:14px;color:black}
+  .hours-print-title{display:block;font-size:16px;font-weight:900;color:black;margin-bottom:10px}
+
+  .roster-scroll{overflow:visible;max-height:none;background:none;border:none;box-shadow:none;padding:0;width:100%}
+  /* Fit-to-page: font-size/padding are shrunk by --print-font-scale (set
+     inline per-page from computeHoursPrintFontScale in HoursSummary.jsx) so
+     all 14 columns and every pilot row actually fit one A4 landscape page
+     instead of the rightmost columns printing off the edge. */
+  /* One step down from 9.5px - the extra breathing room stops the widest
+     hour figures wrapping onto a second line inside their cell. */
+  /* nowrap + table-layout:auto: a value must never be split across two lines
+     ("12345:" / "30") or hyphenated mid-word - that's unreadable on a duty
+     record. Columns size themselves to their content instead, and the
+     --print-font-scale shrink is what makes the whole thing fit the page. */
+  .roster-table{font-size:calc(8.5px * var(--print-font-scale, 1));white-space:nowrap;width:100%;table-layout:auto}
+  .roster-table th,.roster-table td{padding:calc(4px * var(--print-font-scale, 1)) calc(5px * var(--print-font-scale, 1));border-bottom:1px solid #ccc;word-break:normal;overflow-wrap:normal;hyphens:none}
+  /* The light-surface block sets width/padding with a more specific selector
+     (.roster-scroll .roster-table ...), so restate them here at the same
+     depth - otherwise the table prints at its natural max-content width with
+     screen padding and the fit-to-page scaling above has no effect. */
+  .roster-scroll .roster-table{width:100%!important;min-width:0!important;table-layout:auto}
+  .roster-scroll .roster-table th,
+  .roster-scroll .roster-table td{padding:calc(4px * var(--print-font-scale, 1)) calc(5px * var(--print-font-scale, 1));white-space:nowrap}
+  /* The two-line column headers ("Total of" / "Helicopter") are authored as
+     separate header rows, so they still stack correctly with nowrap. */
+  .roster-scroll .roster-table thead th{white-space:nowrap}
+  /* Never break the table across pages - fit-to-page means one page. */
+  .hours-print-area,.hours-print-area table,.hours-print-area tr{page-break-inside:avoid;break-inside:avoid}
+  .roster-table thead th{background:#eee!important;color:black!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .roster-table thead tr:first-child th:nth-child(4),
+  .roster-table thead tr:first-child th:nth-child(5),
+  .roster-table thead tr:last-child th:nth-child(-n+5){background:#eee!important}
+  .roster-table td.name-cell{color:black;text-align:left}
+  .roster-table td.grand-cell{color:#166534;background:#e8f5e9!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+
+/* "Book on roster" in the training-to-book list, and the result line. */
+.wplan-book{margin-left:8px;padding:2px 9px;border-radius:7px;border:1px solid #334155;background:#1e293b;color:#e2e8f0;font-size:11.5px;cursor:pointer}
+.wplan-book:hover{background:#334155}
+.wplan-booked-ok{margin:8px 0 0;font-size:12px;color:#4ade80}
+.wplan-booked-err{margin:8px 0 0;font-size:12px;color:#f87171}

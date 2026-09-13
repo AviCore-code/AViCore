@@ -1,0 +1,53 @@
+/* Connection / pending-writes bar. Sits above everything, never on paper.
+   Anchored to the BOTTOM: at the top it covered the app header and pushed the
+   tab bar down every time the signal dropped, which on a phone is most of a rig
+   visit. Bottom edge is dead space on these pages, and it is also closer to the
+   thumb on the phones pilots actually use this on.
+
+   The bar and its detail list share one fixed wrapper, stacked as a column with
+   the list first. That way the list always sits directly on top of the bar with
+   no hardcoded offset - the old layout pinned the list to `top:38px`, which broke
+   whenever the bar's text wrapped to two lines on a narrow phone. */
+.offbar-wrap{position:fixed;left:0;right:0;bottom:0;z-index:9500;display:flex;flex-direction:column}
+.offbar{display:flex;align-items:center;gap:10px;padding:8px 14px;padding-bottom:max(8px,env(safe-area-inset-bottom));font:12.5px/1.5 system-ui,sans-serif;color:#0b1220}
+.offbar.off{background:#fbbf24}
+.offbar.pending{background:#60a5fa}
+/* Close button. Deliberately last and visually quieter than "Send now" - the
+   useful action is sending the work, not hiding the notice about it. */
+.offbar-close{flex:none;width:26px;height:26px;border-radius:7px;border:1px solid rgba(2,6,23,.25);background:rgba(2,6,23,.10);color:#0b1220;font-size:15px;line-height:1;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.offbar-close:hover{background:rgba(2,6,23,.20)}
+.offbar-dot{width:9px;height:9px;border-radius:50%;background:#0b1220;flex:none;animation:offbar-pulse 1.6s infinite}
+@keyframes offbar-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.offbar-text{flex:1;display:flex;flex-direction:column;line-height:1.35}
+/* Thai carries the message; English sits under it, smaller, for anyone who
+   prefers it. Both always present - a bar that appears mid-task is no place
+   to make someone hunt for a language switch. */
+.offbar-th{font-weight:700}
+.offbar-en{font-size:11px;opacity:.75}
+.offbar-link{background:rgba(2,6,23,.14);border:1px solid rgba(2,6,23,.25);color:#0b1220;border-radius:8px;padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer}
+.offbar-link:hover{background:rgba(2,6,23,.22)}
+/* Opens upward: it precedes .offbar in the column, so it stacks on top of it. */
+.offbar-list{max-height:44vh;overflow:auto;background:#0f172a;border-top:1px solid #334155;box-shadow:0 -10px 30px rgba(0,0,0,.4)}
+.offbar-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:9px 14px;border-bottom:1px solid #1e293b;color:#e2e8f0;font-size:12.5px}
+.offbar-item small{display:block;color:#94a3b8;font-size:11px;margin-top:2px}
+.offbar-item small.offbar-err{color:#fca5a5}
+.offbar-item button{background:#1e293b;border:1px solid #334155;color:#fca5a5;border-radius:8px;padding:4px 10px;font-size:11.5px;cursor:pointer}
+@media print{.offbar-wrap,.offbar,.offbar-list{display:none}}
+
+/* Conflict resolution: two versions of the same cell, side by side. */
+.conflict-backdrop{position:fixed;inset:0;background:rgba(2,6,23,.8);display:flex;align-items:center;justify-content:center;z-index:9600;padding:24px}
+.conflict{background:#0f172a;border:1px solid #334155;border-radius:14px;width:min(900px,96vw);max-height:88vh;overflow:auto;padding:18px;color:#e2e8f0}
+.conflict-head{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}
+.conflict-head b{font-size:15px}
+.conflict-head span{font-size:11.5px;color:#94a3b8}
+.conflict-note{font-size:12.5px;color:#cbd5e1;background:#1e293b;border-radius:10px;padding:10px 12px;margin:0 0 12px}
+.conflict-note small{color:#94a3b8}
+.conflict-table{width:100%;border-collapse:collapse;font-size:12.5px}
+.conflict-table th,.conflict-table td{border:1px solid #334155;padding:7px 9px;text-align:center}
+.conflict-table th{background:#1e293b;font-weight:700}
+.conflict-mine{color:#93c5fd;font-weight:700}
+.conflict-theirs{color:#fcd34d;font-weight:700}
+.conflict-actions{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:14px;flex-wrap:wrap}
+.conflict-hint{font-size:11.5px;color:#94a3b8}
+.conflict-actions .primary{background:#1677ff;border:1px solid #1677ff;color:white;border-radius:9px;padding:8px 18px;font-weight:700;cursor:pointer}
+@media print{.conflict-backdrop{display:none}}

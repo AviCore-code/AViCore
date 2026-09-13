@@ -1,0 +1,89 @@
+.duty-entry-page{color:white}
+.duty-entry-page .module-header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.duty-entry-page .module-header button{padding:10px 16px;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:700;cursor:pointer}
+.duty-entry-page .module-header h1{margin:0;font-size:28px;font-weight:900}
+.duty-entry-page .module-header p{margin:6px 0 0;color:#94a3b8;font-size:13px}
+
+.duty-entry-toprow{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+.duty-entry-topleft{display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.duty-entry-pilot{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#94a3b8}
+.duty-entry-pilot select{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:white;min-width:220px}
+.duty-entry-pilot-name{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:white;min-width:220px;font-weight:700;display:inline-block}
+
+/* Actual Duty (incl. Standby escalations, OPS-CM-01 7.9.2) for the date
+   currently being entered - shown right next to the pilot's name. */
+.duty-entry-actual{background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.18);border-radius:10px;padding:8px 12px;font-size:11px;color:#ffffff;min-width:260px}
+.duty-entry-actual-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:4px}
+.duty-entry-actual-hours{font-size:18px;font-weight:900;color:#e2e8f0;font-family:monospace}
+.duty-entry-actual-breakdown{margin-top:5px;font-size:11.5px;color:#ffffff;font-family:monospace;display:flex;flex-direction:column;gap:2px}
+.duty-entry-actual-substby{color:#ffffff;font-size:10px}
+.duty-entry-actual-eq{margin-top:3px;padding-top:3px;border-top:1px solid rgba(148,163,184,.25);font-weight:800;color:#ffffff}
+.duty-entry-actual-note{margin-top:4px;font-size:10.5px;color:#ffffff}
+.duty-entry-actual-badge{font-size:10px;font-weight:800;letter-spacing:.04em;padding:2px 7px;border-radius:6px;white-space:nowrap}
+.duty-entry-actual-badge.ok{background:rgba(74,222,128,.15);color:#4ade80}
+.duty-entry-actual-badge.warn{background:rgba(245,158,11,.15);color:#f59e0b}
+.duty-entry-actual-badge.exc{background:rgba(239,68,68,.15);color:#ef4444}
+
+.duty-entry-tabs{display:flex;gap:8px}
+.duty-entry-tabs button{padding:10px 18px;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:800;cursor:pointer}
+.duty-entry-tabs button.active{background:#1677ff;border-color:#1677ff;color:white}
+
+.duty-form{background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.18);border-radius:14px;padding:18px;margin-bottom:16px}
+.duty-form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px 14px;margin-bottom:14px;align-items:end}
+.duty-form-grid:last-child{margin-bottom:0}
+.duty-field{display:flex;flex-direction:column;gap:5px;font-size:11px;color:#94a3b8}
+.duty-field input,.duty-field select{padding:9px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px;width:100%}
+.duty-field-readonly{background:rgba(148,163,184,.08)!important;color:#94a3b8!important;font-family:monospace;font-weight:700;cursor:default}
+/* Route (and other free-text) needs room; numeric/time fields are cramped
+   at full cell width, so cap them and let the wide fields span. */
+.duty-field.wide{grid-column:span 2}
+.duty-field.narrow input{max-width:110px}
+.duty-crossday-note{font-size:12px;color:#7dd3fc;background:rgba(22,119,255,.08);border:1px solid rgba(125,211,252,.25);border-radius:8px;padding:8px 12px;margin-bottom:12px}
+
+.duty-legs{margin-bottom:14px}
+/* On a narrow phone screen, a plain fluid grid (1fr 1fr 70px 70px 2fr 32px)
+   squeezes EVERY column down proportionally to fit - including Route (the
+   2fr column), which is exactly the field that most needs room to type a
+   real "VTSH-CPOC-VTSH" string. Capt. Weera: "route area ให้ช่องยาวเท่าเดิม
+   ถึงแม้จะรันบนจอโทรศัพท์" - so instead the row gets a fixed MINIMUM total
+   width (sum of the same column widths used on desktop) and the wrapper
+   below scrolls horizontally once the viewport is narrower than that,
+   rather than ever shrinking the columns themselves. Same fixed-width-row
+   pattern as a spreadsheet or a real paper form: you scroll sideways to see
+   the rest of the row, the columns never get thinner than usable. */
+.duty-legs-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.duty-legs-head,.duty-legs-row{display:grid;grid-template-columns:1fr 1fr 70px 70px 2fr 32px;gap:8px;align-items:center;margin-bottom:6px;min-width:640px}
+.duty-legs-head span{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
+.duty-legs-row select,.duty-legs-row input{padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px;width:100%}
+.duty-legs-row button{background:transparent;border:none;color:#f87171;font-size:16px;cursor:pointer}
+
+.pilot-picker{position:relative}
+.pilot-picker input{padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px;width:100%;text-transform:uppercase}
+.pilot-picker-list{position:absolute;top:calc(100% + 4px);left:0;z-index:20;display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:column;gap:2px 6px;min-width:210px;max-height:260px;overflow-y:auto;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:8px;box-shadow:0 12px 32px rgba(0,0,0,.45)}
+.pilot-picker-list button{text-align:left;padding:6px 8px;border-radius:6px;border:none;background:transparent;color:#e2e8f0;font-size:12.5px;font-family:monospace;font-weight:700;cursor:pointer;white-space:nowrap}
+.pilot-picker-list button:hover{background:rgba(22,119,255,.18);color:#7dd3fc}
+
+.duty-roles{margin-bottom:14px}
+.duty-roles-head,.duty-roles-row{display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:8px;align-items:center;margin-bottom:6px}
+.duty-roles-head span{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
+.duty-roles-row select,.duty-roles-row input{padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px}
+.duty-roles-row button{background:transparent;border:none;color:#f87171;font-size:16px;cursor:pointer}
+.duty-add-role{margin-top:2px;padding:7px 12px;border-radius:8px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-size:12px;cursor:pointer}
+
+.duty-entry-actions{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+.duty-entry-actions .primary{padding:11px 22px;border-radius:10px;border:1px solid #1677ff;background:#1677ff;color:white;font-weight:800;cursor:pointer}
+.duty-entry-actions button:not(.primary){padding:11px 18px;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:700;cursor:pointer}
+.duty-entry-msg{font-size:12px;color:#4ade80}
+
+.duty-entry-listtitle{font-size:13px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px}
+.duty-entry-list{display:flex;flex-direction:column;gap:8px}
+.duty-entry-empty{color:#64748b;font-size:13px;padding:12px 2px}
+.duty-entry-row{display:flex;align-items:center;gap:12px;background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.15);border-radius:10px;padding:10px 14px}
+.duty-entry-row.editing{border-color:#1677ff;background:rgba(22,119,255,.08)}
+.duty-entry-tag{font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;flex:none}
+.duty-entry-tag.flight{background:rgba(22,119,255,.18);color:#60a5fa}
+.duty-entry-tag.non_flight{background:rgba(148,163,184,.18);color:#cbd5e1}
+.duty-entry-date{font-family:monospace;color:#e2e8f0;font-size:13px}
+.duty-entry-summary{flex:1;font-size:12.5px;color:#cbd5e1}
+.duty-entry-edit{background:transparent;border:1px solid #334155;color:#60a5fa;border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer}
+.duty-entry-del{background:transparent;border:1px solid #7f1d1d;color:#f87171;border-radius:8px;padding:6px 10px;font-size:11px;cursor:pointer}
