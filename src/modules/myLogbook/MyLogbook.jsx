@@ -141,32 +141,7 @@ export default function MyLogbook() {
       const rotor = groupHours(["rotarySingle", "rotaryMulti"]);
       const fixed = groupHours(["fixedSingle", "fixedMulti"]);
 
-      // PER-TYPE career hours, for the "Hours by Aircraft Type" table.
-      //
-      // Capt. Weera: the type totals must include Pilot Experience, not only what
-      // this app has recorded. A pilot with 4,000 hours on AW139 before AviCore
-      // existed would otherwise have shown a few hundred - a figure that looks
-      // authoritative on a printed extract and is badly wrong.
-      //
-      // combineAircraftRows does exactly this and is the SAME function the
-      // Experience page and the career totals above use: it takes each type's PES
-      // baseline and adds the duty entries flown on that type since the PES
-      // update date. Reusing it means the type table can never disagree with the
-      // "Total Rotor Wing" figure printed beside it.
-      const byType = new Map();
-      for (const key of ["rotarySingle", "rotaryMulti", "fixedSingle", "fixedMulti"]) {
-        const rows = (record.experienceBase?.[key] || []).map(normalizeAircraftRow);
-        for (const r of combineAircraftRows(rows, duty, combined.updateDate)) {
-          const type = String(r.row?.[0] || "").trim();
-          if (!type) continue;
-          // Same type can appear in more than one group on a record; add rather
-          // than overwrite so nothing is lost.
-          byType.set(type, (byType.get(type) || 0) + (r.totalDecimal || 0));
-        }
-      }
-
       setCareer({
-        byType,
         total: combined.current?.grand ?? 0,
         rotor,
         fixed,
@@ -244,66 +219,6 @@ export default function MyLogbook() {
   // spans several months; a two-week range shouldn't grow a subtotal row.
   const showMonthlySubtotals = months.length > 1;
 
-  // HOURS BY AIRCRAFT TYPE - 90 days, and everything ever flown.
-  //
-  // Capt. Weera asked for these on the printed extract ("รวม type aircraft
-  // (AW139) ในรอบ 90 วัน และทั้งหมดที่บินมา"). Two different questions:
-  //
-  //   90 days   recency - what a customer or an auditor checks to see the pilot
-  //             is current on the type they are rostered on.
-  //   Total     experience on type, over the pilot's whole record in this app.
-  //
-  // Computed from `entries` - the pilot's FULL duty history - and NOT from
-  // `rows`, which is only the printed date range. A 12-month extract must still
-  // report total hours on type across every year, not just the twelve months on
-  // the page.
-  //
-  // The two columns come from DIFFERENT sources, deliberately:
-  //
-  //   Total to date   career.byType - the Pilot Experience baseline plus duty
-  //                   entries flown since. Hours from before AviCore existed are
-  //                   the bulk of most pilots' time on type, so a total built
-  //                   only from app entries would be wrong by thousands of hours.
-  //   Last 90 days    counted from duty entries alone. A rolling recency window
-  //                   is only meaningful over recorded flights, and the PES
-  //                   baseline is a single lump with no dates inside it.
-  //
-  // Types are matched the way experienceCombine.js matches them - case- and
-  // space-insensitive - so "AW139" on a duty entry lines up with "AW 139" on the
-  // experience record instead of becoming a second row.
-  const typeTotals = useMemo(() => {
-    const norm = (v) => String(v || "").replace(/\s+/g, "").toUpperCase();
-    const cutoff90 = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
-
-    // Start from the career totals, so every type on the pilot's experience
-    // record appears even if they have not flown it recently.
-    const out = new Map();
-    for (const [type, total] of career?.byType || []) {
-      out.set(norm(type), { type, d90: 0, total });
-    }
-
-    for (const e of entries) {
-      if (e.dutyType !== "flight") continue;
-      const ft = hhmmToDecimal(e.totalFlightTime);
-      if (!ft) continue;
-      const label = (e.aircraftType || "").trim() || "(not specified)";
-      const key = norm(label);
-      if (!out.has(key)) {
-        // Flown in the app but absent from the experience record - carry its own
-        // running total rather than dropping it. Also covers entries with no
-        // type at all, grouped under "(not specified)" so the figures still add
-        // up to the pilot's real hours and the gap is visible rather than hidden.
-        out.set(key, { type: label, d90: 0, total: 0, fromDutyOnly: true });
-      }
-      const t = out.get(key);
-      if (t.fromDutyOnly) t.total += ft;
-      if (e.date >= cutoff90) t.d90 += ft;
-    }
-
-    // Heaviest type first - the one the pilot actually flies leads the table.
-    return [...out.values()].filter((t) => t.total > 0 || t.d90 > 0).sort((a, b) => b.total - a.total);
-  }, [entries, career]);
-
   // Columns that are ZERO for every row in the range are dropped.
   //
   // Capt. Weera, on a 12-month extract running off the side of A4 landscape:
@@ -374,43 +289,13 @@ export default function MyLogbook() {
     [pilotCode, exportMonths, wholeMonths]
   );
 
-  // Days the extract actually covers, both ends inclusive - printed in the
-  // document header when "End of month" is off, where the number of month rows
-  // in the table is not the span the pilot asked for. Built from the displayed
-  // dates, which applyMonths keeps identical to the export range.
-  const spanDays = useMemo(() => {
-    if (!from || !to) return 0;
-    // Parsed as UTC (the "T00:00:00Z" suffix) so a timezone offset can never
-    // knock the difference to 364 or 366.
-    const a = new Date(`${from}T00:00:00Z`);
-    const b = new Date(`${to}T00:00:00Z`);
-    if (isNaN(a) || isNaN(b)) return 0;
-    return Math.round((b - a) / 86400000) + 1;
-  }, [from, to]);
-
-  // True when the range sits on month boundaries, so counting month rows is a
-  // truthful description of it. Checked from the DATES rather than the
-  // `wholeMonths` tick, because the range can also be typed by hand - a pilot who
-  // picks 1 Jan to 31 Mar should get "(3M)" whatever the tick box says.
-  const startsOnFirstOfMonth = useMemo(() => {
-    if (!from || !to) return false;
-    const a = new Date(`${from}T00:00:00Z`);
-    const b = new Date(`${to}T00:00:00Z`);
-    if (isNaN(a) || isNaN(b)) return false;
-    const lastDayOfB = new Date(Date.UTC(b.getUTCFullYear(), b.getUTCMonth() + 1, 0)).getUTCDate();
-    return a.getUTCDate() === 1 && b.getUTCDate() === lastDayOfB;
-  }, [from, to]);
-
   // Spells out the exact dates the file will cover. The buttons only have room
   // for "12M", which does not say whether that ends today or at a month end -
   // and the two produce different documents.
   const rangeHint = (() => {
     const r = rangeForMonths(exportMonths, wholeMonths);
-    const days = Math.round((new Date(`${r.to}T00:00:00Z`) - new Date(`${r.from}T00:00:00Z`)) / 86400000) + 1;
-    return `${r.from} to ${r.to} — `
-      + (wholeMonths
-        ? `${exportMonths} whole calendar month${exportMonths === 1 ? "" : "s"}. `
-        : `${days} days (${exportMonths} month${exportMonths === 1 ? "" : "s"} back from today). `)
+    return `${r.from} to ${r.to} — ${exportMonths} month${exportMonths === 1 ? "" : "s"}, `
+      + `${wholeMonths ? "whole calendar months" : "counted back from today"}. `
       + `Uses this span whatever range is shown on screen.`;
   })();
 
@@ -479,7 +364,7 @@ export default function MyLogbook() {
     try {
       await withWholeMonthRange(async (wide) => {
         const result = await exportLogbookPdf(logbookFileName(pilotCode, exportMonths, wholeMonths, wide));
-        if (result?.ok && result.filePath) setMsg(result.message || `Saved: ${result.filePath}`);
+        if (result?.ok && result.filePath) setMsg(`Saved: ${result.filePath}`);
         else if (result && !result.ok && result.error) setMsg("Export failed: " + result.error);
       });
     } catch (err) {
@@ -499,7 +384,7 @@ export default function MyLogbook() {
             <p>
               Flight logbook — browse any date range on screen; Print and Export produce{" "}
               {exportMonths} month{exportMonths === 1 ? "" : "s"}{" "}
-              ({wholeMonths ? "whole calendar months" : `${spanDays} days counted back from today`})
+              ({wholeMonths ? "whole calendar months" : "counted back from today"})
             </p>
           </div>
           <div className="logbook-actions">
@@ -581,7 +466,7 @@ export default function MyLogbook() {
                 <small>
                   {wholeMonths
                     ? "Whole calendar months — monthly subtotals are complete months."
-                    : `Exactly ${spanDays} days back from today. The first and last months are part-months, so the table shows one more subtotal row than the number of months.`}
+                    : "Counted back from today — the first month is a part-month."}
                 </small>
               </span>
             </label>
@@ -593,19 +478,9 @@ export default function MyLogbook() {
       <div className="logbook-print-area">
         <div className="logbook-letterhead">
           <div className="logbook-title">✦ AviCore Flight Logbook</div>
-          {/* Describes the SPAN REQUESTED, not the number of month rows below.
-              Those differ whenever "End of month" is off: 12 months counted back
-              from 4 Aug starts on 5 Aug the previous year, so the table carries a
-              part-month at each end and shows 13 subtotal rows for a span that is
-              exactly 365 days. Printing "(13 months)" on a document a pilot hands
-              to a regulator read as an error in the extract.
-              Whole months are stated as months; a to-today span is stated in days,
-              which is the figure that is exact. */}
           <div className="logbook-sub">
             {from} to {to}
-            {" "}({wholeMonths
-              ? `${exportMonths} whole calendar month${exportMonths === 1 ? "" : "s"}`
-              : `${spanDays} days — ${exportMonths} month${exportMonths === 1 ? "" : "s"} back from today`})
+            {months.length > 0 && ` (${months.length} month${months.length === 1 ? "" : "s"})`}
             &nbsp;|&nbsp; Generated {today()}
           </div>
           {/* The identity block a logbook page is expected to carry, the same
@@ -702,18 +577,9 @@ export default function MyLogbook() {
                   {/* Labelled with the span actually covered, counted from the
                       rows present - NOT from exportMonths, which is only what
                       Print/Export will use. A hardcoded "(12M)" would have lied
-                      on a 3M extract, or on any hand-picked date range.
-                      Counting month rows is right for whole months, but wrong the
-                      moment the range starts mid-month: 365 days spans 13 rows,
-                      and "(13M)" on a one-year extract reads as a mistake. So a
-                      part-month range is labelled in days, which is exact however
-                      the range was chosen. */}
+                      on a 3M extract, or on any hand-picked date range. */}
                   <td colSpan={LEAD_COLS}>
-                    {!showMonthlySubtotals
-                      ? "Total"
-                      : startsOnFirstOfMonth
-                        ? `GRAND TOTAL (${months.length}M)`
-                        : `GRAND TOTAL (${spanDays} days)`}
+                    {showMonthlySubtotals ? `GRAND TOTAL (${months.length}M)` : "Total"}
                   </td>
                   <td className="logbook-strong">{decimalToHHMM(totals.ft)}</td>
                   {activeRoles.map((r) => <td key={r}>{decimalToHHMM(totals[r])}</td>)}
@@ -737,61 +603,6 @@ export default function MyLogbook() {
             Read from the Pilot Experience record (baseline + Daily Duty since),
             NOT summed from the rows above, so it reports a real career rather
             than only what this app has seen. */}
-        {/* THE TAIL OF THE DOCUMENT, kept together as one unit.
-            The career summary and the certification block used to be two
-            independent siblings after the table, each only carrying
-            break-inside:avoid. That stops either one splitting down the middle
-            but does nothing to stop the pair being separated - so the certify
-            TEXT ended one page and the signature LINES started the next, alone.
-            Wrapping them in a single break-inside:avoid block makes the browser
-            move the whole tail down together when it will not fit, which is what
-            keeps the signatures on the same page as the last rows of data. */}
-        <div className="logbook-tail">
-        {/* Hours by aircraft type - recency (90 days) beside total time on type.
-            Placed before the career summary so the type figures sit closest to
-            the flights they were derived from. */}
-        {typeTotals.length > 0 && (
-          <div className="logbook-summary">
-            <div className="logbook-summary-title">Hours by Aircraft Type</div>
-            <table className="logbook-summary-table">
-              <thead>
-                <tr>
-                  <th>Aircraft Type</th>
-                  {typeTotals.map((t) => <th key={t.type}>{t.type}</th>)}
-                  {typeTotals.length > 1 && <th className="logbook-summary-lead">All Types</th>}
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="logbook-typerow-label">Last 90 days</td>
-                  {typeTotals.map((t) => <td key={t.type}>{decimalToHHMM(t.d90)}</td>)}
-                  {typeTotals.length > 1 && (
-                    <td className="logbook-summary-lead">
-                      {decimalToHHMM(typeTotals.reduce((s, t) => s + t.d90, 0))}
-                    </td>
-                  )}
-                </tr>
-                <tr>
-                  <td className="logbook-typerow-label">Total to date</td>
-                  {typeTotals.map((t) => <td key={t.type}>{decimalToHHMM(t.total)}</td>)}
-                  {typeTotals.length > 1 && (
-                    <td className="logbook-summary-lead">
-                      {decimalToHHMM(typeTotals.reduce((s, t) => s + t.total, 0))}
-                    </td>
-                  )}
-                </tr>
-              </tbody>
-            </table>
-            {/* Said plainly rather than left for the reader to work out - the two
-                rows answer different questions and are drawn from different
-                sources. */}
-            <div className="logbook-summary-note">
-              Total to date includes Pilot Experience hours plus every flight recorded since.
-              Last 90 days counts recorded flights only. Neither row is limited to the range shown above.
-            </div>
-          </div>
-        )}
-
         {career && (() => {
           // Built as a real <table> rather than a CSS grid. A grid has to be
           // re-declared as display:table for print, and print engines disagree
@@ -855,7 +666,6 @@ export default function MyLogbook() {
             </div>
           </div>
         )}
-        </div>
       </div>
     </div>
   );

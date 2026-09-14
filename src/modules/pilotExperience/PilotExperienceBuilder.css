@@ -66,23 +66,8 @@
     width:auto;max-width:none;min-width:0;
     margin:0;padding:0;
     box-shadow:none;border-radius:0;
-    max-height:none;   /* the screen's 78vh scroll box would clip the page before it can be measured */
+    max-height:none;overflow:visible;   /* the screen's 78vh scroll box would clip the page */
     background:white;color:#000;
-  }
-  /* Always exactly one page, however many aircraft/sim rows a pilot has.
-     --print-fit-scale/-w/-h come from usePrintFit (PilotExperienceBuilder.jsx),
-     measured off the real rendered sheet rather than a fixed row-count guess.
-     transform doesn't change the element's own layout box, which is what
-     paginates print output - the explicit height here does, sized to exactly
-     the shrunk visual size so nothing spills onto a second page. This
-     replaces the previous "let it paginate, never clip" approach (see the
-     GRID DOES NOT PAGINATE note below) now that shrinking removes the reason
-     a second page was ever needed. */
-  .pe-page .paper{
-    transform:scale(var(--print-fit-scale,1));transform-origin:top left;
-    width:var(--print-fit-w,auto);
-    height:calc(var(--print-fit-h,0px) * var(--print-fit-scale,1));
-    overflow:hidden;
   }
   .module-header,.header-tools,.saved-strip,.upload-btn,.image-box-actions,.remove-btn{display:none !important}
   /* The on-screen footer carries its own "Signature : ____" line. Left in, the

@@ -1,0 +1,21 @@
+.crewacc-page { color: #e2e8f0; }
+.crewacc-page .module-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.crewacc-page .module-header h1 { margin: 0; font-size: 26px; font-weight: 900; }
+.crewacc-page .module-header p { margin: 6px 0 0; color: #94a3b8; font-size: 13px; max-width: 640px; }
+.crewacc-filter { padding: 9px 12px; border-radius: 10px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 13px; }
+.crewacc-page button { padding: 8px 14px; border-radius: 9px; border: 1px solid #334155; background: transparent; color: #cbd5e1; font-weight: 700; cursor: pointer; }
+.crewacc-error { color: #f87171; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
+.crewacc-msg { color: #4ade80; background: rgba(74,222,128,.1); border: 1px solid rgba(74,222,128,.3); border-radius: 8px; padding: 10px 14px; margin-bottom: 10px; }
+.crewacc-empty { color: #64748b; font-size: 13px; padding: 12px 2px; }
+
+.crewacc-table { display: flex; flex-direction: column; gap: 3px; }
+.crewacc-tr { display: grid; grid-template-columns: 90px 1.4fr 1.2fr 2fr; gap: 12px; align-items: center; padding: 10px 14px; border-radius: 9px; background: rgba(15,23,42,.55); font-size: 13px; }
+.crewacc-tr-edit { background: rgba(22,119,255,.12); }
+.crewacc-th { background: transparent; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #64748b; padding-bottom: 2px; }
+.crewacc-code { font-family: monospace; font-weight: 800; color: #7dd3fc; }
+.crewacc-has { color: #4ade80; font-size: 12px; }
+.crewacc-none { color: #64748b; font-size: 12px; }
+.crewacc-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.crewacc-pw { padding: 8px 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 13px; min-width: 160px; }
+.crewacc-eye { padding: 8px 10px !important; }
+.crewacc-save { border-color: #1677ff !important; background: #1677ff !important; color: #fff !important; }

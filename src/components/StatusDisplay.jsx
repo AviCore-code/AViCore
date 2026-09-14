@@ -80,7 +80,7 @@ export function RecoveryRestCard({ result, limits }) {
           <span className={`mystatus-badge ${status}`}>{STATUS_LABEL[status]}</span>
         </div>
         {lastQualifyingRestEnd && ongoing && (
-          <div className="mystatus-note">Currently resting — Recovery Rest completed and status returned to normal.</div>
+          <div className="mystatus-note">Currently resting — already counts as the next Recovery Rest (started on time)</div>
         )}
         {lastQualifyingRestEnd && !ongoing && deadline && (
           <div className="mystatus-note">Next Recovery Rest must start before {formatDateTime(deadline)}</div>

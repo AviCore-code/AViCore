@@ -1,0 +1,38 @@
+.crewset-page { color: #e2e8f0; max-width: 760px; }
+.crewset-title { font-size: 26px; font-weight: 900; margin: 0 0 16px; }
+.crewset-card {
+  background: rgba(15,23,42,.65); border: 1px solid rgba(148,163,184,.18);
+  border-radius: 14px; padding: 18px 20px; margin-bottom: 16px;
+}
+.crewset-card h2 { margin: 0 0 4px; font-size: 16px; font-weight: 800; }
+.crewset-note { margin: 0 0 12px; color: #94a3b8; font-size: 12.5px; }
+.crewset-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
+.crewset-label { min-width: 90px; font-size: 13px; color: #cbd5e1; font-weight: 700; }
+.crewset-choices { display: flex; gap: 8px; flex-wrap: wrap; }
+.crewset-choices button {
+  padding: 9px 16px; border-radius: 10px; border: 1px solid #334155;
+  background: transparent; color: #cbd5e1; font-weight: 700; font-size: 13px; cursor: pointer;
+}
+.crewset-choices button.active { background: #1677ff; border-color: #1677ff; color: #fff; }
+.crewset-about { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.crewset-about div { display: flex; justify-content: space-between; gap: 12px; font-size: 13.5px; border-bottom: 1px solid rgba(148,163,184,.1); padding-bottom: 8px; }
+.crewset-about span { color: #94a3b8; }
+.crewset-about b { color: #e2e8f0; font-family: monospace; }
+
+/* "Prepare for offline" progress. A real count, not a spinner: a pilot about
+   to walk out to the aircraft needs to know whether this takes five seconds
+   or a minute. */
+.crewset-prep { margin-top: 10px; }
+.crewset-prep-bar {
+  height: 6px; border-radius: 999px; background: rgba(148, 163, 184, .18); overflow: hidden;
+}
+.crewset-prep-bar i { display: block; height: 100%; background: var(--acw-accent); transition: width .2s ease; }
+.crewset-prep small { display: block; margin-top: 6px; color: var(--acw-text-dim); font-size: 11.5px; }
+.crewset-prep-ok { margin-top: 10px; color: #4ade80; font-size: 12.5px; }
+.crewset-prep-warn {
+  margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+  background: rgba(251, 191, 36, .1); border: 1px solid rgba(251, 191, 36, .35);
+  color: var(--acw-text); font-size: 12.5px; line-height: 1.6;
+}
+.crewset-prep-warn b { color: #fbbf24; }
+.crewset-prep-warn ul { margin: 6px 0; padding-left: 18px; }

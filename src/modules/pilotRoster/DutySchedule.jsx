@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { listRoster, listRosterPilots, listExperience, importRosterMany, deleteRosterEntry, getSetting} from "../../services/desktopDatabase.js";
-import { getCodeInfo, listRosterSymbols, listCompensateSymbols, applyRosterSymbolCustomizations } from "./rosterCodes.js";
+import { useEffect, useMemo, useState } from "react";
+import { listRoster, listRosterPilots, listExperience, importRosterMany, deleteRosterEntry, getSetting, exportLogbookPdf } from "../../services/desktopDatabase.js";
+import { getCodeInfo, CATEGORY_ORDER, CATEGORY_LABELS, CATEGORY_STYLE } from "./rosterCodes.js";
 import { isDemoPilotCode } from "../../config/demoUsers.js";
 import RosterImportPanel from "./RosterImportPanel.jsx";
 import GenerateTemplatePanel from "./GenerateTemplatePanel.jsx";
@@ -143,9 +143,9 @@ export default function DutySchedule() {
   const [editingCell, setEditingCell] = useState(null); // { pilotCode, iso }
   const [savingAll, setSavingAll] = useState(false);
   const [branding, setBranding] = useState(null);
-  const [rosterSymbols, setRosterSymbols] = useState(() => [...listRosterSymbols(), ...listCompensateSymbols()]);
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState("");
   const [fullScreen, setFullScreen] = useState(false);
-  const rosterPageRef = useRef(null);
   // Batch edit: cells clicked/typed into aren't written to the database
   // right away - they're staged here (keyed by "pilotCode::iso") until the
   // person hits SAVE, so several edits across the grid can be made first
@@ -177,42 +177,36 @@ export default function DutySchedule() {
 
   useEffect(() => {
     getSetting("customer_branding").then((saved) => setBranding(saved || null));
-    // Settings > Roster Symbol - label/colour overrides and any admin-added
-    // custom code, so this page's cells and legend match what was saved
-    // there, not just the built-in defaults.
-    getSetting("roster_symbol_customizations").then((saved) => {
-      applyRosterSymbolCustomizations(saved || {});
-      setRosterSymbols([...listRosterSymbols(), ...listCompensateSymbols()]);
-    });
   }, []);
 
-  // Keep React state aligned with the browser's native Fullscreen state.
-  // Escape is handled by the browser and fires fullscreenchange here.
+  // Esc exits Full Screen (in addition to the toggle button) - only wired
+  // up while fullScreen is on, so it never steals Escape from the inline
+  // cell-edit input's own Escape-to-cancel handler.
   useEffect(() => {
-    function onFullscreenChange() {
-      setFullScreen(document.fullscreenElement === rosterPageRef.current);
+    if (!fullScreen) return;
+    function onKey(e) {
+      if (e.key === "Escape") setFullScreen(false);
     }
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
-  }, []);
-
-  async function toggleFullScreen() {
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-      } else {
-        await rosterPageRef.current?.requestFullscreen();
-      }
-    } catch {
-      // Fallback for browsers/PWA shells that block the native API.
-      setFullScreen((value) => !value);
-    }
-  }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullScreen]);
 
   // Same generic "print the current window to PDF" mechanism the All
   // Status page uses (see AllStatus.jsx's handleExport / logbook:exportPdf
   // in main.cjs) - it just rasterizes whatever's currently visible, so the
   // print-only .duty-print-area below is what actually ends up in the file.
+  async function handleExport() {
+    setExporting(true);
+    setExportMsg("");
+    try {
+      const result = await exportLogbookPdf(`DutySchedule_${monthKey}.pdf`);
+      if (result?.ok && result.filePath) setExportMsg(`Saved: ${result.filePath}`);
+    } catch (err) {
+      setExportMsg("Export failed: " + err.message);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function refresh() {
     setLoading(true);
@@ -528,7 +522,7 @@ export default function DutySchedule() {
   }, [numDays, filtered.length, hasUnranked, branding]);
 
   return (
-    <div ref={rosterPageRef} className={`roster-page${fullScreen ? " roster-fullscreen" : ""}`}>
+    <div className={`roster-page${fullScreen ? " roster-fullscreen" : ""}`}>
       <div className="module-header no-print">
         <div>
           <h1>Duty Schedule</h1>
@@ -553,10 +547,10 @@ export default function DutySchedule() {
           >
             {showPlanTraining ? "Hide Plan Training" : "Plan Training"}
           </button>
-          {/* Per-page Refresh removed - the sidebar's single Refresh (full
-              page reload) now covers this. refresh() itself stays. */}
-          <button onClick={() => window.print()} disabled={!filtered.length}>Print / Save PDF</button>
-          <button onClick={toggleFullScreen}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
+          <button onClick={refresh}>Refresh</button>
+          <button onClick={() => window.print()} disabled={!filtered.length}>Print</button>
+          <button className="primary" onClick={handleExport} disabled={exporting || !filtered.length}>{exporting ? "Exporting..." : "Export PDF"}</button>
+          <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
           {pendingEdits.size > 0 && (
             <button onClick={handleDiscardAll} disabled={savingAll}>Discard ({pendingEdits.size})</button>
           )}
@@ -570,6 +564,7 @@ export default function DutySchedule() {
           </button>
         </div>
       </div>
+      {exportMsg && <div className="roster-export-msg no-print">{exportMsg}</div>}
       <p className="roster-note no-print">
         Click a cell to select it, double-click (or Enter) to edit. Drag to select a range, Ctrl+C / Ctrl+V to copy-paste, Delete to clear, or drag the small square at a selected cell's corner to fill a range with its value - like Excel. Nothing is written until you hit SAVE.
       </p>
@@ -784,18 +779,16 @@ export default function DutySchedule() {
         <p className="roster-note no-print">{pendingEdits.size} unsaved change(s) - highlighted in amber. Click SAVE above to commit them.</p>
       )}
 
-      {/* Duty-code legend - one entry per SYMBOL (code, colour, label). Uses
-          gridColor, not the Settings-tab identity colour, so this always
-          matches what the cells above actually show: green for O, yellow
-          for X, pink for everything else, red text for a Compensate Day
-          swap. Screen-only, left off Print/Export PDF per request so the
-          printed page is just the roster grid without the definitions
-          line. */}
+      {/* Duty-code legend (Day/Duty/Off/Rest/... swatches) - screen-only
+          reference, left off Print/Export PDF per request so the printed
+          page is just the roster grid without the definitions line. */}
       <div className="roster-legend no-print">
-        {rosterSymbols.map((s) => (
-          <div className="legend-item" key={s.code}>
-            <span className="legend-swatch" style={{ background: s.gridColor }} />
-            <strong style={s.textColor ? { color: s.textColor } : undefined}>{s.code}</strong>&nbsp;{s.label}
+        {CATEGORY_ORDER.filter((c) => c !== "unknown").map((cat) => (
+          <div className="legend-item" key={cat}>
+            {/* Cells aren't filled any more - the legend shows the code
+                colour as a dot instead of a background swatch. */}
+            <span className="legend-swatch" style={{ background: CATEGORY_STYLE[cat].fg }} />
+            {CATEGORY_LABELS[cat]}
           </div>
         ))}
       </div>

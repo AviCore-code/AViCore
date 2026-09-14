@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { listExperience, loadExperience, listDutyEntriesByPilot, getSetting} from "../../services/desktopDatabase.js";
+import { listExperience, loadExperience, listDutyEntriesByPilot, getSetting, exportLogbookPdf } from "../../services/desktopDatabase.js";
 import { combineExperience, combineAircraftRows, combineSpecialty, sumCombinedTotal, decimalToHHMM } from "../../utils/experienceCombine.js";
 import { normalizeAircraftRow } from "../../utils/timeMath.js";
 import { isDemoPilotCode } from "../../config/demoUsers.js";
@@ -62,6 +62,8 @@ export default function HoursSummary() {
   const [pilots, setPilots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [branding, setBranding] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState("");
   const [fullScreen, setFullScreen] = useState(false);
 
   useEffect(() => {
@@ -84,6 +86,20 @@ export default function HoursSummary() {
     const hasBranding = !!(branding?.logo || branding?.name);
     return computeHoursPrintFontScale(pilots.length, hasBranding);
   }, [pilots.length, branding]);
+
+  async function handleExport() {
+    setExporting(true);
+    setExportMsg("");
+    try {
+      const stamp = new Date().toISOString().slice(0, 10);
+      const result = await exportLogbookPdf(`HoursSummary_${stamp}.pdf`);
+      if (result?.ok && result.filePath) setExportMsg(`Saved: ${result.filePath}`);
+    } catch (err) {
+      setExportMsg("Export failed: " + err.message);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   async function refresh() {
     setLoading(true);
@@ -117,12 +133,13 @@ export default function HoursSummary() {
           <p>Experience summary for all pilots — PIC/PICUS/SIC/Grand Total include Daily Duty logged since each pilot's PES Update date</p>
         </div>
         <div className="header-tools">
-          {/* Per-page Refresh removed - the sidebar's single Refresh (full
-              page reload) now covers this. refresh() itself stays. */}
-          <button onClick={() => window.print()} disabled={!pilots.length}>Print / Save PDF</button>
+          <button onClick={refresh}>Refresh</button>
+          <button onClick={() => window.print()} disabled={!pilots.length}>Print</button>
+          <button className="primary" onClick={handleExport} disabled={exporting || !pilots.length}>{exporting ? "Exporting..." : "Export PDF"}</button>
           <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
         </div>
       </div>
+      {exportMsg && <div className="roster-export-msg no-print">{exportMsg}</div>}
 
       <div className="hours-print-area" style={{ "--print-font-scale": printFontScale }}>
         {(branding?.logo || branding?.name) && (

@@ -1,4 +1,4 @@
-.allstatus-page{color:white;display:flex;flex-direction:column;flex:1;min-height:0}
+.allstatus-page{color:white}
 .allstatus-page .module-header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
 .allstatus-page .module-header h1{margin:0;font-size:28px;font-weight:900}
 .allstatus-page .module-header p{margin:6px 0 0;color:#94a3b8;font-size:13px}
@@ -9,14 +9,13 @@
 .allstatus-controls button.primary{background:linear-gradient(135deg,#1677ff,#0ea5e9);border-color:transparent;color:white}
 .allstatus-controls button:disabled{opacity:.5;cursor:default}
 
-.allstatus-page.allstatus-fullscreen{position:fixed;inset:0;z-index:500;background:#020617;padding:22px}
-.allstatus-print-area{display:flex;flex-direction:column;flex:1;min-height:0}
+.allstatus-page.allstatus-fullscreen{position:fixed;inset:0;z-index:500;background:#020617;padding:22px;overflow:auto}
+.allstatus-page.allstatus-fullscreen .allstatus-scroll{max-height:calc(100vh - 180px)}
 
 /* 12 columns doesn't fit a normal window at readable widths, so this
    scrolls horizontally (same pattern as the wide Report B table). It also
-   scrolls vertically WITHIN ITSELF (flex:1 + overflow-y:auto, filling
-   whatever the app shell leaves below the title row/controls above it)
-   rather than letting the whole page scroll around it - that's the only
+   scrolls vertically WITHIN ITSELF (max-height + overflow-y:auto) rather
+   than letting the page (.main-content) scroll around it - that's the only
    configuration where .allstatus-head's position:sticky reliably works:
    any non-"auto" overflow-y here (visible/clip/hidden) still creates its
    own clipping context per the CSS overflow spec (a "visible" axis gets
@@ -24,7 +23,7 @@
    can't have one scrollable axis and a truly passthrough other axis on
    the same element), and that context never itself scrolls if height is
    left unconstrained - so sticky has nothing to visibly stick against. */
-.allstatus-scroll{flex:1;min-height:0;overflow:auto}
+.allstatus-scroll{overflow:auto;max-height:70vh}
 .allstatus-table{display:flex;flex-direction:column;gap:6px;min-width:1180px}
 .allstatus-row{display:grid;grid-template-columns:1.8fr .8fr .9fr repeat(9,1fr);gap:10px;align-items:center;padding:12px 14px}
 .allstatus-head{font-size:10.5px;font-weight:800;color:#cbd5e1;text-transform:uppercase;letter-spacing:.05em;padding:8px 14px;position:sticky;top:0;z-index:2;background:linear-gradient(180deg,#0f1c33,#0b1526);border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,.25)}

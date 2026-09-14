@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   importPdf,
   saveExperience,
@@ -7,10 +7,7 @@ import {
   deleteExperience,
   saveImage
 } from "../../services/desktopDatabase.js";
-import useOnlineOnly from "../../hooks/useOnlineOnly.js";
-import OnlineOnlyNotice from "../../components/OnlineOnlyNotice.jsx";
 import { sumHours, normalizeAircraftRow } from "../../utils/timeMath.js";
-import usePrintFit from "../../hooks/usePrintFit.js";
 import "./PilotExperienceBuilder.css";
 
 const POSITIONS = ["Captain", "SFO", "FO"];
@@ -39,15 +36,10 @@ const blank = {
 };
 
 export default function PilotExperienceBuilder() {
-  const online = useOnlineOnly();
   const [data, setData] = useState(blank);
   const [saved, setSaved] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fullScreen, setFullScreen] = useState(false);
-
-  const printRef = useRef(null);
-  // A4 landscape, 8mm margin - matches the @page rule in PilotExperienceBuilder.css.
-  const printFitVars = usePrintFit(printRef, { widthMm: 297, heightMm: 210, marginMm: 8 }, [data]);
 
   useEffect(() => {
     if (!fullScreen) return;
@@ -343,8 +335,7 @@ export default function PilotExperienceBuilder() {
             {loading ? "Loading PDF..." : "Load PDF"}
           </button>
           <button onClick={() => setData(blank)}>New / Clear</button>
-{!online && <OnlineOnlyNotice what="ประสบการณ์นักบิน" />}
-                    <button className="primary needs-online" onClick={handleSave} disabled={!online} title={!online ? "ต้องมีอินเทอร์เน็ตจึงจะบันทึกได้" : undefined}>Save Experience</button>
+          <button className="primary" onClick={handleSave}>Save Experience</button>
           <button className="danger" onClick={handleDelete}>Delete</button>
           {/* Prints the sheet only, A4 landscape, with the photo and a
               signature block - see the @media print rules in the CSS. */}
@@ -365,7 +356,7 @@ export default function PilotExperienceBuilder() {
         ))}
       </div>
 
-      <section className="paper" ref={printRef} style={printFitVars}>
+      <section className="paper">
         <div className="paper-head">
           <ImageBox label="LOGO" image={data.logo} onFile={(file) => setImage("logo", file)} onRemove={() => removeImage("logo")} />
 

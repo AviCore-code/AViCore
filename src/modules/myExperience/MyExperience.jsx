@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { listExperience, loadExperience, listDutyEntriesByPilot, getSetting, getPreferredPilotCode, isDemoSession, exportLogbookPdf } from "../../services/desktopDatabase.js";
+import { useEffect, useState } from "react";
+import { listExperience, loadExperience, listDutyEntriesByPilot, getSetting, getPreferredPilotCode, isSinglePilotDevice, isDemoSession } from "../../services/desktopDatabase.js";
 import { combineExperience, combineAircraftRows, combineSpecialty, sumCombinedTotal, decimalToHHMM, getEffectiveUpdateDate, formatUpdateDate } from "../../utils/experienceCombine.js";
 import { normalizeAircraftRow } from "../../utils/timeMath.js";
-import usePrintFit from "../../hooks/usePrintFit.js";
 import "./MyExperience.css";
 
 const AIRCRAFT_GROUPS = [
@@ -13,15 +12,6 @@ const AIRCRAFT_GROUPS = [
 ];
 const HELI_GROUPS = ["rotarySingle", "rotaryMulti"];
 const FIXED_GROUPS = ["fixedSingle", "fixedMulti"];
-const IS_ADMIN_BUILD = import.meta.env.MODE === "admin";
-
-// html2canvas can lose a colon when it touches the adjacent digits after A4
-// scaling. Keep the value as ONE text run (nested inline/flex spans made the
-// digits disappear in Chromium) and give the separator breathing room.
-function TimeText({ value }) {
-  const text = String(value ?? "-");
-  return <span className="myexp-time">{text}</span>;
-}
 
 export default function MyExperience() {
   const [pilots, setPilots] = useState([]);
@@ -33,16 +23,8 @@ export default function MyExperience() {
   const [effectiveUpdate, setEffectiveUpdate] = useState("");
 
   const [msg, setMsg] = useState("");
-  const [exporting, setExporting] = useState(false);
   const [branding, setBranding] = useState(null);
   const [fullScreen, setFullScreen] = useState(false);
-
-  const printRef = useRef(null);
-  // A4 landscape, 2mm margin - matches the @page rule in MyExperience.css.
-  const printFitVars = usePrintFit(
-    printRef, { widthMm: 297, heightMm: 210, marginMm: 2, allowUpscale: true },
-    [record, combined, combinedRows, specialty]
-  );
 
   useEffect(() => {
     Promise.all([listExperience(), getPreferredPilotCode()]).then(([list, preferred]) => {
@@ -83,21 +65,6 @@ export default function MyExperience() {
   const totalHelicopter = sumCombinedTotal(HELI_GROUPS.flatMap((k) => combinedRows[k] || []));
   const totalFixed = sumCombinedTotal(FIXED_GROUPS.flatMap((k) => combinedRows[k] || []));
 
-  async function handleExportPdf() {
-    if (isDemoSession()) { alert("Demo account — export is disabled."); return; }
-    setExporting(true);
-    setMsg("");
-    try {
-      const filename = `PES(${pilotCode || profile?.code || "Pilot"}).pdf`;
-      const result = await exportLogbookPdf(filename);
-      if (result?.ok) setMsg(result.message || `Saved: ${result.filePath || filename}`);
-      else setMsg(`Export failed: ${result?.error || "Unknown error"}`);
-    } catch (err) {
-      setMsg(`Export failed: ${err.message}`);
-    } finally {
-      setExporting(false);
-    }
-  }
 
   return (
     <div className={`myexp-page${fullScreen ? " page-fullscreen" : ""}`}>
@@ -108,15 +75,26 @@ export default function MyExperience() {
         </div>
         <div className="myexp-header-actions">
           <div className="myexp-controls">
-            {/* Same direct PDF download used by Experience Admin. */}
-            <button className="primary" onClick={handleExportPdf} disabled={!record || exporting}>
-              {exporting ? "Exporting PDF…" : "Export PDF"}
+            {/* Print only. An "Export PDF" button was removed here.
+                It rendered the sheet through html2canvas, which lays out text
+                itself instead of using the browser's engine - with this app's
+                default font it measured runs narrower than it drew them, so
+                characters piled up and the spaces and colons between them were
+                squeezed out ("WeeraJuntaklud", "446 52" for 446:52). Forcing
+                Arial, disabling kerning/ligatures and waiting on
+                document.fonts.ready all failed to fix it.
+                Printing uses the browser's own engine: real selectable text,
+                correct spacing, and the layout Capt. Weera confirmed is right.
+                For a document that goes to a regulator that matters more than
+                having the filename filled in automatically. */}
+            <button className="primary" onClick={() => { if (isDemoSession()) { alert("Demo account — printing is disabled."); return; } window.print(); }} disabled={!record}>
+              Print / Save PDF
             </button>
             <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
           </div>
           <label className="myexp-pilot">
             <span>Pilot</span>
-            {!IS_ADMIN_BUILD ? (
+            {isSinglePilotDevice() && !isDemoSession() ? (
               <span className="myexp-pilot-name">
                 {(() => { const p = pilots.find((x) => x.code === pilotCode); return p ? `${p.code} — ${p.name}` : pilotCode; })()}
               </span>
@@ -134,7 +112,7 @@ export default function MyExperience() {
       {!record && <div className="myexp-empty">{pilotCode ? "No Pilot Experience data yet for this pilot." : "Select a pilot to view their data."}</div>}
 
       {record && (
-        <div className="myexp-card myexp-print-area" ref={printRef} style={printFitVars}>
+        <div className="myexp-card myexp-print-area">
           {(branding?.logo || branding?.name) && (
             <div className="myexp-print-brand">
               {branding.logo && <img src={branding.logo} alt="" />}
@@ -154,7 +132,7 @@ export default function MyExperience() {
               {specialty.map((s) => (
                 <tr key={s.label} className={s.added > 0 ? "myexp-row-updated" : ""} title={s.added > 0 ? `baseline ${decimalToHHMM(s.baseline)} + ${decimalToHHMM(s.added)} from Daily Duty` : ""}>
                   <td>{s.label}</td>
-                  <td><TimeText value={decimalToHHMM(s.current)} /></td>
+                  <td>{decimalToHHMM(s.current)}</td>
                 </tr>
               ))}
             </tbody>
@@ -168,7 +146,7 @@ export default function MyExperience() {
                   {(combinedRows[key] || []).length === 0 && <tr><td colSpan="5" className="myexp-none">-</td></tr>}
                   {(combinedRows[key] || []).map((c, i) => (
                     <tr key={i} className={c.addedCount > 0 ? "myexp-row-updated" : ""} title={c.addedCount > 0 ? `+${c.addedCount} flights from Daily Duty` : ""}>
-                      {c.row.map((cell, ci) => <td key={ci}>{ci === 0 ? cell : <TimeText value={cell} />}</td>)}
+                      {c.row.map((cell, ci) => <td key={ci}>{cell}</td>)}
                     </tr>
                   ))}
                 </tbody>
@@ -187,14 +165,14 @@ export default function MyExperience() {
                   into six rows - the extra height was what pushed the export
                   onto a second page. */}
               <div className="myexp-current myexp-row-roles">
-                <div><span>PIC (Current)</span><b><TimeText value={decimalToHHMM(combined.current.pic)} /></b></div>
-                <div><span>PICUS (Current)</span><b><TimeText value={decimalToHHMM(combined.current.picus)} /></b></div>
-                <div><span>SIC (Current)</span><b><TimeText value={decimalToHHMM(combined.current.sic)} /></b></div>
+                <div><span>PIC (Current)</span><b>{decimalToHHMM(combined.current.pic)}</b></div>
+                <div><span>PICUS (Current)</span><b>{decimalToHHMM(combined.current.picus)}</b></div>
+                <div><span>SIC (Current)</span><b>{decimalToHHMM(combined.current.sic)}</b></div>
               </div>
               <div className="myexp-current myexp-row-totals">
-                <div><span>Helicopter (Current)</span><b><TimeText value={totalHelicopter} /></b></div>
-                <div><span>Fixed-wing (Current)</span><b><TimeText value={totalFixed} /></b></div>
-                <div className="myexp-grand"><span>Grand Total (Current)</span><b><TimeText value={decimalToHHMM(combined.current.grand)} /></b></div>
+                <div><span>Helicopter (Current)</span><b>{totalHelicopter}</b></div>
+                <div><span>Fixed-wing (Current)</span><b>{totalFixed}</b></div>
+                <div className="myexp-grand"><span>Grand Total (Current)</span><b>{decimalToHHMM(combined.current.grand)}</b></div>
               </div>
             </>
           )}

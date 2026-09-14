@@ -1,0 +1,165 @@
+/* Crew home page. Uses the app's own palette (--acw-* in WebApp.css) so it
+   belongs to the product rather than looking bolted on. */
+
+.cdash { color: var(--acw-text); padding-bottom: 24px; }
+
+.cdash-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.cdash-head h1 { margin: 0; font-size: 22px; font-weight: 500; }
+.cdash-head p { margin: 4px 0 0; font-size: 12.5px; color: var(--acw-text-dim); }
+
+.cdash-year { display: flex; align-items: center; gap: 6px; }
+.cdash-year b { min-width: 46px; text-align: center; font-size: 14px; }
+.cdash-year button {
+  width: 30px; height: 30px; border-radius: 999px;
+  border: 1px solid var(--acw-border); background: rgba(148, 163, 184, .08);
+  color: var(--acw-text-dim); font-size: 14px; cursor: pointer; line-height: 1;
+}
+.cdash-year button:hover:not(:disabled) {
+  background: var(--acw-accent-soft); border-color: var(--acw-accent-border); color: var(--acw-text);
+}
+.cdash-year button:disabled { opacity: .3; cursor: default; }
+
+.cdash-note { color: var(--acw-text-dim); font-size: 13px; margin: 4px 0 0; }
+.cdash-error {
+  background: rgba(248, 113, 113, .1); border: 1px solid rgba(248, 113, 113, .35);
+  color: #fca5a5; border-radius: 12px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px;
+}
+
+/* --- Summary cards ------------------------------------------------------ */
+.cdash-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px; margin-bottom: 14px;
+}
+.cdash-card {
+  background: var(--acw-panel); border: 1px solid var(--acw-border);
+  border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 3px;
+}
+.cdash-card-label { font-size: 11px; color: var(--acw-text-dim); }
+.cdash-card-value { font-size: 21px; font-weight: 500; line-height: 1.2; }
+.cdash-card-note { font-size: 11px; color: var(--acw-text-dim); }
+/* Status colour on the value only, plus a left edge - never colour alone. */
+.cdash-card.status-ok { border-left: 3px solid #4ade80; }
+.cdash-card.status-ok .cdash-card-value { color: #4ade80; }
+.cdash-card.status-warn { border-left: 3px solid #fbbf24; }
+.cdash-card.status-warn .cdash-card-value { color: #fbbf24; }
+.cdash-card.status-exc { border-left: 3px solid #f87171; }
+.cdash-card.status-exc .cdash-card-value { color: #f87171; }
+
+/* --- Panels ------------------------------------------------------------- */
+.cdash-panel {
+  background: var(--acw-panel); border: 1px solid var(--acw-border);
+  border-radius: 16px; padding: 14px 16px; margin-bottom: 12px;
+}
+.cdash-panel-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; margin-bottom: 12px; font-size: 14px;
+}
+.cdash-legend { display: flex; gap: 14px; font-size: 11px; color: var(--acw-text-dim); }
+.cdash-legend .swatch {
+  display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px;
+}
+.swatch.flight, .bar.flight { background: var(--acw-accent); }
+.swatch.duty, .bar.duty { background: rgba(124, 58, 237, .55); }
+
+/* --- Chart ---------------------------------------------------------------
+   Plain CSS bars rather than a charting library: twelve pairs of rectangles
+   need no 200 kB dependency, and this renders instantly on a phone with one
+   bar of signal. */
+.cdash-chart { display: flex; gap: 8px; height: 180px; }
+.cdash-axis {
+  display: flex; flex-direction: column; justify-content: space-between;
+  font-size: 10px; color: var(--acw-text-dim); text-align: right;
+  min-width: 26px; padding-bottom: 2px;
+}
+.cdash-bars {
+  flex: 1; display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px;
+  align-items: end; border-bottom: 1px solid rgba(148, 163, 184, .22);
+  background:
+    repeating-linear-gradient(to top, transparent 0, transparent calc(25% - 1px), rgba(148,163,184,.10) calc(25% - 1px), rgba(148,163,184,.10) 25%);
+}
+.cdash-month { display: flex; gap: 2px; align-items: end; height: 100%; }
+.cdash-month .bar { flex: 1; border-radius: 3px 3px 0 0; min-height: 2px; display: block; }
+/* The month in progress is drawn faded: it is not comparable with a finished
+   month, and showing it at full strength invites reading a half-month as a
+   drop in flying. */
+.cdash-month.partial .bar { opacity: .45; }
+/* Future months draw nothing at all - a zero-height bar would read as "flew
+   nothing", which is a different and wrong statement. */
+.cdash-month.future { visibility: hidden; }
+
+.cdash-months {
+  display: flex; gap: 8px; margin-top: 6px;
+  font-size: 10px; color: var(--acw-text-dim);
+}
+.cdash-axis-spacer { min-width: 26px; }
+.cdash-months > span:not(.cdash-axis-spacer) { flex: 1; text-align: center; }
+.cdash-months .now { color: var(--acw-accent); font-weight: 700; }
+
+/* --- Lists -------------------------------------------------------------- */
+.cdash-split { display: grid; grid-template-columns: 1.25fr 1fr; gap: 12px; }
+.cdash-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.cdash-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border-radius: 8px; background: rgba(148, 163, 184, .05);
+  font-size: 12.5px;
+}
+.cdash-list li.today { background: var(--acw-accent-soft); border-left: 2px solid var(--acw-accent); border-radius: 0 8px 8px 0; }
+.cdash-list li.warn { background: rgba(251, 191, 36, .1); }
+.cdash-list li.warn .cdash-dim { color: #fbbf24; }
+.cdash-list li.exc { background: rgba(248, 113, 113, .12); }
+.cdash-list li.exc .cdash-dim { color: #fca5a5; }
+.cdash-dim { color: var(--acw-text-dim); text-align: right; }
+
+@media (max-width: 720px) {
+  .cdash-split { grid-template-columns: 1fr; }
+  .cdash-chart { height: 150px; }
+}
+
+@media print {
+  .cdash-year { display: none; }
+  .cdash { color: black; }
+  .cdash-panel, .cdash-card { background: white; border-color: #94a3b8; color: black; }
+  .cdash-card-value, .cdash-head h1 { color: black !important; }
+}
+
+/* --- Year picker, comparison line, deltas ------------------------------- */
+.cdash-year select {
+  height: 30px; padding: 0 8px; border-radius: 999px;
+  border: 1px solid var(--acw-border); background: rgba(148, 163, 184, .08);
+  color: var(--acw-text); font-size: 13px; font-weight: 500; cursor: pointer;
+}
+.cdash-year select:hover { background: var(--acw-accent-soft); border-color: var(--acw-accent-border); }
+
+.swatch.prev { background: #fbbf24; height: 2px; border-radius: 1px; margin-bottom: 2px; }
+.cdash-toggle {
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  color: var(--acw-text-dim); font-size: 11px;
+}
+.cdash-toggle input { width: 13px; height: 13px; accent-color: var(--acw-accent); cursor: pointer; }
+
+/* The comparison line sits over the bars, not in the grid flow, so it spans
+   the full plot area regardless of how the columns are sized. */
+.cdash-bars { position: relative; }
+.cdash-line {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; overflow: visible;
+}
+
+.cdash-delta { font-style: normal; }
+.cdash-delta.up { color: #4ade80; }
+.cdash-delta.down { color: #fbbf24; }
+
+/* Sample-data notice. Deliberately prominent: a demo that looks like real
+   records is worse than an empty page, because a figure read here could end
+   up quoted somewhere it matters. */
+.cdash-demo {
+  background: rgba(124, 58, 237, .12);
+  border: 1px solid rgba(124, 58, 237, .4);
+  border-left: 3px solid #a78bfa;
+  border-radius: 12px; padding: 10px 14px; margin-bottom: 12px;
+  font-size: 12.5px; line-height: 1.6; color: var(--acw-text);
+}
+.cdash-demo b { color: #c4b5fd; }

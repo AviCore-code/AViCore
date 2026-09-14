@@ -230,10 +230,8 @@ export default function FatigueMonitor() {
             As of{" "}
             <input type="date" value={asOf} onChange={(e) => setAsOf(e.target.value || todayIso())} />
           </label>
-          {/* Per-page Refresh removed - the sidebar's single Refresh (full
-              page reload) now covers this. load() itself stays, still
-              called elsewhere (initial load, when "As of" date changes). */}
-          <button onClick={() => window.print()}>Print / Save PDF</button>
+          <button onClick={load}>Refresh</button>
+          <button onClick={() => window.print()}>Print</button>
           <button onClick={() => setFullScreen((v) => !v)}>
             {fullScreen ? "Exit Full Screen" : "Full Screen"}
           </button>

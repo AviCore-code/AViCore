@@ -23,7 +23,6 @@ import {
   NIGHT_TRAINING_MIN_PILOTS,
   NIGHT_TRAINING_PREFERRED_PILOTS,
   NIGHT_TRAINING_REQUIRES_CAPTAIN,
-  NIGHT_TRAINING_REQUIRES_CURRENT_PILOT,
   dayCrewsOn
 } from "./weeklyPlanRules.js";
 import { classifyTourDay } from "./weeklyPlanTourDays.js";
@@ -795,16 +794,6 @@ export function autoFillWeek({
           // doesn't read as "no Captain".
           if (known.length === unique.length && !hasCaptain) {
             notes.push(`${date}: night training (${unique.join(", ")}) has no Captain — one of the pilots on it must be a Captain.`);
-          }
-        }
-        // At least one pilot on the detail must already hold Night Currency -
-        // the others are there to regain it, same reasoning as the Captain
-        // requirement above (Capt. Weera: "NT ต้องมี นักบินที่ยังมี Night
-        // Current อย่างน้อย 1 ท่าน").
-        if (NIGHT_TRAINING_REQUIRES_CURRENT_PILOT && nightCurrentByCode) {
-          const hasCurrent = unique.some((code) => nightCurrentByCode.has(code));
-          if (!hasCurrent) {
-            notes.push(`${date}: night training (${unique.join(", ")}) has nobody already Night Current — at least one pilot on the detail needs current Night Currency.`);
           }
         }
       }

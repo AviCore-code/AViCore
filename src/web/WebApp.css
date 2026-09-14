@@ -1,0 +1,431 @@
+:root {
+  --acw-bg: #0a1120;
+  --acw-bg-soft: #0f1c33;
+  --acw-panel: rgba(15, 23, 42, .72);
+  --acw-border: rgba(148, 163, 184, .16);
+  --acw-text: #f1f5f9;
+  --acw-text-dim: #94a3b8;
+  --acw-accent: #22d3ee;
+  --acw-accent-2: #7c3aed;
+  --acw-accent-soft: rgba(34, 211, 238, .14);
+  --acw-accent-border: rgba(34, 211, 238, .38);
+}
+
+html, body, #root { height: 100%; margin: 0; background: var(--acw-bg); color-scheme: dark; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+/* Tells the browser this page is dark-themed, so every native form control
+   it draws itself (date/month picker calendar icons + their popup, <select>
+   dropdown arrows, scrollbars) uses its built-in dark variant instead of
+   the default light one - this is what was making the month/day picker
+   icon nearly invisible against the dark background (a plain black icon on
+   navy). Combined with the explicit picker-indicator styling further down,
+   every native input across the app gets real contrast now, not just the
+   ones this file touches directly. */
+
+.web-loading {
+  color: var(--acw-text-dim); display: flex; align-items: center; justify-content: center;
+  height: 100vh; font-size: 14px; font-family: -apple-system, Roboto, Arial, sans-serif;
+}
+
+.web-app {
+  display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh;
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(124, 58, 237, .12), transparent 60%),
+    radial-gradient(1200px 600px at 100% 0%, rgba(34, 211, 238, .10), transparent 55%),
+    var(--acw-bg);
+  color: var(--acw-text); font-family: -apple-system, Roboto, Arial, sans-serif;
+}
+
+/* Sidebar shells (Admin/Crew): body row = [AppSidebar][web-main column] */
+.web-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+}
+.web-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.web-main .web-content { flex: 1; }
+@media (max-width: 640px) {
+  .web-body { flex-direction: column-reverse; }
+}
+
+/* NOTE: the web builds deliberately have NO background behind the app pages.
+   The theme picker (Settings > Admin Setting > Background Theme) affects the PC
+   build only. Capt. Weera's decision: inside the app the screen is FTL figures -
+   duty hours, fatigue scores - and a picture behind them earns nothing while
+   costing readability, especially on a phone in sunlight on a rig. The photo
+   belongs on the login screen, where there is nothing to read but one card;
+   see .web-login::before below. */
+
+/* --- Header --- */
+.web-header {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 20px; padding-top: max(12px, env(safe-area-inset-top));
+  background: linear-gradient(180deg, rgba(15,28,51,.96), rgba(11,21,38,.96));
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--acw-border);
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+}
+.web-header-logo { height: 26px; width: auto; max-width: 80px; object-fit: contain; border-radius: 4px; }
+.web-header-brand { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.web-header-planeicon {
+  width: 26px; height: 26px; border-radius: 8px; flex: none;
+  background: linear-gradient(135deg, var(--acw-accent), var(--acw-accent-2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; box-shadow: 0 2px 10px rgba(34, 211, 238, .35);
+}
+.web-header-titlegroup { display: flex; flex-direction: column; gap: 1px; line-height: 1.15; }
+.web-header-title { font-weight: 900; font-size: 16px; letter-spacing: .2px; white-space: nowrap; }
+.web-header-copyright { font-size: 9.5px; font-weight: 600; color: var(--acw-text-dim); opacity: .7; white-space: nowrap; }
+
+/* --- Sync status pill (top-right, next to Refresh) - reflects whether
+   this browser can currently reach Supabase (see webDatabase.js's
+   pingServer()/subscribeSyncStatus()). This build has no offline queue, so
+   there's nothing to report on beyond "connected or not" - that's still
+   valuable on a boat/rig connection, so a pilot doesn't submit a Daily
+   Duty entry believing it saved when the page silently couldn't reach the
+   server. */
+.web-sync-status {
+  margin-left: auto; display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 700; color: var(--acw-text-dim);
+  border: 1px solid var(--acw-border); border-radius: 999px;
+  padding: 6px 12px; white-space: nowrap; flex: none;
+  background: rgba(148, 163, 184, .06);
+}
+.web-sync-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: #64748b; transition: background .2s ease, box-shadow .2s ease;
+}
+.web-sync-status.online .web-sync-dot { background: #4ade80; box-shadow: 0 0 6px rgba(74, 222, 128, .7); }
+.web-sync-status.online { color: #86efac; border-color: rgba(74, 222, 128, .3); }
+.web-sync-status.syncing .web-sync-dot { background: var(--acw-accent); box-shadow: 0 0 6px rgba(34, 211, 238, .7); animation: web-sync-pulse 1s ease-in-out infinite; }
+.web-sync-status.syncing { color: var(--acw-accent); border-color: var(--acw-accent-border); }
+.web-sync-status.connecting .web-sync-dot { background: #94a3b8; animation: web-sync-pulse 1s ease-in-out infinite; }
+.web-sync-status.offline .web-sync-dot,
+.web-sync-status.unconfigured .web-sync-dot { background: #f87171; }
+.web-sync-status.offline,
+.web-sync-status.unconfigured { color: #fca5a5; border-color: rgba(248, 113, 113, .35); background: rgba(248, 113, 113, .08); }
+@keyframes web-sync-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+.web-header-refresh {
+  width: 30px; height: 30px; border-radius: 50%;
+  border: 1px solid var(--acw-border); background: rgba(148, 163, 184, .08);
+  color: var(--acw-text-dim); font-size: 15px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex: none;
+  transition: transform .15s ease, color .12s ease, background .12s ease;
+}
+.web-header-refresh:hover { color: var(--acw-text); background: rgba(148, 163, 184, .16); }
+.web-header-refresh:active { transform: rotate(180deg); }
+
+.web-header-logout {
+  margin-left: 0; font-size: 11px; font-weight: 800; color: #fca5a5;
+  background: rgba(248, 113, 113, .1); border: 1px solid rgba(248, 113, 113, .35);
+  border-radius: 999px; padding: 7px 12px; cursor: pointer; white-space: nowrap;
+  flex: none; transition: background .12s ease, color .12s ease;
+}
+.web-header-logout:hover { background: rgba(248, 113, 113, .22); color: #fecaca; }
+
+/* --- Tab bar --- */
+.web-tabbar {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.web-tabbar button {
+  display: flex; align-items: center; gap: 6px;
+  padding: 9px 16px; border-radius: 999px; background: transparent; border: 1px solid transparent;
+  color: var(--acw-text-dim); font-size: 13px; font-weight: 800; cursor: pointer;
+  white-space: nowrap; transition: background .12s ease, color .12s ease, border-color .12s ease;
+}
+.web-tabbar button:hover { color: var(--acw-text); background: rgba(148, 163, 184, .08); }
+.web-tabbar button.active {
+  color: #0a1120; background: linear-gradient(90deg, var(--acw-accent), #67e8f9);
+  border-color: transparent; box-shadow: 0 2px 10px rgba(34, 211, 238, .3);
+}
+.web-tabbar-icon { font-size: 15px; line-height: 1; filter: grayscale(1) opacity(.85); }
+.web-tabbar button.active .web-tabbar-icon { filter: none; }
+
+/* Full-width: pages fill whatever screen the app is opened on instead of
+   being capped to a 960px column with empty space either side on a normal
+   monitor. Capped at 1600px only so text lines don't become unreadably long
+   on an ultra-wide display. */
+.web-content { flex: 1; padding: 24px; max-width: 1600px; width: 100%; margin: 0 auto; }
+
+.web-footer {
+  text-align: center; font-size: 11px; color: #64748b; background: var(--acw-bg-soft);
+  padding: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(148, 163, 184, .08);
+}
+
+/* --- Version badge (standard small muted corner tag, same version number
+   shown for the PC release - see vite.config.js's __APP_VERSION__, sourced
+   from package.json so it advances on its own whenever that's bumped for a
+   release, no separate web-only counter to maintain) --- */
+.web-version-badge {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  right: 14px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--acw-text-dim);
+  opacity: .55;
+  letter-spacing: .02em;
+  user-select: none;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* --- Login --- */
+/* `overflow-y: auto` with `align-items: safe center`, not `overflow: hidden`.
+   The card is centred, so on a window shorter than the card - a laptop in
+   landscape, or a phone once the on-screen keyboard opens over half the screen -
+   plain `center` overflows equally in BOTH directions and `hidden` then clips the
+   top and bottom with no way to reach them: on the Crew screen that hides the
+   name dropdown and the "This is me" button at once. `safe` keeps the card
+   flush with the top instead of centring it once it no longer fits, and auto
+   scrolling reaches the rest. overflow-x stays hidden so the ::before photo
+   cannot add a sideways scrollbar.
+   `margin: auto` on the card does the same job in browsers that ignore `safe`
+   (it centres when there is room and never pushes content out of reach when
+   there is not), so the behaviour holds either way - see .web-login-card. */
+.web-login {
+  position: relative; overflow-x: hidden; overflow-y: auto;
+  /* Card sits LEFT of centre on a wide screen, as in the reference - it keeps the
+     photo's subject visible beside it instead of covering it. On a phone the card
+     is full width anyway, so this has no effect there. */
+  display: flex; align-items: safe center; justify-content: flex-start; min-height: 100vh; min-height: 100dvh;
+  background:
+    radial-gradient(900px 500px at 20% 0%, rgba(124, 58, 237, .18), transparent 55%),
+    radial-gradient(900px 500px at 90% 100%, rgba(34, 211, 238, .14), transparent 55%),
+    var(--acw-bg);
+  padding: clamp(20px, 5vh, 56px) clamp(20px, 4vw, 72px);
+  font-family: -apple-system, Roboto, Arial, sans-serif;
+}
+/* Offshore sunset photo behind the login card - AI-generated (confirmed by
+   Capt. Weera), so no third-party image right applies. Replaced the previous
+   AW139 photo from Wikimedia Commons; that one is still in git history.
+   A dark radial vignette sits on top of it so the card and its text stay fully
+   readable no matter where it lands on screen. Bundled locally - Vite hashes and
+   fingerprints it into the build.
+
+   JPEG, not PNG. PNG is lossless and made the original photo 2.3 MB - four
+   times the whole application bundle, and downloaded BEFORE the login screen
+   can be seen. A pilot on a rig with one weak bar was waiting on it. At 1600x900
+   this one is 214 KB, and the picture sits behind a dark vignette at
+   background-size:cover, so fine detail was never visible anyway.
+
+   The admin can replace it at Settings > Admin Setting > Sign-in Screen
+   Background; useLoginBackground.js sets --login-bg to whatever was chosen, and
+   the url() here is only the fallback for the moment before that resolves (and
+   for any build that does not set the variable).
+
+   SIZING: `cover` scales the photo to fill any window - it always fills the
+   frame with no letterboxing, cropping whichever axis is proportionally longer,
+   so it works from a phone in portrait to a wide desktop monitor.
+   `center 30%` because these offshore photos put sky and horizon in the upper
+   40% (measured: brightness falls steadily from the top down); anchoring high
+   keeps the horizon on screen when a short, wide window crops the height away.
+   Nothing here is a fixed pixel size, which is what makes it follow the window. */
+.web-login::before {
+  content: ""; position: absolute; inset: 0;
+  background-image: var(--login-bg, url("./login-bg.jpg"));
+  background-size: cover; background-position: center 30%; background-repeat: no-repeat;
+  opacity: 1; pointer-events: none;
+}
+/* Darkens the LEFT side, where the card sits, and fades out across the photo -
+   the reference does the same. Replaces the old centred radial vignette, which
+   assumed a centred card and now darkened the wrong part of the picture. */
+.web-login::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(3,13,19,.62) 0%, rgba(3,13,19,.28) 38%, transparent 62%);
+  pointer-events: none;
+}
+.web-login-card { position: relative; z-index: 1; }
+.web-login-credit {
+  position: absolute; bottom: 8px; right: 12px; z-index: 1;
+  font-size: 11px; color: rgba(255, 255, 255, .85); text-decoration: none;
+  text-align: right; max-width: 90vw; text-shadow: 0 1px 3px rgba(0, 0, 0, .8);
+}
+.web-login-card {
+  /* See .web-login: centres the card when the window is tall enough, and keeps
+     it fully reachable (scrollable, not clipped) when it is not. */
+  margin: auto;
+  /* Frosted panel over the photo, matching the reference: a lighter hairline
+     border and a real blur, so the card reads as glass rather than a flat box.
+     410px (was 380) because the reference is wider and the two-line brand block
+     needs the room. */
+  width: 100%; max-width: 410px;
+  border: 1px solid rgba(191,226,236,.48); border-radius: 16px;
+  background: rgba(7,18,26,.76); padding: 25px 28px;
+  display: flex; flex-direction: column; gap: 12px; color: #f4f7fa;
+  box-shadow: 0 24px 70px rgba(0,0,0,.38);
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+}
+/* The old .web-login-head / .web-login-icon block and the centred select styling
+   were removed when both sign-in screens moved to the Flight Planner layout - the
+   brand mark is now .login-brand and the fields carry uppercase captions. Their
+   rules are superseded by the scoped block further down; keeping them would have
+   fought it (the old h1 was 22px against the reference's 30px).
+   Paragraph default kept, since the new layout still uses plain <p>. */
+.web-login-card p { margin: 0; font-size: 13px; line-height: 1.5; }
+.web-login-card option { background: #0c1720; color: #f4f7fa; }
+/* Crew display prefs (Settings tab, see crewDisplay.js). zoom scales text/UI;
+   the filter tweaks brightness/contrast. Applied to body so they cover every
+   page regardless of that page's own colours. */
+body { zoom: var(--crew-zoom, 1); }
+html[data-crew-screen="bright"] body { filter: brightness(1.12); }
+html[data-crew-screen="dim"] body { filter: brightness(.82); }
+html[data-crew-screen="contrast"] body { filter: contrast(1.15) brightness(1.06); }
+
+.web-demo-badge {
+  font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase;
+  background: rgba(245, 158, 11, .18); color: #f59e0b;
+  padding: 2px 7px; border-radius: 6px; margin-left: 8px; vertical-align: middle;
+}
+.web-login-password {
+  padding: 13px; border-radius: 10px; border: 1px solid #334155; background: #0f172a;
+  color: white; font-size: 15px; text-align: center;
+}
+.web-login-card button {
+  padding: 13px; border-radius: 10px; border: 1px solid #334155; background: transparent;
+  color: white; font-weight: 800; font-size: 14px; cursor: pointer; transition: opacity .12s ease;
+}
+.web-login-card button.primary {
+  background: linear-gradient(90deg, var(--acw-accent), var(--acw-accent-2)); border: none;
+  box-shadow: 0 6px 18px rgba(34, 211, 238, .25);
+}
+.web-login-card button:disabled { opacity: .5; cursor: default; }
+.web-login-card button:active:not(:disabled) { opacity: .85; }
+.web-login-status { font-size: 13px; color: var(--acw-text-dim); }
+.web-login-status.error { color: #fca5a5; }
+
+/* --- Full Screen takeover for page content ---
+   Every shared pilot page (MyStatus, DutyEntry, MyLogbook, MyExperience,
+   MyTrainingStatus) has its own "Full Screen" toggle button that adds a
+   "page-fullscreen" class to its root div - on the PC app this class is
+   defined in src/styles/app.css, which the web build never loads. Without
+   this rule the class did nothing here, so toggling Full Screen just left
+   the page's own toolbar squeezed under our sticky app header/tabbar
+   instead of actually taking over the screen. z-index is higher than
+   .web-header (20) so full screen mode covers our header too, giving the
+   page the entire viewport with nothing else competing for space. */
+.page-fullscreen {
+  position: fixed !important;
+  inset: 0;
+  z-index: 1000;
+  background: var(--acw-bg);
+  padding: 16px;
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  overflow: auto;
+}
+@media (max-width: 640px) {
+  .page-fullscreen { padding: 12px; }
+}
+
+/* --- Mobile / small screens --- */
+@media (max-width: 640px) {
+  .web-header { gap: 10px; padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top)); flex-wrap: wrap; }
+  .web-sync-status { margin-left: auto; order: 2; padding: 6px 8px; }
+  .web-sync-status .web-sync-label { display: none; }
+  .web-header-refresh { margin-left: 0; order: 3; width: 28px; height: 28px; }
+  .web-header-logout { margin-left: 0; order: 4; padding: 6px 10px; font-size: 10px; }
+  .web-tabbar {
+    order: 5; width: 100%; flex-wrap: nowrap; overflow-x: auto; gap: 6px;
+    padding-bottom: 2px; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .web-tabbar::-webkit-scrollbar { display: none; }
+  .web-tabbar button { flex: none; padding: 10px 14px; }
+  .web-content { padding: 14px; }
+  .web-login-card { padding: 26px 20px; border-radius: 16px; }
+}
+
+/* Unsent offline work, surfaced on the login screen - the one place where
+   queued entries are otherwise invisible, because nobody is signed in to see
+   the status bar. */
+.web-login-pending {
+  margin: 12px 0; padding: 10px 12px; border-radius: 10px;
+  background: rgba(251, 191, 36, .12); border: 1px solid rgba(251, 191, 36, .4);
+  font-size: 12.5px; color: var(--acw-text); text-align: left;
+}
+.web-login-pending b { color: #fbbf24; }
+.web-login-pending ul { margin: 6px 0; padding-left: 18px; line-height: 1.6; }
+.web-login-pending small { color: var(--acw-text-dim); font-size: 11px; }
+
+/* Offline sign-in notice on the login card. Amber, not red: this is a working
+   state, not an error - but it must not look like a normal sign-in either,
+   because the password is being checked against a local copy. */
+.web-login-offline{background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.5);
+  border-radius:10px;padding:10px 13px;font-size:12.5px;color:#fbbf24;line-height:1.6;margin:10px 0}
+.web-login-offline b{color:#fde68a}
+
+/* ---------------------------------------------------------------------------
+   SIGN-IN CARD, styled after AviCore Flight Planner's login screen, which
+   Capt. Weera supplied as the reference.
+
+   Ported rather than imported: Flight Planner is a separate Next.js project with
+   its own CSS variables (--cyan, --amber, --muted...). The values are inlined
+   here so this stays a single self-contained block and nothing else in Crew has
+   to change. Every rule is scoped under .web-login-card, so none of it can leak
+   into the rest of the app.
+   --------------------------------------------------------------------------- */
+.web-login-card .login-brand{display:flex;align-items:center;justify-content:center;gap:13px}
+.web-login-card .login-brand > span{color:#5cc8d7;font-size:38px;line-height:1}
+.web-login-card .login-brand div{display:grid}
+.web-login-card .login-brand strong{font:900 32px/1 "Arial Narrow",Arial,sans-serif;letter-spacing:.08em;color:#f4f7fa}
+.web-login-card .login-brand small{color:#91a1b2;font-weight:800;font-size:11px;letter-spacing:.18em}
+.web-login-card .login-series{margin:13px 0 23px;text-align:center;color:#5cc8d7;font-size:9px;font-weight:850;letter-spacing:.16em}
+.web-login-card h1{margin:0;font:800 30px/1.1 "Arial Narrow",Arial,sans-serif;color:#f4f7fa}
+.web-login-card .login-copy{margin:9px 0 25px;color:#91a1b2;font-size:12px;line-height:1.55}
+
+.web-login-card form,
+.web-login-card form label{display:grid;gap:8px}
+.web-login-card form{gap:16px}
+/* Uppercase field captions - PILOT / PASSWORD. */
+.web-login-card form label span{color:#91a1b2;font-size:9px;font-weight:850;letter-spacing:.13em}
+.web-login-card form input,
+.web-login-card form select{
+  width:100%;border:1px solid #3a5261;background:#0c1720;color:#f4f7fa;
+  padding:13px;outline:0;border-radius:0;font-size:14px;
+}
+.web-login-card form select{appearance:auto}
+
+/* Primary action. Outlined cyan, matching the reference - not a filled button. */
+.web-login-card .login-primary{
+  min-height:46px;border:1px solid #5cc8d7;background:rgba(92,200,215,.12);color:#5cc8d7;
+  font-weight:900;letter-spacing:.08em;cursor:pointer;border-radius:0;
+}
+.web-login-card .login-primary:hover:not(:disabled){background:rgba(92,200,215,.2)}
+.web-login-card .login-primary:disabled{opacity:.55;cursor:not-allowed}
+
+/* Offline action. Amber and smaller than SIGN IN, so the two are never mistaken
+   for each other - it is a deliberate second choice, not the normal way in. */
+.web-login-card .login-offline{
+  min-height:42px;border:1px solid rgba(255,181,71,.65);background:rgba(255,181,71,.08);
+  color:#ffb547;font-size:10px;font-weight:900;letter-spacing:.07em;cursor:pointer;border-radius:0;
+}
+.web-login-card .login-offline:hover:not(:disabled){background:rgba(255,181,71,.16)}
+.web-login-card .login-offline:disabled{opacity:.55;cursor:not-allowed}
+
+/* Errors: an amber left rule rather than red panels. */
+.web-login-card .login-message{
+  margin:0;border-left:3px solid #ffb547;background:rgba(255,181,71,.07);
+  color:#ffb547;padding:10px 12px;font-size:11px;line-height:1.5;
+}
+.web-login-card .offline-login-hint{margin:11px 0 0;color:#ffb547;font-size:10px;font-weight:800;line-height:1.45}
+
+.web-login-card .login-links{display:flex;justify-content:space-between;gap:12px;margin-top:17px;font-size:11px;color:#91a1b2}
+.web-login-card .login-links-muted{color:#5cc8d7}
+
+.web-login-card .login-owner{display:grid;gap:4px;margin-top:23px;padding-top:14px;border-top:1px solid #2b3947;text-align:center;line-height:1.7}
+.web-login-card .login-owner span{color:#8da2ae;font-size:9px;letter-spacing:.12em;text-transform:uppercase}
+.web-login-card .login-owner strong{color:#f4f7fa;font-size:12px;letter-spacing:.05em}
+.web-login-card .login-owner a{display:block;margin-top:2px;font-size:11px;color:#5cc8d7;text-decoration:none}
+.web-login-card .login-owner small{color:#8da2ae;font-size:10px}

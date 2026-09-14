@@ -1,0 +1,270 @@
+.settings-page{color:white}
+.settings-page .module-header{margin-bottom:16px}
+.settings-page .module-header h1{margin:0;font-size:28px;font-weight:900}
+.settings-page .module-header p{margin:6px 0 0;color:#94a3b8;font-size:13px;max-width:720px}
+
+.settings-hub-tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid rgba(148,163,184,.18);margin-bottom:18px;padding-bottom:0}
+.settings-hub-tab{padding:10px 16px;border-radius:10px 10px 0 0;border:1px solid transparent;background:transparent;color:#94a3b8;font-weight:800;font-size:12.5px;cursor:pointer;letter-spacing:.02em}
+.settings-hub-tab:hover{color:#e2e8f0}
+.settings-hub-tab.active{color:white;background:rgba(22,119,255,.14);border-color:rgba(22,119,255,.4);border-bottom-color:transparent}
+.settings-hub-tab-body{min-height:200px}
+
+.settings-card{background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.15);border-radius:14px;padding:22px;max-width:560px;display:flex;flex-direction:column;gap:14px}
+.settings-card-wide{max-width:900px}
+
+.settings-theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.settings-theme-tile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;border-radius:12px;border:2px solid transparent;background:rgba(148,163,184,.06);cursor:pointer;font-size:11px;color:#cbd5e1;font-weight:700}
+.settings-theme-tile:hover{background:rgba(148,163,184,.12)}
+.settings-theme-tile.selected{border-color:#1677ff;background:rgba(22,119,255,.12);color:#7dd3fc}
+.settings-theme-thumb{width:100%;aspect-ratio:16/9;border-radius:8px;object-fit:cover;display:block;background:#020617}
+.settings-theme-none{justify-content:center;min-height:96px}
+.settings-theme-upload-icon{width:100%;aspect-ratio:16/9;border-radius:8px;background:rgba(148,163,184,.08);border:1px dashed #475569;display:flex;align-items:center;justify-content:center;font-size:28px;color:#64748b}
+
+.settings-status{font-size:13px;font-weight:800;padding:10px 12px;border-radius:10px}
+.settings-status-on{background:rgba(34,197,94,.12);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+.settings-status-off{background:rgba(148,163,184,.1);color:#94a3b8;border:1px solid rgba(148,163,184,.25)}
+.settings-status-error{background:rgba(239,68,68,.12);color:#fca5a5;border:1px solid rgba(239,68,68,.3)}
+
+.settings-field{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#94a3b8}
+.settings-field input{padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px}
+
+.settings-note{font-size:12px;color:#94a3b8;line-height:1.6;background:rgba(148,163,184,.06);border-radius:10px;padding:10px 12px}
+.settings-note b{color:#fca5a5}
+
+.settings-actions{display:flex;gap:10px;flex-wrap:wrap}
+.settings-actions button{padding:10px 16px;border-radius:10px;border:1px solid #334155;background:transparent;color:white;font-size:13px;font-weight:700;cursor:pointer}
+.settings-actions button.primary{background:linear-gradient(90deg,#06b6d4,#7c3aed);border:none}
+.settings-actions button.danger{border-color:#7f1d1d;color:#f87171}
+.settings-actions button:disabled{opacity:.55;cursor:not-allowed}
+
+.settings-msg{font-size:12px;font-weight:700;padding:8px 12px;border-radius:8px}
+.settings-msg.ok{background:rgba(34,197,94,.12);color:#4ade80}
+.settings-msg.error{background:rgba(239,68,68,.12);color:#fca5a5}
+
+.settings-update-progress{height:8px;border-radius:999px;background:rgba(148,163,184,.15);overflow:hidden}
+.settings-update-progress-fill{height:100%;background:linear-gradient(90deg,#06b6d4,#7c3aed);transition:width .2s}
+
+.settings-detail{font-size:11px;color:#64748b}
+
+.settings-subheader h2{margin:0;font-size:17px;font-weight:900;color:white}
+.settings-subheader p{margin:6px 0 0;color:#94a3b8;font-size:12px;max-width:640px}
+
+.settings-devices-table{width:100%;border-collapse:collapse;font-size:13px}
+.settings-devices-table th{text-align:left;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:6px 10px;border-bottom:1px solid rgba(148,163,184,.18)}
+.settings-devices-table td{padding:10px;border-bottom:1px solid rgba(148,163,184,.08);color:#e2e8f0}
+.settings-devices-icon{font-size:16px;width:28px}
+.settings-devices-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.settings-devices-dot.online{background:#4ade80;box-shadow:0 0 6px rgba(74,222,128,.7)}
+.settings-devices-dot.offline{background:#64748b}
+.settings-devices-row-warn td{background:rgba(239,68,68,.08)}
+.settings-devices-mismatch{color:#fca5a5;font-size:11px;font-weight:700;margin-left:4px}
+.settings-msg code{font-family:monospace;background:rgba(0,0,0,.25);padding:2px 6px;border-radius:4px}
+
+.settings-ftl-section{display:flex;flex-direction:column;gap:8px}
+.settings-ftl-section-label{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b}
+.settings-ftl-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.settings-ftl-field{display:flex;flex-direction:column;gap:6px;background:rgba(148,163,184,.06);border-radius:10px;padding:10px 12px;font-size:12px;color:#cbd5e1}
+.settings-ftl-pair{display:flex;gap:10px}
+.settings-ftl-pair label,.settings-ftl-field>label{display:flex;align-items:center;gap:6px;font-size:11px;color:#94a3b8}
+.settings-ftl-pair input,.settings-ftl-field>label input{width:70px;padding:6px 8px;border-radius:7px;border:1px solid #334155;background:#0f172a;color:white;font-size:12px}
+
+.settings-training-item-panel{background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.15);border-radius:14px;padding:16px 18px;margin-bottom:16px}
+.settings-training-item-row{display:flex;gap:20px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+.settings-training-monitor{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#cbd5e1}
+.settings-training-threshold{display:flex;align-items:center;gap:8px;font-size:12px;color:#94a3b8}
+/* Course-time hint sits under the two duration inputs. */
+.settings-training-hint{flex:1 1 100%;margin:6px 0 0;font-size:11.5px;color:#94a3b8;line-height:1.5}
+.settings-training-threshold input{width:80px;padding:7px 9px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:white;font-size:12.5px}
+
+.settings-bulk-editor{margin-top:16px;padding-top:14px;border-top:1px solid rgba(148,163,184,.15)}
+.settings-bulk-lifetime{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#cbd5e1;margin:6px 0 10px}
+.settings-bulk-mode{display:flex;gap:18px;font-size:12.5px;color:#cbd5e1;margin-bottom:10px}
+.settings-bulk-mode label{display:flex;align-items:center;gap:6px}
+.settings-bulk-inputs{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.settings-bulk-inputs label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#94a3b8}
+.settings-bulk-checkbox{display:flex!important;flex-direction:row!important;align-items:center;gap:6px;font-size:12px;color:#cbd5e1}
+.settings-bulk-inputs input,.settings-bulk-inputs select{padding:7px 9px;border-radius:8px;border:1px solid #334155;background:#0b1220;color:white;font-size:12.5px}
+.settings-bulk-preview{font-size:12.5px;font-weight:800;color:#7dd3fc;margin-bottom:10px}
+.settings-bulk-pilots{margin-bottom:10px}
+.settings-bulk-all{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:800;color:#cbd5e1;margin-bottom:8px}
+.settings-bulk-pilotlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px;max-height:220px;overflow:auto;padding:10px;background:rgba(148,163,184,.05);border-radius:10px}
+.settings-bulk-pilotlist label{display:flex;align-items:center;gap:6px;font-size:12px;color:#cbd5e1}
+
+.settings-toggle{display:flex;align-items:center;gap:10px;font-size:13px;color:#e2e8f0;cursor:pointer}
+.settings-toggle input{width:18px;height:18px;accent-color:#1677ff;cursor:pointer}
+.settings-tone{display:flex;flex-direction:column;gap:6px;font-size:12px;color:#94a3b8;margin-top:14px;max-width:360px}
+.settings-tone select{padding:9px 11px;border-radius:9px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px}
+.settings-tone select:disabled{opacity:.5}
+
+.settings-tone{display:flex;flex-direction:column;gap:5px;font-size:12px;color:#94a3b8;max-width:340px;margin-top:6px}
+.settings-tone select{padding:9px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px}
+.settings-tone select:disabled{opacity:.5}
+
+.settings-logo-row{display:flex;align-items:center;gap:12px}
+.settings-logo-row input[type=file]{color:#94a3b8;font-size:12px}
+.settings-logo-preview{height:40px;width:auto;max-width:140px;object-fit:contain;background:rgba(148,163,184,.08);border-radius:8px;padding:4px}
+.settings-logo-row button{padding:8px 12px;border-radius:8px;border:1px solid #334155;background:transparent;color:#f87171;font-size:12px;cursor:pointer}
+.settings-about-value{padding:10px 12px;border-radius:10px;background:rgba(148,163,184,.06);color:white;font-size:13px;font-family:monospace}
+.settings-hwid-row{display:flex;align-items:center;gap:12px}
+.settings-hwid-row input{flex:1;font-family:monospace;letter-spacing:.02em}
+.settings-hwid-row button{padding:8px 14px;border-radius:8px;border:1px solid #334155;background:transparent;color:#7dd3fc;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+
+/* About (web/admin build): label -> value rows */
+.admin-about-rows{display:flex;flex-direction:column;gap:8px}
+.admin-about-rows div{display:flex;justify-content:space-between;align-items:baseline;gap:16px;font-size:13px;line-height:1.5;border-bottom:1px solid rgba(148,163,184,.12);padding-bottom:8px}
+.admin-about-rows div:last-child{border-bottom:none}
+.admin-about-rows span{color:#94a3b8;flex:none;font-weight:600}
+.admin-about-rows b{color:#e2e8f0;text-align:right;font-weight:700}
+.admin-about-note{margin:12px 0 0;font-size:12px;color:#94a3b8;line-height:1.65}
+.admin-about-note b{color:#7dd3fc}
+
+.settings-chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.settings-chip{display:flex;align-items:center;gap:6px;padding:6px 6px 6px 12px;border-radius:999px;background:rgba(22,119,255,.12);border:1px solid rgba(125,211,252,.25);color:#e2e8f0;font-size:12px;font-weight:700}
+.settings-chip button{width:18px;height:18px;border-radius:50%;border:none;background:rgba(148,163,184,.18);color:#e2e8f0;font-size:13px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.settings-chip button:hover{background:rgba(239,68,68,.3);color:#fca5a5}
+
+/* --- Fatigue Criteria tab --------------------------------------------------
+   These controls edit CAAT-reported figures, so the styling deliberately does
+   not look like ordinary app preferences: the warning is loud, an unapproved
+   state is amber everywhere it appears, and validation errors are red and
+   listed rather than hidden behind a disabled button with no explanation. */
+.fatcrit-warn{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.4);border-radius:10px;padding:12px 14px;font-size:13px;color:#bfdbfe;line-height:1.55;margin-bottom:12px}
+.fatcrit-modified{background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.45);border-radius:10px;padding:11px 14px;font-size:13px;color:#fbbf24;line-height:1.5;margin-bottom:12px}
+.fatcrit-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.fatcrit-invalid{color:#fca5a5;font-size:12px;font-weight:700}
+.fatcrit-errors{margin:8px 0 0;padding-left:20px;color:#fca5a5;font-size:12.5px;line-height:1.7}
+.fatcrit-table{border-collapse:collapse;margin:6px 0 10px;font-size:13px}
+.fatcrit-table th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#94a3b8;font-weight:800;padding:5px 12px 5px 0;border-bottom:1px solid rgba(148,163,184,.2)}
+.fatcrit-table td{padding:4px 12px 4px 0;color:#ffffff;vertical-align:middle}
+/* These inputs previously set only a width, so they inherited the browser
+   default - dark text on the dark page, i.e. invisible. They now carry the
+   same dark-field/white-text treatment as every other input on this page
+   (.settings-ftl-pair input etc.), stated explicitly rather than inherited. */
+/* Numbers in these fields were reported invisible on the live Admin build.
+   Written defensively as input.fatcrit-* (element + class, and again scoped
+   under .fatcrit) with the colour forced, because the exact override was never
+   identified: the deployed CSS, the deployed JS and a jsdom render of both all
+   showed white-on-dark with the value present. Whatever wins in the real
+   browser is something none of those three reproduce - so rather than guess
+   again, this states every relevant property at high specificity.
+
+   -webkit-text-fill-color is included because Chrome honours it over `color`
+   on form controls in some states (autofill being the common one), which is a
+   way for text to go invisible while `color` still computes to white.
+
+   Worth the belt-and-braces: a criteria value the user cannot see invites
+   re-typing a figure that was already correct, and these figures are reported
+   to the CAAT. */
+.fatcrit input.fatcrit-n,
+.fatcrit input.fatcrit-t,
+input.fatcrit-n,
+input.fatcrit-t{
+  box-sizing:border-box;
+  height:34px;
+  padding:6px 10px;
+  border-radius:8px;
+  border:1px solid #cbd5e1;   /* lighter than the field, or the edge disappears */
+  /* Grey field, not near-black.
+     Whatever was painting these numbers invisible was never identified from
+     here - deployed CSS, deployed JS and a full jsdom render of the component
+     all showed white text on a value that was present. A mid-grey field breaks
+     that deadlock from the other side: it is light enough that DARK text shows
+     on it, and dark enough that WHITE text still shows. So the digits are
+     legible whichever colour actually wins. */
+  background:#64748b !important;
+  color:#ffffff !important;
+  font-size:15px;
+  font-weight:700;
+  line-height:20px;
+  opacity:1;
+  -webkit-text-fill-color:#ffffff;   /* Chrome honours this over `color` on form controls */
+  text-shadow:0 1px 2px rgba(0,0,0,.55);  /* keeps white readable on the lighter field */
+  font-variant-numeric:tabular-nums;
+}
+.fatcrit input.fatcrit-n,input.fatcrit-n{width:84px;text-align:right}
+.fatcrit input.fatcrit-t,input.fatcrit-t{width:92px;text-align:center;font-family:ui-monospace,monospace;letter-spacing:.04em}
+.fatcrit input.fatcrit-n:focus,.fatcrit input.fatcrit-t:focus,
+input.fatcrit-n:focus,input.fatcrit-t:focus{
+  outline:none;border-color:#1677ff;background:#7c8ba1 !important;box-shadow:0 0 0 2px rgba(22,119,255,.45)
+}
+.fatcrit input.fatcrit-n:hover,.fatcrit input.fatcrit-t:hover,
+input.fatcrit-n:hover,input.fatcrit-t:hover{border-color:#94a3b8}
+
+/* Zebra striping: these tables are read across a row (threshold -> points ->
+   what it means), and six near-identical numeric rows are easy to slip
+   between. */
+.fatcrit-table tbody tr:nth-child(odd){background:rgba(148,163,184,.05)}
+.fatcrit-table tbody tr:hover{background:rgba(22,119,255,.1)}
+.fatcrit-table td,.fatcrit-table th{padding:6px 14px 6px 0}
+.fatcrit-table td:first-child,.fatcrit-table th:first-child{padding-left:10px}
+.fatcrit-del{background:transparent;border:1px solid rgba(239,68,68,.45);color:#f87171;border-radius:7px;padding:2px 8px;font-size:11px;cursor:pointer;line-height:1.5}
+.fatcrit-del:hover{background:rgba(239,68,68,.12)}
+.fatcrit-limits{display:flex;gap:22px;flex-wrap:wrap;font-size:13px;color:#cbd5e1}
+.fatcrit-limits label{display:flex;align-items:center;gap:7px}
+.fatcrit-reads{color:#cbd5e1;font-size:12px;white-space:nowrap}
+/* Without accent-color the tick renders in the browser default, which on this
+   dark page is another low-contrast box. */
+.fatcrit-table input[type=checkbox]{width:17px;height:17px;accent-color:#1677ff;cursor:pointer}
+
+/* --- Server Backup -------------------------------------------------------
+   Styled to be read carefully rather than clicked quickly: this is the one
+   screen where a mistake overwrites live data on the server. */
+.bk-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.bk-file{display:inline-block;padding:9px 14px;border-radius:9px;border:1px dashed #64748b;color:#cbd5e1;font-size:12.5px;font-weight:700;cursor:pointer}
+.bk-file:hover{border-color:#94a3b8;background:rgba(148,163,184,.07)}
+.bk-file.disabled{opacity:.5;cursor:not-allowed}
+.bk-file input{display:none}
+.bk-actions button.danger{background:#dc2626;border-color:#dc2626;color:#fff}
+.bk-actions button.danger:disabled{opacity:.45;cursor:not-allowed}
+
+.bk-progress{display:flex;align-items:center;gap:10px;font-size:12px;color:#94a3b8;margin:8px 0}
+.bk-progress-bar{flex:1;max-width:320px;height:7px;border-radius:4px;background:rgba(148,163,184,.2);overflow:hidden}
+.bk-progress-bar > span{display:block;height:100%;background:linear-gradient(90deg,#38bdf8,#0284c7);transition:width .2s}
+
+.bk-report{margin-top:14px;background:rgba(2,6,23,.5);border:1px solid rgba(148,163,184,.2);border-radius:10px;padding:14px 16px}
+.bk-report h3{margin:0 0 8px;font-size:13px;font-weight:800;color:#e2e8f0;font-family:ui-monospace,monospace}
+.bk-table{border-collapse:collapse;font-size:12.5px;width:100%;max-width:520px}
+.bk-table th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#60a5fa;font-weight:800;padding:5px 10px 5px 0;border-bottom:1px solid rgba(96,165,250,.35)}
+.bk-table th:last-child,.bk-table td:last-child{text-align:right}
+.bk-table td{padding:4px 10px 4px 0;color:#e2e8f0;font-variant-numeric:tabular-nums;border-bottom:1px solid rgba(148,163,184,.1)}
+.bk-table tfoot td{font-weight:900;color:#fff;border-top:2px solid rgba(148,163,184,.3);border-bottom:0}
+.bk-row-fail td{color:#fca5a5!important}
+.bk-tag{display:inline-block;margin-left:8px;padding:1px 6px;border-radius:5px;font-size:9.5px;font-weight:800;text-transform:uppercase;border:1px solid rgba(148,163,184,.45);color:#94a3b8}
+
+.bk-restore{margin-top:16px;background:rgba(2,6,23,.5);border:1px solid rgba(148,163,184,.25);border-radius:10px;padding:14px 16px}
+.bk-restore h3{margin:0 0 8px;font-size:13px;font-weight:800;color:#e2e8f0}
+.bk-meta{display:flex;gap:18px;flex-wrap:wrap;font-size:11.5px;color:#94a3b8;margin-bottom:10px}
+.bk-errors,.bk-warnings{margin:6px 0;padding-left:20px;font-size:12px;line-height:1.7}
+.bk-errors{color:#fca5a5}
+.bk-warnings{color:#fbbf24}
+/* Loud on purpose: the button below writes over the server. */
+.bk-danger{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.45);border-radius:9px;padding:11px 13px;font-size:12.5px;color:#fca5a5;line-height:1.6;margin:10px 0}
+.bk-confirm{display:flex;align-items:center;gap:9px;font-size:12.5px;color:#cbd5e1;margin:10px 0}
+.bk-confirm input{width:150px;padding:7px 10px;border-radius:8px;border:1px solid #64748b;background:#0b1220;color:#fff;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+
+/* Backup reminder strip. Neutral until due, amber when it is - the point is to
+   be noticed on the day it matters without becoming wallpaper before then. */
+.bk-due{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+  background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.22);border-radius:10px;
+  padding:11px 14px;font-size:12.5px;color:#cbd5e1;line-height:1.6;margin-bottom:4px}
+.bk-due-now{background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.5);color:#fbbf24}
+.bk-due-now b{color:#fde68a}
+.bk-due-text{flex:1 1 340px}
+.bk-due-controls{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:11.5px;color:#94a3b8}
+.bk-due-controls select{padding:6px 9px;border-radius:7px;border:1px solid #64748b;background:#0b1220;color:#fff;font-size:12px;font-weight:700}
+.bk-due-toggle{display:flex;align-items:center;gap:6px;cursor:pointer}
+.bk-due-toggle input{width:16px;height:16px;accent-color:#1677ff;cursor:pointer}
+
+/* Settings profile: what a saved file contains, and what a load will change. */
+.sp-groups{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin:12px 0}
+.sp-group{background:rgba(2,6,23,.45);border:1px solid rgba(148,163,184,.18);border-radius:10px;padding:11px 13px}
+.sp-group h4{margin:0 0 6px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#60a5fa}
+.sp-group ul{margin:0;padding-left:16px;font-size:12px;color:#cbd5e1;line-height:1.75}
+/* The CAAT tag exists so a regulatory setting never looks like a preference. */
+.sp-reg{display:inline-block;margin-left:7px;padding:0 5px;border-radius:4px;font-size:9px;font-weight:900;letter-spacing:.05em;
+  border:1px solid rgba(251,191,36,.55);color:#fbbf24;vertical-align:1px}
+.sp-pick{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:6px;margin:8px 0 4px}
+.sp-pick-item{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#e2e8f0;cursor:pointer;
+  background:rgba(148,163,184,.05);border-radius:8px;padding:7px 10px}
+.sp-pick-item:hover{background:rgba(148,163,184,.1)}
+.sp-pick-item input{width:16px;height:16px;accent-color:#1677ff;cursor:pointer;flex:none}

@@ -2,26 +2,11 @@
 // (verified against "NEW Pilot Schedule 2026 (Include RR9).xlsx", sheet
 // "RR 2026", rows 29-45 - that legend block is duplicated 2-3 times across
 // the sheet for different month-page printouts, this is the union of all of
-// them). One real cycle on that sheet came out Duty 6, RR 2, Duty 6, RR 2,
+// them). "PATTERN 21/7" for the base rotation is: Duty 6, RR 2, Duty 6, RR 2,
 // Duty 3, RR 2, OFF 7 (21 duty-related days = 15 O + 6 RR, plus 7 OFF, per
-// 28-day cycle) - see src/services/rosterTemplate.js.
-//
-// Capt. Weera's description of the NORMAL shape: three duty blocks of about
-// 5 days each, an RR of 1-2 days between them, then a fixed 2-day RR
-// immediately before the 7-day OFF block - "Day On 5 วัน, RR 1-2 วัน, Day On
-// 5 วัน, RR 1-2 วัน, Day On 5 วัน, RR ต้อง 2 วัน ก่อน พัก 7 วัน". Only the
-// last RR (the one before OFF) is fixed at 2 days and immovable - "การทำงาน
-// 21/7 จะจัด RR 2 วัน ก่อน พัก 7 วัน". The two mid-rotation RRs are NOT on a
-// fixed day count or fixed position: "RR ใน 7 วันรอบแรก และ 7 วันรอบที่สอง
-// สามารถปรับได้ตลอด" - they move wherever the pilot's real 168-Hour Duty
-// Cycle, rolling DT/FT limits and Fatigue Monitor actually call for one
-// (ftlLimits.js recoveryRest*, weeklyPlanAvailability.js). That is exactly
-// why the Excel instance above landed on 6/6/3 rather than 5/5/5 - it is one
-// realized case of the same condition-driven rule, not a different pattern.
-// It is also why rosterTemplate.js's generated PATTERN_21_7 deliberately
-// inserts only the fixed pre-OFF RR pair and leaves the two mid-rotation
-// ones for the Weekly Schedule to place by condition, rather than guessing
-// a day count here.
+// 28-day cycle) - see src/services/rosterTemplate.js. The RR pair before the
+// OFF block is required, not optional: Capt. Weera, "การทำงาน 21/7 จะจัด RR
+// 2 วัน ก่อน พัก 7 วัน".
 export const CODE_LEGEND = [
   { code: "O", label: "Day Duty", category: "duty" },
   { code: "X", label: "Day off from duty", category: "off" },
@@ -68,13 +53,7 @@ export const CODE_LEGEND = [
   // but a "T" already sitting on an imported roster is still read as a
   // training day via LEGACY_CODES below - so its rest obligation and duty
   // window keep applying to months already on file.
-  { code: "C", label: "Flight Check with Helicopter", category: "training" },
-  // "L" (Line Check) is its own code, distinct from "C" (Flight Check) - both
-  // are on the company's official "Roster Symbol" sheet. lineCheck still maps
-  // to "C" in ITEM_ROSTER_CODES (weeklyPlanTrainingQueue.js) - adding "L" here
-  // only makes it a recognised, correctly-coloured symbol; it does not change
-  // what the training planner writes.
-  { code: "L", label: "Line Check", category: "training" },
+  { code: "C", label: "Flight Check", category: "training" },
   { code: "S", label: "Simulator", category: "training" },
   // The simulator is at Subang, Malaysia, which is why travel has its own code
   // at all - Capt. Weera: "SIM (LPC =5 วัน OPC=4 วัน) at Malaysia subang".
@@ -85,8 +64,6 @@ export const CODE_LEGEND = [
   { code: "FIRE", label: "Fire Fighting", category: "training" },
   { code: "FIRST", label: "First Aid Training", category: "training" },
   { code: "SMS", label: "SMS Training", category: "training" },
-  { code: "PBN", label: "PBN", category: "training" },
-  { code: "ESE", label: "ESE Training", category: "training" },
   { code: "INS", label: "Helideck Inspection", category: "inspection" },
   { code: "VL", label: "Vacation Leave", category: "leave" },
   { code: "SL", label: "Sick Leave", category: "leave" }
@@ -139,13 +116,13 @@ export const TRAINING_DUTY_WINDOWS = {
 // already imported. Read as ordinary duty days so an old sheet keeps working
 // - they are simply no longer offered, and no longer mean "night".
 const LEGACY_CODES = new Map([
-  ["N", { code: "N", label: "Night Standby (17:30-05:30) - legacy, now on the Weekly Schedule", category: "duty" }],
+  ["N", { code: "N", label: "Duty day (was Night Standby)", category: "duty" }],
   ["ND", { code: "ND", label: "Duty day (was Night Duty)", category: "duty" }],
   // Retired code, still honoured on rosters already imported. Kept in the
   // "training" category on purpose: a historic T day must go on occupying the
   // pilot and carrying its 12-hour rest obligation, otherwise removing the
   // code from the legend would quietly make old months look free.
-  ["T", { code: "T", label: "Flight Training with Helicopter (retired code)", category: "training" }]
+  ["T", { code: "T", label: "Flight Training (retired code)", category: "training" }]
 ]);
 
 const NIGHT_TRAINING_CODES = new Set(["NT"]);
@@ -167,7 +144,7 @@ export function rosterDayInfo(raw) {
   if (!text) return null;
 
   const parts = text.split(",").map((p) => p.trim()).filter(Boolean);
-  const infos = parts.map((p) => resolveLegendEntry(p)).filter(Boolean);
+  const infos = parts.map((p) => CODE_LEGEND_MAP.get(p) || LEGACY_CODES.get(p)).filter(Boolean);
   if (!infos.length) return { code: text, onDuty: false, occupied: null, window: null, unknown: true };
 
   const categories = new Set(infos.map((i) => i.category));
@@ -229,238 +206,62 @@ export function rosterDayInfo(raw) {
   };
 }
 
-// Whether a TRAINING item may be WRITTEN onto this cell, replacing whatever is
-// there. Deliberately more permissive than `onDuty` above (which governs
-// whether a pilot can be given a FLYING line): Capt. Weera confirmed training
-// may now sit on Recovery Rest (RR), a Rest Day (R) or an Off day (X), not
-// only a plain duty day. This mirrors what weeklyPlanChecks.js already allows
-// for a mid-rotation RR/R on the Weekly Schedule board - moving it is a
-// caution, not a violation, provided the 168-hour Recovery Rest cycle still
-// comes out clean afterwards. That check still has to be made by whoever
-// reviews the plan; this function only says the CELL is writable, not that
-// moving it is consequence-free.
-//
-// Still off limits:
-//   - Leave (VL/SL) - the pilot's own day, never touched.
-//   - A day already carrying a session (training/inspection) - can't
-//     double-book.
-//   - Any combo cell ("O,X", "O,S" ...) - someone entered that second code
-//     deliberately, and overwriting it would silently lose that meaning.
-export function isTrainingWritableDay(raw) {
-  const text = String(raw || "").trim().toUpperCase();
-  if (!text || text.includes(",")) return false;
-  const info = resolveLegendEntry(text);
-  if (!info) return false;
-  if (info.category === "leave") return false;
-  if (OCCUPYING_CATEGORIES.has(info.category)) return false;
-  return info.category === "duty" || info.category === "rest" || info.category === "off";
-}
-
 // Combo cells (comma-separated, e.g. "O,N" / "O,X" / "O,T" / "O,C") mark a
 // compensate day - a normal duty day that also carries a second marker. Kept
 // as their own category (rather than just showing the "O" half) so they
 // stand out on the calendar as "something changed on this day".
 const COMPENSATE_LABELS = {
-  "O,X": "Compensate day off",
-  "O,N": "Compensate Day on",
-  // The company's "Roster Symbol" sheet has an "Over time" colour swatch with
-  // no code letter of its own - rosterTrainingPlanner.js already explains
-  // what it maps to: a course placed on a pilot's day off earns overtime, and
-  // that is recorded as "O,S" (Capt. Weera: "ถือเป็นทำงานวันหยุด เลยใส่ O/S").
-  // So "O,S" is given its own label and colour here instead of falling
-  // through to the generic "compensate" teal.
-  "O,S": "Overtime (training on a day off)"
+  "O,X": "Compensate day off"
 };
 
-// Capt. Weera: the 21 working days read "เขียวแก่" (dark green - moved on
-// from the earlier "เขียวขี้ม้า" khaki shade), and changing it here takes
-// effect on the roster page immediately, no separate setting to flip -
-// gridFill() below reads this SAME constant for the grid, and Settings >
-// Roster Symbol's default (CODE_STYLE/CATEGORY_STYLE) reads it too. One
-// place, both surfaces update together.
-const GREEN = "#388e3c";
-const YELLOW = "#fde047";
-const PINK = "#f9a8d4";
-
-// Colour for combo cells that have their own meaning (see COMPENSATE_LABELS
-// above). All three ARE the "X สลับ O" compensate swap Capt. Weera described:
-// "O,N" and "O,S" are an off day compensated TO working (night duty / a
-// course earning overtime), "O,X" is a working day compensated to off. Text
-// is RED - not the black every other symbol gets - specifically to flag a
-// swap; the FILL still follows which side the day landed on: green like a
-// plain O if it is now a working day, yellow like a plain X if it is now off.
-// Deliberately NOT admin-overridable (like "conflict" below) - the red text
-// is what makes a swap findable on the sheet.
-const COMPENSATE_STYLE = {
-  "O,X": { bg: YELLOW, fg: "#dc2626" },
-  "O,N": { bg: GREEN, fg: "#dc2626" },
-  "O,S": { bg: GREEN, fg: "#dc2626" }
-};
-
-// The DEFAULT identity colour for each category, as shown in Settings >
-// Roster Symbol's "Colour" column: green for everything, except off (X)
-// which is yellow (Capt. Weera: "default ค่า symbol ต่างๆ ใน roster setting
-// เป็นสีเขียว ยกเว้น X เป็นสีเหลือง"). This is the STORED default an admin
-// sees and can edit - it is deliberately not the same thing as what the
-// calendar grid actually paints a cell (see gridFill() below), which forces
-// PINK for anything other than a plain O/X regardless of this value, unless
-// the admin has explicitly overridden that code's colour.
+// Palette for the calendar cells, on the roster's light-grey surface (see the
+// "light surface" block in PilotRoster.css). Cells are NOT filled: a month
+// grid is ~30 columns x every pilot, and a wall of coloured blocks - even
+// pale ones - was tiring to read. The colour is carried by the code letters
+// alone, so the grid stays a calm grey sheet and the eye picks out the codes
+// rather than the background. bg stays in the shape (as "transparent") so
+// nothing that consumes style.bg has to change. Works as-is in print too.
 export const CATEGORY_STYLE = {
-  duty: { bg: GREEN, fg: "#000000" },
-  off: { bg: YELLOW, fg: "#000000" },
-  rest: { bg: GREEN, fg: "#000000" },
-  night: { bg: GREEN, fg: "#000000" },
-  training: { bg: GREEN, fg: "#000000" },
-  leave: { bg: GREEN, fg: "#000000" },
-  inspection: { bg: GREEN, fg: "#000000" },
-  compensate: { bg: GREEN, fg: "#000000" },
-  // Kept deliberately distinct and NOT admin-overridable (see getCodeInfo) -
-  // conflict red is a safety signal ("cannot both be on one day"), not a
-  // decoration.
+  duty: { bg: "transparent", fg: "#15803d" },
+  off: { bg: "transparent", fg: "#dc2626" },
+  rest: { bg: "transparent", fg: "#22c55e" },
+  night: { bg: "transparent", fg: "#6d28d9" },
+  training: { bg: "transparent", fg: "#b45309" },
+  leave: { bg: "transparent", fg: "#be123c" },
+  inspection: { bg: "transparent", fg: "#a16207" },
+  compensate: { bg: "transparent", fg: "#0f766e" },
+  // The one category that DOES get a fill. Everything else on this grid is
+  // deliberately unfilled (see the note above) so the sheet stays calm, but a
+  // cell that cannot actually be flown has to be impossible to scroll past.
   conflict: { bg: "#fee2e2", fg: "#b91c1c" },
-  // An unrecognised code fills grey rather than green - it is not yet a
-  // known symbol, so it should not look like one.
-  unknown: { bg: "#9ca3af", fg: "#000000" }
+  unknown: { bg: "transparent", fg: "#475569" }
 };
 
-// Per-code default identity colours, same idea as CATEGORY_STYLE above -
-// green for every built-in code except X (yellow). bg is the FULL FILL
-// shown in Settings > Roster Symbol; fg is fixed black.
-//
-// Admin-editable from Settings > Roster Symbol (label and colour only - see
-// applyRosterSymbolCustomizations below); these are just the defaults.
+// Per-code overrides, for the three codes that carry their own meaning
+// regardless of which category they sit in: O = green (on duty), X = red
+// (day off), RR = light green (recovery rest). Without this, X would take
+// its "off" colour and RR its "rest" colour.
 export const CODE_STYLE = {
-  O: { bg: GREEN, fg: "#000000" },
-  X: { bg: YELLOW, fg: "#000000" },
-  RR: { bg: GREEN, fg: "#000000" },
-  R: { bg: GREEN, fg: "#000000" },
-  NT: { bg: GREEN, fg: "#000000" },
-  N: { bg: GREEN, fg: "#000000" },
-  ND: { bg: GREEN, fg: "#000000" },
-  T: { bg: GREEN, fg: "#000000" },
-  C: { bg: GREEN, fg: "#000000" },
-  L: { bg: GREEN, fg: "#000000" },
-  S: { bg: GREEN, fg: "#000000" },
-  "S/T": { bg: GREEN, fg: "#000000" },
-  CR: { bg: GREEN, fg: "#000000" },
-  AVS: { bg: GREEN, fg: "#000000" },
-  H: { bg: GREEN, fg: "#000000" },
-  FIRE: { bg: GREEN, fg: "#000000" },
-  FIRST: { bg: GREEN, fg: "#000000" },
-  SMS: { bg: GREEN, fg: "#000000" },
-  PBN: { bg: GREEN, fg: "#000000" },
-  ESE: { bg: GREEN, fg: "#000000" },
-  INS: { bg: GREEN, fg: "#000000" },
-  VL: { bg: GREEN, fg: "#000000" },
-  SL: { bg: GREEN, fg: "#000000" }
+  O: { bg: "transparent", fg: "#15803d" },
+  X: { bg: "transparent", fg: "#dc2626" },
+  RR: { bg: "transparent", fg: "#22c55e" }
 };
-
-// VL and SL are LEAVE, not a duty replaced by a symbol - the pilot is off
-// work exactly the way they are on a plain X day, so Capt. Weera has them
-// read the same yellow as X rather than the general "something's here" pink
-// every other symbol gets: "SL VL จะอยู่ช่วง 21 วัน ทำงาน พื้นหลัง จะเป็น
-// สีเหลือง" - even though a leave day sits inside the 21 working days on the
-// calendar, it reads as an off day, so it gets off's colour.
-const YELLOW_LIKE_CODES = new Set(["VL", "SL"]);
-
-// RR (Recovery Rest) reads green like O, not pink - it counts as a WORKED
-// day for pay/HR (the pilot is rostered, just resting near base instead of
-// flying - see the note on RR in CODE_LEGEND above), so Capt. Weera has it
-// share O's colour rather than the general "something's here" pink. R (the
-// short Rest Day) is NOT included here - it isn't documented as a worked day
-// the way RR is, so it stays pink with everything else unless told otherwise.
-const GREEN_LIKE_CODES = new Set(["RR"]);
-
-// What the ROSTER GRID actually paints for a symbol - deliberately different
-// from CODE_STYLE/CATEGORY_STYLE above. Capt. Weera's rule for the calendar
-// itself: a plain working day (O, one of the 21 duty days) is green, a
-// plain off day (X, one of the 7 days off) is yellow, and ANY OTHER SYMBOL
-// landing on a day - training, rest, inspection, whatever - turns that cell
-// PINK, so the sheet reads at a glance as "working / off / something else
-// happening here, go read the letter" rather than a different pastel per
-// code. RR (green) and Leave VL/SL (yellow) are the two exceptions - see the
-// Sets above. An admin-set colour override always wins - the whole point of
-// Settings > Roster Symbol is to let the company override this default.
-function gridFill(category, overrideColor, code) {
-  if (overrideColor) return overrideColor;
-  if (category === "duty") return GREEN;
-  if (category === "off") return YELLOW;
-  if (code && GREEN_LIKE_CODES.has(code)) return GREEN;
-  if (code && YELLOW_LIKE_CODES.has(code)) return YELLOW;
-  return PINK;
-}
-
-// --- Settings > Roster Symbol: admin-editable label/colour overrides -------
-//
-// The CATEGORY of a code (duty/off/rest/training/leave/inspection) drives
-// real FTL logic above - rest windows, duty credit, isTrainingWritableDay -
-// so it stays hardcoded in CODE_LEGEND/LEGACY_CODES and is never
-// admin-editable. What Settings > Roster Symbol DOES let the admin change,
-// for any code (built-in or new):
-//   - the LABEL and COLOUR shown for it
-//   - brand-new codes, which must be given one of these categories so a
-//     custom code still behaves correctly (rest, duty credit, training-write
-//     eligibility...) even though nobody hand-wrote a rule for it.
-export const ROSTER_SYMBOL_CATEGORIES = ["duty", "off", "rest", "training", "leave", "inspection"];
-
-let customLegendEntries = [];   // [{ code, label, category, color }]
-let labelColorOverrides = {};   // { CODE: { label?, color? } }
-
-// Called once with the saved "roster_symbol_customizations" setting (see
-// RosterSymbolSettingsTab.jsx) wherever the roster is shown or edited, so the
-// admin's Add/Edit/Delete/Save choices take effect everywhere a roster code
-// is displayed or interpreted - not just inside the Settings tab itself.
-export function applyRosterSymbolCustomizations(saved) {
-  customLegendEntries = Array.isArray(saved?.custom)
-    ? saved.custom.filter((e) => e?.code && ROSTER_SYMBOL_CATEGORIES.includes(e.category))
-    : [];
-  labelColorOverrides = saved?.overrides && typeof saved.overrides === "object" ? saved.overrides : {};
-}
-
-function customEntry(code) {
-  return customLegendEntries.find((e) => String(e.code).toUpperCase() === code) || null;
-}
-
-// CODE_LEGEND_MAP, then LEGACY_CODES, then any admin-added custom code - the
-// one place that resolves a raw code to its CATEGORY, so a custom code
-// participates in rosterDayInfo/isTrainingWritableDay exactly like a
-// built-in one, driven by the category its creator picked for it.
-function resolveLegendEntry(code) {
-  return CODE_LEGEND_MAP.get(code) || LEGACY_CODES.get(code) || customEntry(code);
-}
 
 // Resolves any raw cell value from the roster (a plain code like "O", or a
 // combo like "O,T") to {code, label, category, style}. Never throws - an
 // unrecognized code (a typo, or a code the company adds later that isn't in
 // CODE_LEGEND yet) still renders, just styled as "unknown" rather than being
 // silently dropped, so nothing imported from Excel ever disappears from view.
-//
-// Checks LEGACY_CODES and any admin-added custom code too (via
-// resolveLegendEntry), not just CODE_LEGEND - a legacy code like "N" or "T"
-// sitting on an old imported roster is real duty (rosterDayInfo already
-// treats it that way) and deserves a real label and colour here, not the
-// grey "unknown" style it fell back to before.
 export function getCodeInfo(raw) {
   const code = String(raw || "").trim().toUpperCase();
   if (!code) return null;
 
-  if (!code.includes(",")) {
-    const direct = resolveLegendEntry(code);
-    if (direct) {
-      const override = labelColorOverrides[code];
-      const label = override?.label || direct.label;
-      // A custom code's own colour (chosen when it was added - direct.color,
-      // only ever set on customEntry() results) counts as an override too,
-      // same as editing an existing code's colour afterwards.
-      const bg = gridFill(direct.category, override?.color || direct.color, code);
-      return { code, label, category: direct.category, style: { bg, fg: "#000000" } };
-    }
-  }
+  const direct = CODE_LEGEND_MAP.get(code);
+  if (direct) return { code, label: direct.label, category: direct.category, style: CODE_STYLE[code] || CATEGORY_STYLE[direct.category] };
 
   if (code.includes(",")) {
     const parts = code.split(",").map((p) => p.trim()).filter(Boolean);
-    const override = labelColorOverrides[code];
-    const label = override?.label || COMPENSATE_LABELS[code] || parts.map((p) => resolveLegendEntry(p)?.label || p).join(" + ");
+    const label = COMPENSATE_LABELS[code] || parts.map((p) => CODE_LEGEND_MAP.get(p)?.label || p).join(" + ");
 
     // TWO COURSES ON ONE DAY IS NOT A COMPENSATE DAY - IT IS A MISTAKE.
     //
@@ -486,7 +287,7 @@ export function getCodeInfo(raw) {
     // "S,NT" is accepted rather than flagged, because someone recording both
     // explicitly is describing one session, not double-booking the pilot.
     const courseParts = parts.filter((p) => {
-      const cat = resolveLegendEntry(p)?.category;
+      const cat = CODE_LEGEND_MAP.get(p)?.category || LEGACY_CODES.get(p)?.category;
       return cat === "training" || cat === "inspection";
     });
     const isSimPlusNight =
@@ -495,8 +296,6 @@ export function getCodeInfo(raw) {
       courseParts.some((p) => NIGHT_TRAINING_CODES.has(p));
 
     if (courseParts.length > 1 && !isSimPlusNight) {
-      // Deliberately NOT colour-overridable - conflict red is a safety
-      // signal ("cannot both be on one day"), not a decoration.
       return {
         code,
         label: `${label} — cannot both be on one day`,
@@ -506,15 +305,7 @@ export function getCodeInfo(raw) {
       };
     }
 
-    // A known compensate swap (O,X / O,N / O,S) keeps its fixed red-text
-    // green/yellow styling - not admin-overridable, same reasoning as
-    // conflict below. Any OTHER combo (e.g. "S,NT") falls through to the
-    // general "a symbol landed" pink.
-    if (COMPENSATE_STYLE[code]) {
-      return { code, label, category: "compensate", style: COMPENSATE_STYLE[code] };
-    }
-    const bg = gridFill("compensate", override?.color);
-    return { code, label, category: "compensate", style: { bg, fg: "#000000" } };
+    return { code, label, category: "compensate", style: CATEGORY_STYLE.compensate };
   }
 
   return { code, label: code, category: "unknown", style: CATEGORY_STYLE.unknown };
@@ -537,58 +328,3 @@ export const CATEGORY_LABELS = {
   conflict: "Clash — two courses on one day",
   unknown: "Unrecognized code"
 };
-
-// Every CURRENT symbol (built-in + admin-added custom), one row per code.
-// Two colours are reported, because Settings > Roster Symbol and the roster
-// pages show two different things:
-//   color     - the STORED default identity colour (green, except X yellow),
-//               which is what RosterSymbolSettingsTab.jsx shows and edits.
-//   gridColor - what the roster grid actually paints for this symbol right
-//               now (see gridFill above) - green for O, yellow for X, pink
-//               for everything else, unless the admin overrode it. This is
-//               what DutySchedule.jsx/MyRoster.jsx use for their legend, so
-//               the legend always matches the cells.
-// Legacy codes (N, ND, T) are left out - they still read correctly wherever
-// they appear on an old roster, but are not offered as a current symbol.
-export function listRosterSymbols() {
-  const builtIn = CODE_LEGEND.map((c) => {
-    const override = labelColorOverrides[c.code];
-    return {
-      code: c.code,
-      label: override?.label || c.label,
-      category: c.category,
-      color: override?.color || CODE_STYLE[c.code]?.bg || CATEGORY_STYLE[c.category].bg,
-      gridColor: gridFill(c.category, override?.color, c.code),
-      builtIn: true
-    };
-  });
-  const custom = customLegendEntries.map((c) => {
-    const override = labelColorOverrides[c.code];
-    return {
-      code: c.code,
-      label: override?.label || c.label,
-      category: c.category,
-      color: override?.color || c.color || CATEGORY_STYLE[c.category].bg,
-      gridColor: gridFill(c.category, override?.color || c.color, c.code),
-      builtIn: false
-    };
-  });
-  return [...builtIn, ...custom];
-}
-
-// The three known Compensate Day swaps (fixed red text on green/yellow, NOT
-// admin-overridable - see COMPENSATE_STYLE), for the roster pages' legend
-// only. Deliberately separate from listRosterSymbols() above - these aren't
-// editable rows in Settings > Roster Symbol, since there is nothing to
-// change: DutySchedule.jsx/MyRoster.jsx append this to their own legend so
-// a compensate swap is explained too, not just the single-letter codes.
-export function listCompensateSymbols() {
-  return Object.keys(COMPENSATE_LABELS).map((code) => ({
-    code,
-    label: COMPENSATE_LABELS[code],
-    category: "compensate",
-    color: COMPENSATE_STYLE[code].bg,
-    gridColor: COMPENSATE_STYLE[code].bg,
-    textColor: COMPENSATE_STYLE[code].fg
-  }));
-}

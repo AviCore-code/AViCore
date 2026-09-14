@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getSetting} from "../../services/desktopDatabase.js";
+import { getSetting, exportLogbookPdf } from "../../services/desktopDatabase.js";
 import { DEFAULT_FTL_LIMITS } from "../../utils/ftlLimits.js";
 import { decimalToHHMM, classify, STATUS_LABEL, loadAllPilotStatusRows } from "../../utils/statusCompute.js";
 import { Bar, CurrencySection, RecoveryRestCard } from "../../components/StatusDisplay.jsx";
@@ -16,6 +16,8 @@ export default function AllStatus() {
   const [expanded, setExpanded] = useState("");
   const [filter, setFilter] = useState("");
   const [branding, setBranding] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState("");
   const [fullScreen, setFullScreen] = useState(false);
 
   useEffect(() => {
@@ -42,6 +44,20 @@ export default function AllStatus() {
     setLoading(false);
   }
 
+  async function handleExport() {
+    setExporting(true);
+    setExportMsg("");
+    try {
+      const stamp = new Date().toISOString().slice(0, 10);
+      const result = await exportLogbookPdf(`AllStatus_${stamp}.pdf`);
+      if (result?.ok && result.filePath) setExportMsg(`Saved: ${result.filePath}`);
+    } catch (err) {
+      setExportMsg("Export failed: " + err.message);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const visibleRows = useMemo(() => {
     const q = filter.trim().toLowerCase();
     if (!q) return rows;
@@ -57,12 +73,13 @@ export default function AllStatus() {
         </div>
         <div className="allstatus-controls">
           <input className="allstatus-filter" value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter by name or code..." />
-          {/* Per-page Refresh removed - the sidebar's single Refresh (full
-              page reload) now covers this. refresh() itself stays. */}
-          <button onClick={() => window.print()} disabled={!visibleRows.length}>Print / Save PDF</button>
+          <button onClick={refresh}>Refresh</button>
+          <button onClick={() => window.print()} disabled={!visibleRows.length}>Print</button>
+          <button className="primary" onClick={handleExport} disabled={exporting || !visibleRows.length}>{exporting ? "Exporting..." : "Export PDF"}</button>
           <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
         </div>
       </div>
+      {exportMsg && <div className="allstatus-export-msg no-print">{exportMsg}</div>}
 
       {loading && <div className="mystatus-empty">Loading...</div>}
       {!loading && visibleRows.length === 0 && <div className="mystatus-empty">No pilots found.</div>}

@@ -68,7 +68,7 @@ export default function RosterImportPanel({ onImported, onCancel }) {
     setImporting(true);
     try {
       await importRosterMany(preview.entries);
-      setMsg({ ok: true, text: `Replaced roster for ${preview.pilots.length} pilot(s), ${preview.dateRange.from} to ${preview.dateRange.to}. Blank Excel cells cleared previous entries.` });
+      setMsg({ ok: true, text: `Imported ${preview.pilots.length} pilot(s), ${preview.entries.length} daily entries.` });
       setPreview(null);
       await onImported?.();
     } catch (err) {
@@ -84,7 +84,7 @@ export default function RosterImportPanel({ onImported, onCancel }) {
         <div>
           <h2 style={{ margin: 0, fontSize: "16px" }}>Import Duty Schedule from Excel</h2>
           <p style={{ margin: "4px 0 0", color: "#94a3b8", fontSize: "12.5px" }}>
-            Imports the selected sheet and replaces the schedule for its pilots and date columns. Blank Excel cells delete previous entries. Pilots and dates outside the sheet are unchanged.
+            Loads one sheet from the company's roster workbook (e.g. "RR 2026"). Re-importing updates matching pilot+date cells — it never removes days that aren't in the file.
           </p>
         </div>
         <div style={{ display: "flex", gap: "8px" }}>
@@ -115,7 +115,6 @@ export default function RosterImportPanel({ onImported, onCancel }) {
           <h2>Import preview — {preview.pilots.length} pilot(s), {preview.entries.length} daily entries</h2>
           <p style={{ margin: "0 0 12px", color: "#94a3b8", fontSize: "12.5px" }}>
             Date range: {preview.dateRange.from} → {preview.dateRange.to}
-            {" · "}{preview.entries.filter((entry) => entry.clearExisting).length} blank cells will clear previous entries.
           </p>
           <div className="roster-preview-list">
             {preview.pilots.map((p) => (

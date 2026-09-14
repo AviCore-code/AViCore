@@ -1,0 +1,219 @@
+/* FDT & Fatigue Statistics.
+   Two audiences, one sheet: projected in a meeting room (so figures must read
+   from the back) and printed for an auditor (so it must survive on white
+   paper). Sizes and contrast are set for the first; the @media print block
+   converts to the second rather than shrinking the screen view. */
+
+.stats-page{color:#e2e8f0}
+.stats-page .module-header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.stats-page .module-header h1{margin:0;font-size:28px;font-weight:900}
+.stats-page .module-header p{margin:6px 0 0;color:#94a3b8;font-size:13px;max-width:70ch}
+.stats-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.stats-actions label{font-size:12px;color:#94a3b8}
+.stats-actions select{padding:9px 11px;border-radius:9px;border:1px solid #475569;background:#0b1220;color:#fff;font-size:13px;font-weight:600}
+.stats-actions button{padding:9px 15px;border-radius:9px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:800;cursor:pointer}
+.stats-actions button:hover{filter:brightness(1.2)}
+.stats-actions button.primary{background:linear-gradient(135deg,#1677ff,#0ea5e9);border-color:transparent;color:#fff}
+
+.stats-empty{color:#94a3b8;font-size:14px;padding:24px 2px}
+.stats-error{color:#fca5a5}
+
+.stats-print-area{background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.18);border-radius:14px;padding:22px}
+
+/* Document header - what this is, over what period, produced when. */
+.stats-doc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;padding-bottom:12px;border-bottom:2px solid rgba(148,163,184,.28);margin-bottom:18px}
+.stats-doc-title{font-size:20px;font-weight:900;color:#fff;letter-spacing:.01em}
+.stats-doc-sub{font-size:12.5px;color:#94a3b8;margin-top:4px}
+.stats-doc-meta{text-align:right;font-size:11.5px;color:#94a3b8;line-height:1.7}
+
+.stats-warn{background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.5);border-radius:10px;padding:10px 13px;font-size:12.5px;color:#fbbf24;margin-bottom:16px}
+
+.stats-section{font-size:14px;font-weight:900;color:#e2e8f0;text-transform:uppercase;letter-spacing:.07em;margin:26px 0 8px;padding-bottom:6px;border-bottom:1px solid rgba(148,163,184,.2)}
+.stats-section:first-of-type{margin-top:8px}
+.stats-caption{font-size:12px;color:#94a3b8;line-height:1.65;margin:0 0 14px;max-width:105ch}
+
+/* KPI strip */
+.stats-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:6px}
+.stats-kpi{background:rgba(2,6,23,.55);border:1px solid rgba(148,163,184,.2);border-radius:12px;padding:14px 16px}
+.stats-kpi-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;font-weight:800}
+.stats-kpi-value{font-size:26px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;margin-top:6px;line-height:1.15}
+.stats-kpi-sub{font-size:11px;color:#64748b;margin-top:3px}
+
+/* Chart. Plain elements, not canvas - see the note in the component: canvas
+   charts are commonly dropped by print engines, which is the wrong failure on
+   a page built to be printed. */
+.stats-chart{margin:6px 0 18px}
+.stats-chart-plot{position:relative;height:230px;padding:0 0 26px 42px;border-left:1px solid rgba(148,163,184,.3);border-bottom:1px solid rgba(148,163,184,.3)}
+.stats-gridline{position:absolute;left:42px;right:0;border-top:1px dashed rgba(148,163,184,.16)}
+.stats-gridline span{position:absolute;left:-40px;top:-8px;width:34px;text-align:right;font-size:10px;color:#64748b;font-variant-numeric:tabular-nums}
+.stats-bars{position:absolute;left:42px;right:0;top:0;bottom:26px;display:flex;align-items:flex-end;gap:2px}
+.stats-barpair{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;min-width:0}
+.stats-barpair-bars{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:3px}
+.stats-barpair-bars span{width:34%;max-width:26px;border-radius:3px 3px 0 0;min-height:1px;transition:height .2s}
+.stats-bar-ft{background:linear-gradient(180deg,#38bdf8,#0284c7)}
+.stats-bar-dt{background:linear-gradient(180deg,#a78bfa,#7c3aed)}
+.stats-barpair-label{position:absolute;bottom:-24px;font-size:10px;color:#94a3b8;text-align:center;width:100%;white-space:nowrap}
+.stats-barpair{position:relative}
+.stats-legend{display:flex;gap:20px;justify-content:center;margin-top:8px;font-size:11.5px;color:#94a3b8}
+.stats-legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.stats-swatch-ft{background:#0ea5e9}
+.stats-swatch-dt{background:#8b5cf6}
+
+/* Tables */
+.stats-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:8px}
+/* Blue column headings, on a tinted band.
+   Separates the labels from the figures at a glance - useful when the page is
+   projected and the reader is scanning several tables. The tint carries the
+   header row across the table's full width, so a wide table (All Status) still
+   reads as one band rather than a row of loose words. */
+.stats-table th{text-align:right;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#60a5fa;font-weight:800;padding:7px 10px;background:rgba(22,119,255,.1);border-bottom:2px solid rgba(96,165,250,.45)}
+.stats-table th:first-child{text-align:left}
+.stats-table td{text-align:right;padding:6px 10px;color:#e2e8f0;font-variant-numeric:tabular-nums;border-bottom:1px solid rgba(148,163,184,.1)}
+.stats-table td.stats-left,.stats-left{text-align:left}
+.stats-table tbody tr:nth-child(odd){background:rgba(148,163,184,.045)}
+.stats-table tfoot td{font-weight:900;color:#fff;border-top:2px solid rgba(148,163,184,.3);border-bottom:0;background:rgba(148,163,184,.07)}
+.stats-row-warn{background:rgba(251,191,36,.1)!important}
+.stats-row-exc{background:rgba(239,68,68,.12)!important}
+
+.stats-bar{display:block;width:90px;height:8px;border-radius:4px;background:rgba(148,163,184,.2);overflow:hidden}
+.stats-bar > span{display:block;height:100%;background:linear-gradient(90deg,#fbbf24,#ef4444)}
+
+.stats-clear{background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.35);border-radius:10px;padding:12px 14px;font-size:13px;color:#4ade80;font-weight:700}
+
+/* Fatigue bands */
+.stats-bands{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+.stats-band{border-radius:12px;padding:14px 16px;border:1px solid rgba(148,163,184,.2);background:rgba(2,6,23,.5);text-align:center}
+.stats-band-count{font-size:32px;font-weight:900;line-height:1;color:#fff;font-variant-numeric:tabular-nums}
+.stats-band-label{font-size:11.5px;font-weight:800;margin-top:6px;color:#cbd5e1}
+.stats-band-range{font-size:10.5px;color:#64748b;margin-top:2px}
+.stats-band-rest{background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.45)}
+.stats-band-rest .stats-band-count{color:#fca5a5}
+.stats-band-monitor{background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.45)}
+.stats-band-monitor .stats-band-count{color:#fbbf24}
+.stats-band-normal{background:rgba(74,222,128,.1);border-color:rgba(74,222,128,.35)}
+.stats-band-normal .stats-band-count{color:#4ade80}
+.stats-band-none .stats-band-count{color:#64748b}
+.stats-band-list{margin-top:14px}
+.stats-band-list h3{font-size:12.5px;font-weight:800;color:#cbd5e1;margin:0 0 6px}
+
+.stats-foot{margin-top:22px;padding-top:10px;border-top:1px solid rgba(148,163,184,.2);font-size:11px;color:#64748b;line-height:1.6}
+
+
+/* Per-pilot comparison */
+.stats-cmp-head{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;font-size:12px;color:#94a3b8;margin-bottom:8px}
+.stats-cmp-head b{color:#e2e8f0;font-variant-numeric:tabular-nums}
+.stats-row-idle td{opacity:.55}
+.stats-pos{color:#93c5fd}
+.stats-neg{color:#94a3b8}
+.stats-tag{display:inline-block;margin-left:7px;padding:1px 6px;border-radius:5px;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;border:1px solid rgba(148,163,184,.45);color:#94a3b8}
+.stats-tag-high{border-color:rgba(251,191,36,.6);color:#fbbf24}
+.stats-tag-low{border-color:rgba(148,163,184,.5);color:#94a3b8}
+.stats-share{display:inline-block;width:64px;height:7px;border-radius:4px;background:rgba(148,163,184,.2);overflow:hidden;vertical-align:middle;margin-right:7px}
+.stats-share > span{display:block;height:100%;background:linear-gradient(90deg,#38bdf8,#0284c7)}
+.stats-share-pct{font-variant-numeric:tabular-nums}
+
+
+/* All Status block */
+.stats-allstatus-wrap{overflow-x:auto}
+.stats-allstatus{font-size:11.5px}
+.stats-allstatus td small{color:#64748b;font-size:9.5px}
+.stats-pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:9.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;border:1px solid transparent}
+.stats-pill-ok{background:rgba(74,222,128,.14);color:#4ade80;border-color:rgba(74,222,128,.35)}
+.stats-pill-warn{background:rgba(251,191,36,.16);color:#fbbf24;border-color:rgba(251,191,36,.4)}
+.stats-pill-exc{background:rgba(239,68,68,.16);color:#fca5a5;border-color:rgba(239,68,68,.45)}
+.stats-cell-warn{color:#fbbf24!important;font-weight:800}
+.stats-cell-exc{color:#fca5a5!important;font-weight:800}
+
+/* --------------------------------------------------------------------------
+   PRINT — A4 landscape, white paper.
+   Converted rather than shrunk: the projected view is dark, and printing that
+   floods the sheet with ink and renders pale text unreadable. Everything is
+   re-stated light-on-white here.
+   -------------------------------------------------------------------------- */
+@media print{
+  @page{size:A4 landscape;margin:8mm}
+
+  body:has(.stats-page) .no-print{display:none!important}
+  body:has(.stats-page) .stats-page > *:not(.stats-print-area){display:none!important}
+  /* The Crew/Admin shell (header + tab bar) is a sibling of the page, not a
+     child, so hiding the page's own children leaves the navigation printed
+     across the top of the sheet. */
+  body:has(.stats-page) .web-header{display:none!important}
+
+  .stats-print-area{background:#fff!important;border:0!important;border-radius:0!important;padding:0!important;color:#000!important}
+  .stats-page{color:#000}
+
+  .stats-doc-title,.stats-kpi-value,.stats-band-count,.stats-table tfoot td{color:#000!important}
+  .stats-doc-sub,.stats-doc-meta,.stats-caption,.stats-kpi-sub,.stats-band-range,.stats-foot,.stats-legend,.stats-gridline span,.stats-barpair-label{color:#333!important}
+  /* Headings stay blue on paper. A darker blue than the screen's, so it holds
+     contrast on white, with the tint kept - printers drop backgrounds by
+     default, and without it the header row loses its separation from the
+     figures on a dense table. */
+  .stats-table th{
+    color:#0b4ea2!important;
+    background:#e8f1fc!important;
+    border-bottom:2px solid #0b4ea2!important;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+  }
+  .stats-table td,.stats-band-label,.stats-band-list h3{color:#000!important}
+  .stats-doc-head{border-bottom:2px solid #333!important}
+  .stats-section{color:#000!important;border-bottom:1px solid #999!important;margin:14px 0 6px}
+
+  .stats-kpi,.stats-band{background:#f7f7f7!important;border:1px solid #bbb!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stats-kpi-value{font-size:20px}
+  .stats-band-count{font-size:24px}
+
+  .stats-table{font-size:10px}
+  .stats-table th,.stats-table td{padding:3px 7px;border-color:#999!important}
+  .stats-table tbody tr:nth-child(odd){background:#f6f6f6!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stats-table tfoot td{background:#eee!important;border-top:2px solid #333!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  /* Status tints must survive: on a monochrome printout they are the only
+     thing separating "over limit" from "fine". */
+  .stats-row-warn{background:#fff3cd!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stats-row-exc{background:#fde2e2!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stats-band-rest{background:#fde2e2!important;border-color:#e57373!important}
+  .stats-band-monitor{background:#fff3cd!important;border-color:#e0b400!important}
+  .stats-band-normal{background:#e3f6e5!important;border-color:#79c27f!important}
+  .stats-clear{background:#e3f6e5!important;border-color:#79c27f!important;color:#14532d!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stats-warn{background:#fff8e1!important;border-color:#b45309!important;color:#7c2d12!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  .stats-chart-plot{height:150px;border-color:#999!important}
+  .stats-gridline{border-top-color:#ddd!important}
+  .stats-bar-ft{background:#0284c7!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stats-bar-dt{background:#7c3aed!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stats-swatch-ft{background:#0284c7!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stats-swatch-dt{background:#7c3aed!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stats-bar > span{background:#ef4444!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* Keep each block whole; a table split mid-row, or a heading orphaned from
+     its table, is what makes a printed report look unchecked. */
+  .stats-chart,.stats-kpis,.stats-bands,.stats-band-list{break-inside:avoid;page-break-inside:avoid}
+  .stats-table tr{break-inside:avoid;page-break-inside:avoid}
+  .stats-table thead{display:table-header-group}
+  .stats-section{break-after:avoid;page-break-after:avoid}
+
+  .stats-cmp-head{color:#333!important}
+  .stats-cmp-head b{color:#000!important}
+  .stats-pos,.stats-neg{color:#000!important}
+  .stats-row-idle td{opacity:1;color:#666!important}
+  .stats-tag{border-color:#999!important;color:#333!important}
+  .stats-tag-high{border-color:#b45309!important;color:#7c2d12!important}
+  /* The share bar is the only at-a-glance cue in this table, so it has to
+     survive a printer dropping backgrounds. */
+  .stats-share{background:#ddd!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stats-share > span{background:#0284c7!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+  /* All Status prints smaller - it is the widest block on the sheet. */
+  .stats-allstatus{font-size:8.5px}
+  .stats-allstatus th,.stats-allstatus td{padding:2px 4px}
+  .stats-allstatus td small{color:#666!important;font-size:7.5px}
+  .stats-allstatus-wrap{overflow:visible}
+  /* Status colour is the whole point of this table on paper - a monochrome
+     printout of it says nothing. */
+  .stats-pill{border-width:1px!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .stats-pill-ok{background:#e3f6e5!important;color:#14532d!important;border-color:#79c27f!important}
+  .stats-pill-warn{background:#fff3cd!important;color:#7c2d12!important;border-color:#e0b400!important}
+  .stats-pill-exc{background:#fde2e2!important;color:#7f1d1d!important;border-color:#e57373!important}
+  .stats-cell-warn{color:#7c2d12!important}
+  .stats-cell-exc{color:#7f1d1d!important}
+}

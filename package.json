@@ -1,0 +1,103 @@
+{
+  "name": "avicore-crew",
+  "productName": "AviCore Crew",
+  "version": "1.0.18",
+  "description": "AviCore Crew Flight Operations Web Application",
+  "author": "Captain Weera",
+  "license": "MIT",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "concurrently \"vite --host 0.0.0.0\" \"wait-on http://localhost:5173 && electron .\"",
+    "build": "vite build",
+    "start": "electron .",
+    "dist": "npm run build && electron-builder",
+    "build:windows": "npm run build:web && electron-builder --win nsis",
+    "test": "vitest run",
+    "dev:mobile": "vite --host 0.0.0.0 --mode mobile",
+    "build:mobile": "npm run clean:mobile && vite build --mode mobile",
+    "dev:web": "vite --host 0.0.0.0 --mode web",
+    "build:web": "vite build --mode web",
+    "dev:admin": "vite --host 0.0.0.0 --mode admin",
+    "build:admin": "vite build --mode admin",
+    "cap:sync": "npm run android:prepare",
+    "cap:open": "npm run android:open",
+    "cap:run": "npm run android:run",
+    "clean:mobile": "node scripts/clean-mobile.mjs",
+    "android:prepare": "npm run build:mobile && npx cap sync android",
+    "android:build": "npm run android:prepare",
+    "android:open": "npm run android:prepare && npx cap open android",
+    "android:run": "npm run android:prepare && npx cap run android",
+    "ios:build": "npm run build:mobile && npx cap sync ios",
+    "ios:open": "npm run ios:build && npx cap open ios"
+  },
+  "dependencies": {
+    "@capacitor-community/sqlite": "^8.1.0",
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/preferences": "^8.0.1",
+    "@supabase/supabase-js": "^2.110.2",
+    "better-sqlite3": "^12.2.0",
+    "dotenv": "^16.6.1",
+    "electron-updater": "^6.3.9",
+    "firebase": "^12.16.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
+    "nodemailer": "^9.0.3",
+    "pdfjs-dist": "3.11.174",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.1",
+    "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.2.0",
+    "electron": "^37.3.1",
+    "electron-builder": "^26.0.12",
+    "vite": "^7.0.0",
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.1.10",
+    "wait-on": "^8.0.3"
+  },
+  "overrides": {
+    "upath": "^2.0.1"
+  },
+  "build": {
+    "appId": "com.avicore.crew",
+    "productName": "AviCore Crew",
+    "artifactName": "AviCore-Crew-Setup-${version}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": "nsis",
+      "icon": "build/crew.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "AviCore Crew",
+      "installerIcon": "build/crew.ico",
+      "uninstallerIcon": "build/crew.ico",
+      "runAfterFinish": true
+    }
+  },
+  "allowScripts": {
+    "@firebase/util@1.15.1": true,
+    "better-sqlite3@12.11.1": true,
+    "canvas@2.11.2": true,
+    "electron@37.10.3": true,
+    "electron-winstaller@5.4.0": true,
+    "esbuild@0.28.1": true,
+    "protobufjs@7.6.5": true
+  }
+}

@@ -17,13 +17,29 @@
 
 .dashboard-empty{color:#94a3b8;font-size:13px;padding:16px 2px}
 
-.dashboard-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:26px}
+.dashboard-summary{
+  display:grid;
+  /* Fixed column count (not auto-fit) so every .dashboard-summary row in the
+     page shares the same column tracks - previously Duty (5 cards) and
+     Training (4 cards) each ran their own auto-fit, so the grid lines never
+     lined up between sections and the eye had to re-scan on every row. */
+  grid-template-columns:repeat(5,1fr);
+  gap:12px;margin-bottom:26px
+}
+@media (max-width:900px){.dashboard-summary{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:560px){.dashboard-summary{grid-template-columns:repeat(2,1fr)}}
 .dashboard-stat{background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.18);border-radius:14px;padding:18px;text-align:center}
-.dashboard-stat-value{font-size:32px;font-weight:900;font-family:monospace}
+.dashboard-stat-value{font-size:32px;font-weight:900;font-family:monospace;display:flex;align-items:center;justify-content:center;gap:8px}
 .dashboard-stat-label{margin-top:6px;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em}
 .dashboard-stat.ok .dashboard-stat-value{color:#4ade80}
 .dashboard-stat.warn .dashboard-stat-value{color:#f59e0b}
 .dashboard-stat.exc .dashboard-stat-value{color:#ef4444}
+/* Status icon glyph next to the number - colour alone (green/amber/red)
+   isn't enough for colour-blind readers to tell Warning from Exceeded at a
+   glance; the glyph shape (check/triangle/cross) carries the same meaning
+   independent of colour perception. */
+.dashboard-stat-icon{font-size:20px;line-height:1}
+.dashboard-stat-spacer{visibility:hidden}
 
 .dashboard-section{font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px}
 

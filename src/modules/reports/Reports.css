@@ -1,0 +1,41 @@
+.reports-page{color:white}
+.reports-page .module-header{margin-bottom:16px}
+.reports-page .module-header h1{margin:0;font-size:28px;font-weight:900}
+.reports-page .module-header p{margin:6px 0 0;color:#94a3b8;font-size:13px}
+
+.reports-tabs{display:flex;gap:8px;margin-bottom:16px}
+.reports-tabs button{padding:10px 18px;border-radius:10px;border:1px solid #334155;background:transparent;color:#cbd5e1;font-weight:800;cursor:pointer;transition:filter .15s}
+.reports-tabs button:hover{filter:brightness(1.15)}
+.reports-tabs button.active{background:linear-gradient(135deg,#1677ff,#0ea5e9);border-color:transparent;color:white}
+
+.report-print-area{background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.18);border-radius:14px;padding:18px}
+
+@media print{
+  @page{size:A4 landscape;margin:2mm}
+  /* Print legibility: never break a word or a figure onto a second line
+     inside a cell - a duty/hours value split as "12345:" / "30" is
+     unreadable. Columns size to their content instead. */
+  .report-print-area th,
+  .report-print-area td{white-space:nowrap;word-break:normal;overflow-wrap:normal;hyphens:none}
+  body:has(.reports-page) *{visibility:hidden}
+  body:has(.reports-page) .no-print{display:none!important}
+  body:has(.reports-page) .report-print-area,
+  body:has(.reports-page) .report-print-area *{visibility:visible}
+  .report-print-area{position:absolute;top:0;left:0;width:100%;background:white;border:none;color:black;padding:0;box-shadow:none}
+  .report-title,.report-sub{color:black}
+  .report-title small{color:#0369a1}
+
+  /* Force the table to the exact printable page width - the screen view's
+     scroll/min-width rules exist only so a 21-column table stays readable
+     on a narrow monitor; print has a fixed page width, so the colgroup
+     percentages should sum to exactly 100% of it. */
+  .report-a-scroll,.report-b-scroll{overflow:visible;max-height:none;background:none;border:none;box-shadow:none;padding:0}
+  .report-a-table,.report-b-table{table-layout:fixed;width:100%!important;min-width:0!important}
+
+  .report-a-table th,.report-a-table td{font-size:9.5px;padding:5px 6px;border-color:#999;color:black}
+  .report-b-table th,.report-b-table td{font-size:7.5px;padding:3px 4px;border-color:#999;color:black}
+  .report-a-table thead th,.report-b-table thead th{background:#eee!important;color:black!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .report-a-table td.below-min,.report-b-table td.below-min{background:#fecaca!important;color:#7f1d1d!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .report-b-table tr.no-activity td{background:#fee2e2!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .report-a-table tbody tr:nth-child(even),.report-b-table tbody tr:nth-child(even){background:#f8fafc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}

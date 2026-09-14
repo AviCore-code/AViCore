@@ -715,26 +715,24 @@ function FlightForm({ flight, setFlight, updateRole, addRole, removeRole, update
       </div>
 
       <div className="duty-legs">
-        <div className="duty-legs-scroll">
-          <div className="duty-legs-head">
-            <span>A/C Type</span><span>Registration</span><span>RS</span><span>LS</span><span>Route</span><span />
-          </div>
-          {flight.legs.map((leg, i) => (
-            <div key={i} className="duty-legs-row">
-              <select value={leg.aircraftType} onChange={(e) => updateLeg(i, "aircraftType", e.target.value)}>
-                {withCurrentOption(fleet.aircraftTypes, leg.aircraftType).map((t) => <option key={t}>{t}</option>)}
-              </select>
-              <select value={leg.registration} onChange={(e) => updateLeg(i, "registration", e.target.value)}>
-                <option value="">—</option>
-                {withCurrentOption(fleet.registrations, leg.registration).map((r) => <option key={r}>{r}</option>)}
-              </select>
-              <PilotPicker value={leg.rs} onChange={(v) => updateLeg(i, "rs", v)} pilots={pilots} placeholder="RS" />
-              <PilotPicker value={leg.ls} onChange={(v) => updateLeg(i, "ls", v)} pilots={pilots} placeholder="LS" />
-              <input value={leg.route} lang="en" inputMode="text" onChange={(e) => updateLeg(i, "route", e.target.value)} placeholder="VTSH-CPOC-VTSH" />
-              {flight.legs.length > 1 && <button onClick={() => removeLeg(i)}>×</button>}
-            </div>
-          ))}
+        <div className="duty-legs-head">
+          <span>A/C Type</span><span>Registration</span><span>RS</span><span>LS</span><span>Route</span><span />
         </div>
+        {flight.legs.map((leg, i) => (
+          <div key={i} className="duty-legs-row">
+            <select value={leg.aircraftType} onChange={(e) => updateLeg(i, "aircraftType", e.target.value)}>
+              {withCurrentOption(fleet.aircraftTypes, leg.aircraftType).map((t) => <option key={t}>{t}</option>)}
+            </select>
+            <select value={leg.registration} onChange={(e) => updateLeg(i, "registration", e.target.value)}>
+              <option value="">—</option>
+              {withCurrentOption(fleet.registrations, leg.registration).map((r) => <option key={r}>{r}</option>)}
+            </select>
+            <PilotPicker value={leg.rs} onChange={(v) => updateLeg(i, "rs", v)} pilots={pilots} placeholder="RS" />
+            <PilotPicker value={leg.ls} onChange={(v) => updateLeg(i, "ls", v)} pilots={pilots} placeholder="LS" />
+            <input value={leg.route} lang="en" inputMode="text" onChange={(e) => updateLeg(i, "route", e.target.value)} placeholder="VTSH-CPOC-VTSH" />
+            {flight.legs.length > 1 && <button onClick={() => removeLeg(i)}>×</button>}
+          </div>
+        ))}
         <button className="duty-add-role" onClick={addLeg}>+ Add Leg</button>
       </div>
 

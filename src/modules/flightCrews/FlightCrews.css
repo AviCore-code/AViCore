@@ -1,9 +1,6 @@
-.flightcrews-page{color:white;display:flex;flex-direction:column;height:100%;min-height:0}
-.flightcrews-tabs{flex:none;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid rgba(148,163,184,.18);margin-bottom:18px;padding-bottom:0}
+.flightcrews-page{color:white}
+.flightcrews-tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid rgba(148,163,184,.18);margin-bottom:18px;padding-bottom:0}
 .flightcrews-tab{padding:10px 16px;border-radius:10px 10px 0 0;border:1px solid transparent;background:transparent;color:#94a3b8;font-weight:800;font-size:12.5px;cursor:pointer;letter-spacing:.02em}
 .flightcrews-tab:hover{color:#e2e8f0}
 .flightcrews-tab.active{color:white;background:rgba(22,119,255,.14);border-color:rgba(22,119,255,.4);border-bottom-color:transparent}
-/* Fills whatever the app shell leaves below the tab row, so whichever tab
-   (All Status, Hours Summary, Daily Duty...) is active fills the rest of the
-   screen automatically the same way it does as its own top-level page. */
-.flightcrews-tab-body{flex:1;min-height:0;display:flex;flex-direction:column}
+.flightcrews-tab-body{min-height:200px}

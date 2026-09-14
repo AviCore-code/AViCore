@@ -58,10 +58,7 @@ export function aiConfigProblem(config) {
 // of the supplied context, not an authority on flight time limitations.
 export function buildSystemPrompt(contextText) {
   return [
-    // No operator named. AviCore is sold to other companies, and telling the
-    // model it works for one of them would put that name in answers read by a
-    // different customer's chief pilot.
-    "You are an assistant inside AviCore, a flight-and-duty-time application used by a helicopter operator. You are helping the chief pilot plan next week's crewing.",
+    "You are an assistant inside AviCore, a flight-and-duty-time application used by United Offshore Aviation, a Thai offshore helicopter operator. You are helping the chief pilot plan next week's crewing.",
     "",
     "RULES FOR YOUR ANSWERS:",
     "1. Answer ONLY from the CONTEXT below. It is the live plan and the operator's own rules.",

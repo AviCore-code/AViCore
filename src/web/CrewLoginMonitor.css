@@ -1,0 +1,29 @@
+.crewmon-page { color: #e2e8f0; }
+.crewmon-page .module-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.crewmon-page .module-header h1 { margin: 0; font-size: 26px; font-weight: 900; }
+.crewmon-page .module-header p { margin: 6px 0 0; color: #94a3b8; font-size: 13px; }
+.crewmon-filter { padding: 9px 12px; border-radius: 10px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 13px; }
+.crewmon-page button { padding: 9px 16px; border-radius: 10px; border: 1px solid #334155; background: transparent; color: #cbd5e1; font-weight: 700; cursor: pointer; }
+.crewmon-error { color: #f87171; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); border-radius: 8px; padding: 10px 14px; }
+.crewmon-empty { color: #64748b; font-size: 13px; padding: 12px 2px; }
+
+.crewmon-section { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: .06em; margin: 22px 0 10px; }
+.crewmon-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.crewmon-card { background: rgba(15,23,42,.65); border: 1px solid rgba(148,163,184,.18); border-radius: 12px; padding: 12px 14px; }
+.crewmon-card-top { display: flex; justify-content: space-between; align-items: baseline; }
+.crewmon-card-code { font-size: 18px; font-weight: 900; font-family: monospace; color: #7dd3fc; }
+.crewmon-card-count { font-size: 12px; font-weight: 800; color: #4ade80; }
+.crewmon-card-name { font-size: 12.5px; color: #cbd5e1; margin-top: 2px; }
+.crewmon-card-last { font-size: 11px; color: #94a3b8; margin-top: 6px; }
+
+.crewmon-table { display: flex; flex-direction: column; gap: 2px; }
+.crewmon-tr { display: grid; grid-template-columns: 32px 1.6fr 0.8fr 1.6fr 1.2fr; gap: 10px; align-items: center; padding: 9px 12px; border-radius: 8px; background: rgba(15,23,42,.5); font-size: 12.5px; }
+.crewmon-tr-sel { background: rgba(22,119,255,.14); }
+.crewmon-tr input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #1677ff; }
+.crewmon-th { background: transparent; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #64748b; padding-bottom: 4px; }
+.crewmon-btn-danger { border-color: #b91c1c !important; background: #b91c1c !important; color: #fff !important; }
+.crewmon-btn-danger:disabled { opacity: .45; }
+.crewmon-btn-danger-outline { border-color: #7f1d1d !important; color: #f87171 !important; }
+.crewmon-time { font-family: monospace; color: #e2e8f0; }
+.crewmon-code { font-family: monospace; font-weight: 700; color: #7dd3fc; }
+.crewmon-device { color: #94a3b8; }

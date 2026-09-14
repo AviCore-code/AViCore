@@ -31,7 +31,7 @@ export const supabase = createClient(
 export async function checkSupabaseConnection() {
   try {
     const { error } = await supabase
-      .from('Admin_pilot_experience')
+      .from('pilot_experience')
       .select('id')
       .limit(1);
 

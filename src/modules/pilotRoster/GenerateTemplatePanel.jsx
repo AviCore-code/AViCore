@@ -1,20 +1,9 @@
 import { useMemo, useState } from "react";
-import { generateCycleEntries, continueCycleEntries, detectPattern, ROSTER_PATTERNS, buildCustomPattern } from "../../services/rosterTemplate.js";
+import { generateCycleEntries, continueCycleEntries, ROSTER_PATTERNS, buildCustomPattern } from "../../services/rosterTemplate.js";
 import { listRoster, importRosterMany, deleteRosterEntry } from "../../services/desktopDatabase.js";
 import "./PilotRoster.css";
 
 const normalizeCode = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-
-// Local calendar "today" as YYYY-MM-DD - used by Detect-pattern mode so a
-// confirmed detection never backfills days already in the past (it starts
-// writing from today or the detected anchor date, whichever is later).
-function toIsoDateNow() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 const SKIP_REASON_LABEL = {
   "no-history": "no existing schedule yet",
@@ -24,7 +13,7 @@ const SKIP_REASON_LABEL = {
 
 // Fills a repeating duty cycle (see rosterTemplate.js — 21/7 is the
 // company's own base rotation, Duty 6 / RR 2 / Duty 6 / RR 2 / Duty 5 /
-// Off 7; 20/10 and Custom are covered there too). Four modes:
+// Off 7; 20/10 and Custom are covered there too). Three modes:
 //   - One pilot: pick a Start date (day 1 of the pattern) manually, or use
 //     "Continue from last entry" to auto-detect where that pilot's cycle
 //     currently is.
@@ -34,22 +23,10 @@ const SKIP_REASON_LABEL = {
 //     history) - there's no single company-wide "day 1" to anchor off of,
 //     so this is always a continuation, never a fresh Start date. All
 //     pilots continue on the SAME pattern selected below.
-//   - Detect pattern (all pilots): unlike the three modes above, this does
-//     NOT take the pattern selected below as given - it works out WHICH
-//     named pattern (21/7 / 20/10 / 5/2) each pilot's own recent roster
-//     actually looks like (or "custom" if none fit), scanning roughly 3
-//     months back and 3 months forward from today for each pilot
-//     independently (detectPattern in rosterTemplate.js). Capt. Weera: run
-//     this to re-stamp a pilot's future roster from whatever cycle they're
-//     really on, once confirmed - a pure pattern stamp over the selected
-//     range, replacing whatever was there before rather than skipping days
-//     that already have data (the other three modes' behaviour).
 // Days that already have data for a pilot in the written range are always
-// left untouched in the first three modes (checked via a listRoster fetch
-// right before writing) - EXCEPT in Detect-pattern mode, which overwrites on
-// purpose once the detected pattern for each pilot has been confirmed.
+// left untouched (checked via a listRoster fetch right before writing).
 export default function GenerateTemplatePanel({ pilots, onCancel, onGenerated, initialPilotCode }) {
-  const [mode, setMode] = useState("existing"); // "existing" | "new" | "all" | "detect"
+  const [mode, setMode] = useState("existing"); // "existing" | "new" | "all"
   const [selectedCode, setSelectedCode] = useState(initialPilotCode || pilots[0]?.pilotCode || "");
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
@@ -60,16 +37,6 @@ export default function GenerateTemplatePanel({ pilots, onCancel, onGenerated, i
   const [msg, setMsg] = useState(null);
   // { groups: [{ target, entries, skipped, continued?, confidence?, fromDate? }], skippedPilots: [{pilotCode,pilotName,reason}] }
   const [preview, setPreview] = useState(null);
-
-  // Detect-pattern mode's own two-stage flow: detections first (one row per
-  // pilot, editable/confirmable before anything is generated), THEN the
-  // normal preview-before-save once confirmed. Kept separate from `preview`
-  // above so "Detect" and "Preview/Continue" never collide if the admin
-  // switches modes mid-flow.
-  // detections: [{ pilotCode, pilotName, base, result: detectPattern()'s
-  //   return value or null, accepted: bool }]
-  const [detections, setDetections] = useState(null);
-  const [detectThrough, setDetectThrough] = useState("");
 
   // Which repeating pattern to use. "21/7" is the company's own base
   // rotation and stays the default; the other two are picked explicitly.
@@ -280,106 +247,6 @@ export default function GenerateTemplatePanel({ pilots, onCancel, onGenerated, i
     }
   }
 
-  // Stage 1 of Detect-pattern mode: runs detectPattern() against every
-  // pilot's own roster history (independently - each pilot can land on a
-  // different named pattern, or "custom") and shows the result as a list to
-  // review, WITHOUT writing or previewing anything yet. Capt. Weera: "ขึ้น
-  // รายละเอียดให้รับทราบ กด OK" - this is that step. A pilot with no O/RR/X
-  // history at all gets a null result and is shown as "no data to detect
-  // from" rather than silently skipped, since the admin should know why.
-  async function handleDetectAll() {
-    setMsg(null);
-    setPreview(null);
-    setDetections(null);
-    if (pilots.length === 0) {
-      setMsg({ ok: false, text: "No pilots in the roster yet." });
-      return;
-    }
-
-    setBusy(true);
-    try {
-      const allRows = await listRoster({});
-      const byCode = new Map();
-      for (const r of allRows) {
-        if (!byCode.has(r.pilot_code)) byCode.set(r.pilot_code, []);
-        byCode.get(r.pilot_code).push({ date: r.date, code: r.code });
-      }
-
-      const rows = pilots.map((p) => {
-        const history = byCode.get(p.pilotCode) || [];
-        const result = history.length ? detectPattern(history) : null;
-        return {
-          pilotCode: p.pilotCode,
-          pilotName: p.pilotName,
-          base: p.base,
-          result,
-          // Only pre-accept detections the algorithm itself is confident
-          // about - a "custom" result (no named pattern fit well) starts
-          // unaccepted so a below-threshold guess is never bulk-applied
-          // without the admin looking at it first.
-          accepted: !!result && result.patternKey !== "custom"
-        };
-      });
-
-      setDetections(rows);
-    } catch (err) {
-      setMsg({ ok: false, text: err.message });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // Stage 2: once the admin has reviewed/adjusted which detections to apply
-  // (handleDetectAll above) and picked a Through date, builds the actual
-  // write preview for every ACCEPTED pilot - generateCycleEntries from each
-  // pilot's own detected anchor date (or today, whichever is later - never
-  // backfills days already in the past) through Through, using each pilot's
-  // own detected pattern. This is a PURE STAMP: every entry generated
-  // overwrites whatever code sits on that date already, because the whole
-  // point of confirming a detected pattern is to make the roster match it
-  // going forward - unlike Continue/Continue-all above, existing days in
-  // range are NOT filtered out here.
-  function handleConfirmDetections() {
-    setMsg(null);
-    const accepted = (detections || []).filter((d) => d.accepted && d.result);
-    if (accepted.length === 0) {
-      setMsg({ ok: false, text: "No pilots selected - tick at least one detected pattern to apply." });
-      return;
-    }
-    if (!detectThrough) {
-      setMsg({ ok: false, text: "Pick a Through date for the pilots you're applying this to." });
-      return;
-    }
-
-    const today = toIsoDateNow();
-    const groups = [];
-    const skippedPilots = [];
-    for (const d of accepted) {
-      const from = d.result.anchorDate > today ? d.result.anchorDate : today;
-      if (from > detectThrough) {
-        skippedPilots.push({ pilotCode: d.pilotCode, pilotName: d.pilotName, reason: "already-covers-range" });
-        continue;
-      }
-      const entries = generateCycleEntries(from, detectThrough, 0, d.result.sequence);
-      groups.push({
-        target: { pilotCode: d.pilotCode, pilotName: d.pilotName, base: d.base },
-        entries,
-        skipped: 0,
-        overwrite: true,
-        detectedPattern: d.result.patternKey,
-        confidence: d.result.confidence,
-        fromDate: from
-      });
-    }
-
-    if (groups.length === 0) {
-      setMsg({ ok: false, text: `Nothing to generate through ${detectThrough} for the selected pilot(s).` });
-      return;
-    }
-
-    setPreview({ groups, skippedPilots, overwrite: true });
-  }
-
   async function handleConfirm() {
     if (!preview) return;
     setBusy(true);
@@ -397,14 +264,11 @@ export default function GenerateTemplatePanel({ pilots, onCancel, onGenerated, i
       const totalSkipped = preview.groups.reduce((s, g) => s + (g.skipped || 0), 0);
       setMsg({
         ok: true,
-        text: preview.overwrite
-          ? `Applied the detected pattern to ${payload.length} day(s) across ${preview.groups.length} pilot(s) - every day in range was overwritten, matching the confirmed pattern.`
-          : preview.groups.length > 1
-            ? `Generated ${payload.length} day(s) across ${preview.groups.length} pilot(s)${totalSkipped ? ` (left ${totalSkipped} existing day(s) untouched)` : ""}.`
-            : `Generated ${payload.length} day(s) for ${preview.groups[0].target.pilotCode}${preview.groups[0].skipped ? ` (left ${preview.groups[0].skipped} existing day(s) untouched)` : ""}.`
+        text: preview.groups.length > 1
+          ? `Generated ${payload.length} day(s) across ${preview.groups.length} pilot(s)${totalSkipped ? ` (left ${totalSkipped} existing day(s) untouched)` : ""}.`
+          : `Generated ${payload.length} day(s) for ${preview.groups[0].target.pilotCode}${preview.groups[0].skipped ? ` (left ${preview.groups[0].skipped} existing day(s) untouched)` : ""}.`
       });
       setPreview(null);
-      setDetections(null);
       await onGenerated?.();
     } catch (err) {
       setMsg({ ok: false, text: "Generate failed: " + err.message });
@@ -509,12 +373,8 @@ export default function GenerateTemplatePanel({ pilots, onCancel, onGenerated, i
         <label style={{ marginLeft: "16px" }}>
           <input type="radio" checked={mode === "all"} onChange={() => setMode("all")} /> All pilots in roster
         </label>
-        <label style={{ marginLeft: "16px" }}>
-          <input type="radio" checked={mode === "detect"} onChange={() => { setMode("detect"); setPreview(null); setDetections(null); setMsg(null); }} /> Detect pattern (all pilots)
-        </label>
       </div>
 
-      {mode !== "detect" && (
       <div className="roster-import-row" style={{ flexWrap: "wrap" }}>
         <label>Pattern</label>
         {Object.entries(ROSTER_PATTERNS).map(([key, def]) => (
@@ -542,7 +402,6 @@ export default function GenerateTemplatePanel({ pilots, onCancel, onGenerated, i
           </>
         )}
       </div>
-      )}
 
       {mode === "existing" && (
         <div className="roster-import-row">
@@ -573,13 +432,6 @@ export default function GenerateTemplatePanel({ pilots, onCancel, onGenerated, i
         </p>
       )}
 
-      {mode === "detect" && (
-        <p className="roster-note" style={{ margin: "0 0 4px" }}>
-          Works out which pattern (21/7, 20/10, 5/2, or "custom") each of the {pilots.length} pilot(s) is actually on, scanning each pilot's own roster roughly 3 months back and 3 months forward from today. Review the detected pattern for each pilot below, then confirm before anything is written — confirming OVERWRITES every day in the range with the pattern, replacing whatever was there before (unlike the other three modes, which always leave existing days untouched).
-        </p>
-      )}
-
-      {mode !== "detect" && (
       <div className="roster-import-row" style={{ flexWrap: "wrap" }}>
         {mode !== "all" && (
           <>
@@ -613,69 +465,6 @@ export default function GenerateTemplatePanel({ pilots, onCancel, onGenerated, i
           </button>
         )}
       </div>
-      )}
-
-      {mode === "detect" && !detections && (
-        <div className="roster-import-row">
-          <button className="primary" onClick={handleDetectAll} disabled={busy || pilots.length === 0}>
-            {busy ? "Detecting..." : "Detect pattern for every pilot"}
-          </button>
-        </div>
-      )}
-
-      {mode === "detect" && detections && (
-        <div className="roster-detect-list">
-          <div className="roster-import-row" style={{ flexWrap: "wrap" }}>
-            <label>Apply through</label>
-            <input type="date" value={detectThrough} onChange={(e) => setDetectThrough(e.target.value)} />
-            <button onClick={handleDetectAll} disabled={busy}>Re-detect</button>
-          </div>
-          <table className="roster-detect-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th>Pilot</th>
-                <th>Detected pattern</th>
-                <th>Confidence</th>
-                <th>First day of this cycle</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detections.map((d, i) => (
-                <tr key={d.pilotCode} className={!d.result ? "roster-detect-nodata" : d.result.patternKey === "custom" ? "roster-detect-custom" : ""}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      checked={d.accepted}
-                      disabled={!d.result}
-                      onChange={(e) => setDetections((prev) => prev.map((row, ri) => (ri === i ? { ...row, accepted: e.target.checked } : row)))}
-                    />
-                  </td>
-                  <td>{d.pilotCode} — {d.pilotName || "(no name)"}</td>
-                  <td>
-                    {!d.result
-                      ? "no data to detect from"
-                      : d.result.patternKey === "custom"
-                        ? `custom (observed ~${d.result.observed?.dutyDays ?? "?"} duty / ${d.result.observed?.offDays ?? "?"} off)`
-                        : ROSTER_PATTERNS[d.result.patternKey]?.label || d.result.patternKey}
-                  </td>
-                  <td>{d.result?.confidence != null ? `${Math.round(d.result.confidence * 100)}%` : "—"}</td>
-                  <td>{d.result?.anchorDate || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="roster-note" style={{ margin: "10px 0" }}>
-            Un-ticked pilots (including every "custom" result, which starts un-ticked) are left alone. Tick a pilot to include them, or untick one you don't want touched — nothing is written until you confirm below.
-          </p>
-          <div className="roster-import-row">
-            <button className="primary" onClick={handleConfirmDetections} disabled={busy}>
-              Review pilots to apply →
-            </button>
-            <button onClick={() => { setDetections(null); setMsg(null); }} disabled={busy}>Start over</button>
-          </div>
-        </div>
-      )}
 
       {msg && <div className={`roster-msg ${msg.ok ? "ok" : "error"}`}>{msg.text}</div>}
 
@@ -686,34 +475,14 @@ export default function GenerateTemplatePanel({ pilots, onCancel, onGenerated, i
             {preview.groups.length > 1 ? ` across ${preview.groups.length} pilot(s)` : ` for ${preview.groups[0].target.pilotCode}`}
           </h2>
 
-          {preview.overwrite && (
-            <p style={{ margin: "0 0 10px", color: "#fbbf24", fontSize: "12.5px", fontWeight: 700 }}>
-              ⚠ This OVERWRITES every day in range for these pilots with the confirmed pattern - whatever code is currently sitting on each of those dates (including hand-typed entries, leave, or training) is replaced. This does not merge or skip existing days, unlike the other modes.
-            </p>
-          )}
-
-          {preview.overwrite && (
-            <div className="roster-preview-list">
-              {preview.groups.map((g) => (
-                <span
-                  key={g.target.pilotCode}
-                  className="roster-chip"
-                  title={`Pattern: ${g.detectedPattern}, from ${g.fromDate}${g.confidence != null ? `, confidence: ${Math.round(g.confidence * 100)}%` : ""}`}
-                >
-                  {g.target.pilotCode} {g.detectedPattern} +{g.entries.length}d
-                </span>
-              ))}
-            </div>
-          )}
-
-          {!preview.overwrite && preview.groups.length === 1 && preview.groups[0].continued && (
+          {preview.groups.length === 1 && preview.groups[0].continued && (
             <p style={{ margin: "0 0 6px", color: "#7dd3fc", fontSize: "12.5px" }}>
               Continuing automatically from {preview.groups[0].fromDate} (cycle position matched at {Math.round((preview.groups[0].confidence || 0) * 100)}% confidence
               {preview.groups[0].confidence < 0.8 ? " - low confidence, double-check the first few generated days before confirming" : ""}).
             </p>
           )}
 
-          {!preview.overwrite && preview.groups.length > 1 && (
+          {preview.groups.length > 1 && (
             <div className="roster-preview-list">
               {preview.groups.map((g) => (
                 <span
@@ -733,17 +502,15 @@ export default function GenerateTemplatePanel({ pilots, onCancel, onGenerated, i
             </p>
           )}
 
-          {!preview.overwrite && (
-            <p style={{ margin: "0 0 12px", color: "#94a3b8", fontSize: "12.5px" }}>
-              {preview.groups.some((g) => g.skipped > 0)
-                ? `${preview.groups.reduce((s, g) => s + (g.skipped || 0), 0)} day(s) across these pilot(s) already have data and will be left untouched.`
-                : "No existing days in range for these pilot(s) - nothing will be skipped."}
-            </p>
-          )}
+          <p style={{ margin: "0 0 12px", color: "#94a3b8", fontSize: "12.5px" }}>
+            {preview.groups.some((g) => g.skipped > 0)
+              ? `${preview.groups.reduce((s, g) => s + (g.skipped || 0), 0)} day(s) across these pilot(s) already have data and will be left untouched.`
+              : "No existing days in range for these pilot(s) - nothing will be skipped."}
+          </p>
 
           <div className="roster-preview-actions">
-            <button className={preview.overwrite ? "roster-danger-btn" : "primary"} onClick={handleConfirm} disabled={busy}>
-              {busy ? "Generating..." : preview.overwrite ? `Overwrite ${totalEntries} day(s)` : `Generate ${totalEntries} day(s)`}
+            <button className="primary" onClick={handleConfirm} disabled={busy}>
+              {busy ? "Generating..." : `Generate ${totalEntries} day(s)`}
             </button>
             <button onClick={() => setPreview(null)} disabled={busy}>Cancel</button>
           </div>

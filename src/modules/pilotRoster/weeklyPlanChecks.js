@@ -12,7 +12,7 @@ import { checkPairing, MIN_PAIR_LEVEL_SUM } from "../../utils/experienceLevel.js
 import {
   MAX_NIGHT_DAYS_PER_CYCLE, WORK_CYCLE_DAYS,
   NIGHT_TRAINING_MIN_PILOTS, NIGHT_TRAINING_PREFERRED_PILOTS,
-  NIGHT_TRAINING_REQUIRES_CAPTAIN, NIGHT_TRAINING_REQUIRES_CURRENT_PILOT
+  NIGHT_TRAINING_REQUIRES_CAPTAIN
 } from "./weeklyPlanRules.js";
 import { classifyRestDay } from "./weeklyPlanRestDays.js";
 
@@ -420,20 +420,16 @@ export function checkWeeklyPlan({
     }
   }
 
-  // --- 10. Night Training: flown together, with a Captain and someone
-  //         already Night Current -------------------------------------------
+  // --- 10. Night Training: flown together, with a Captain -----------------
   // Capt. Weera: "การจัด Night training ควร จัด นักบินด้วยกัน อย่างน้อย 2-3 คน
-  // ในนั้น ต้องเป็น กัปตัน หนึ่งท่านครับ", widened later to 2-4, plus "NT ต้องมี
-  // นักบินที่ยังมี Night Current อย่างน้อย 1 ท่าน".
+  // ในนั้น ต้องเป็น กัปตัน หนึ่งท่านครับ".
   //
   // Deliberately a WARNING, not a violation. These cells are copied onto the
   // board from whoever the roster marks "NT", so a lone pilot here means the
   // ROSTER needs a second person added - it is not an illegal plan the way a
   // double-booking or a rest bust is, and blocking the plan would not fix the
-  // roster. Night currency is NOT required of EVERY pilot on the detail -
-  // night training is how the others regain it - but at least one already-
-  // current pilot must be on it, same reasoning as the Captain requirement:
-  // that is what makes flying at night with not-yet-current pilots safe.
+  // roster. Night currency is deliberately NOT required: night training is how
+  // a pilot regains it.
   {
     const byDate = new Map();
     for (const c of inRange) {
@@ -464,17 +460,6 @@ export function checkWeeklyPlan({
           issues.push({
             date, section: first.section, slot: first.slot, pilotCode: first.pilotCode, severity: "warn",
             text: `Night Training on ${date} (${codes.join(", ")}) has no Captain — one of the pilots on it must be a Captain.`
-          });
-        }
-      }
-
-      if (NIGHT_TRAINING_REQUIRES_CURRENT_PILOT && nightCurrentByCode) {
-        const hasCurrent = codes.some((code) => nightCurrentByCode.has(code));
-        if (codes.length > 0 && !hasCurrent) {
-          for (const c of group) flag(c, "warn", "");
-          issues.push({
-            date, section: first.section, slot: first.slot, pilotCode: first.pilotCode, severity: "warn",
-            text: `Night Training on ${date} (${codes.join(", ")}) has nobody already Night Current — at least one pilot on the detail needs to hold current Night Currency.`
           });
         }
       }

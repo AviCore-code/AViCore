@@ -9,20 +9,9 @@
 
 .dutyimport-dropzone{border:1.5px dashed rgba(148,163,184,.4);border-radius:14px;padding:36px 16px;text-align:center;cursor:pointer;background:rgba(15,23,42,.5);margin-bottom:16px;transition:border-color .15s,background .15s}
 .dutyimport-dropzone.over{border-color:#1677ff;background:rgba(22,119,255,.08)}
-.dutyimport-dropzone.busy{cursor:wait;border-color:rgba(56,189,248,.8);background:linear-gradient(110deg,rgba(14,165,233,.08),rgba(59,130,246,.16),rgba(14,165,233,.08));background-size:220% 100%;animation:dutyimport-shimmer 1.8s ease-in-out infinite}
+.dutyimport-dropzone.busy{cursor:wait;opacity:.65}
 .dutyimport-title{font-size:15px;font-weight:800;margin-bottom:6px}
 .dutyimport-sub{font-size:12px;color:#94a3b8}
-.dutyimport-loader{min-height:82px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px}
-.dutyimport-flight{position:relative;width:min(420px,72vw);height:42px;margin:0 auto}
-.dutyimport-helicopter{position:absolute;z-index:2;left:0;top:0;display:block;font-size:34px;line-height:38px;filter:drop-shadow(0 6px 7px rgba(2,132,199,.5));transform-origin:center;animation:dutyimport-fly 2.6s ease-in-out infinite}
-.dutyimport-flightline{position:absolute;left:12px;right:12px;bottom:4px;height:2px;border-radius:999px;background:linear-gradient(90deg,transparent,rgba(125,211,252,.65),transparent);box-shadow:0 0 10px rgba(56,189,248,.5);animation:dutyimport-flightline 1.3s ease-in-out infinite}
-.dutyimport-current-file{max-width:min(520px,70vw);margin:0 auto 6px;color:#bae6fd;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-/* The native helicopter emoji faces LEFT. Flip it while travelling right,
-   restore it while travelling left, and switch direction only at each end. */
-@keyframes dutyimport-fly{0%{left:0;transform:translateY(2px) scaleX(-1) rotate(-2deg)}45%{left:calc(100% - 42px);transform:translateY(-5px) scaleX(-1) rotate(2deg)}50%{left:calc(100% - 42px);transform:translateY(-5px) scaleX(1) rotate(-2deg)}95%{left:0;transform:translateY(2px) scaleX(1) rotate(2deg)}100%{left:0;transform:translateY(2px) scaleX(-1) rotate(-2deg)}}
-@keyframes dutyimport-flightline{0%,100%{opacity:.28;transform:scaleX(.7)}50%{opacity:1;transform:scaleX(1)}}
-@keyframes dutyimport-shimmer{0%,100%{background-position:0 0}50%{background-position:100% 0}}
-@media (prefers-reduced-motion:reduce){.dutyimport-helicopter{animation-duration:7s}.dutyimport-flightline,.dutyimport-dropzone.busy{animation-duration:3.5s}}
 
 .dutyimport-log{display:flex;flex-direction:column;gap:8px}
 .dutyimport-row{display:flex;align-items:center;gap:12px;background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.15);border-radius:10px;padding:10px 14px;font-size:13px}

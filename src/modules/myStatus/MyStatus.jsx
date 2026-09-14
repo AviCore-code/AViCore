@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { listExperience, listDutyEntriesByPilot, getSetting, getPreferredPilotCode, isSinglePilotDevice, isDemoSession } from "../../services/desktopDatabase.js";
+import { listExperience, listDutyEntriesByPilot, getSetting, exportLogbookPdf, getPreferredPilotCode, isSinglePilotDevice, isDemoSession } from "../../services/desktopDatabase.js";
 import { DEFAULT_FTL_LIMITS, withFtlDefaults } from "../../utils/ftlLimits.js";
 import { checkRecoveryRest168 } from "../../utils/dutyPeriods.js";
 import { computeStats, computeTomorrowAvailability, decimalToHHMM } from "../../utils/statusCompute.js";
@@ -13,6 +13,8 @@ export default function MyStatus() {
   const [entries, setEntries] = useState([]);
   const [limits, setLimits] = useState(DEFAULT_FTL_LIMITS);
   const [branding, setBranding] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState("");
   const [fullScreen, setFullScreen] = useState(false);
 
   useEffect(() => {
@@ -42,6 +44,19 @@ export default function MyStatus() {
   const recoveryRest = useMemo(() => checkRecoveryRest168(entries, limits), [entries, limits]);
   const tomorrow = useMemo(() => computeTomorrowAvailability(entries, limits, { endTime: "17:30" }), [entries, limits]);
 
+  async function handleExport() {
+    setExporting(true);
+    setExportMsg("");
+    try {
+      const result = await exportLogbookPdf(`MyStatus_${pilotCode || "pilot"}.pdf`);
+      if (result?.ok && result.filePath) setExportMsg(`Saved: ${result.filePath}`);
+    } catch (err) {
+      setExportMsg("Export failed: " + err.message);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className={`mystatus-page${fullScreen ? " page-fullscreen" : ""}`}>
       <div className="module-header no-print" style={{ justifyContent: "flex-end" }}>
@@ -59,10 +74,12 @@ export default function MyStatus() {
               </select>
             )}
           </label>
-          <button onClick={() => { if (isDemoSession()) { alert("Demo account — printing is disabled."); return; } window.print(); }} disabled={!pilotCode || !entries.length}>Print / Save PDF</button>
+          <button onClick={() => { if (isDemoSession()) { alert("Demo account — printing is disabled."); return; } window.print(); }} disabled={!pilotCode || !entries.length}>Print</button>
+          <button onClick={handleExport} disabled={exporting || !pilotCode || !entries.length}>{exporting ? "Exporting..." : "Export PDF"}</button>
           <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
         </div>
       </div>
+      {exportMsg && <div className="mystatus-export-msg no-print">{exportMsg}</div>}
 
       {!pilotCode && <div className="mystatus-empty">Select a pilot to view status.</div>}
 

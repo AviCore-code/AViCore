@@ -36,7 +36,6 @@
 .myexp-aircraft-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px}
 .myexp-aircraft-grid .myexp-table th,.myexp-aircraft-grid .myexp-table td{padding:6px 5px;font-size:11.5px}
 .myexp-aircraft-grid tr.myexp-row-updated td{background:rgba(22,119,255,.12);color:#93c5fd}
-.myexp-time{font-family:"Courier New",Courier,monospace;font-size:14px;font-weight:700;white-space:nowrap}
 
 .myexp-totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:6px}
 .myexp-totals>div{background:rgba(15,23,42,.7);border:1px solid rgba(148,163,184,.18);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px}
@@ -65,22 +64,7 @@
 .myexp-sigline{border-bottom:1px solid #555;height:34px;margin-bottom:5px}
 
 @media print{
-  @page{size:A4 landscape;margin:0}
-  /* This document is intentionally one sheet. Clamp the root print canvas to
-     exactly one landscape A4 page; browser headers/footers are also suppressed
-     by the zero @page margin instead of consuming their own page fragments. */
-  html:has(.myexp-page),
-  body:has(.myexp-page),
-  body:has(.myexp-page) #root,
-  body:has(.myexp-page) .web-app,
-  body:has(.myexp-page) .app-body,
-  body:has(.myexp-page) .app-content,
-  body:has(.myexp-page) .admin-workspace-content{
-    width:297mm!important;height:209mm!important;min-height:0!important;
-    max-height:209mm!important;margin:0!important;padding:0!important;
-    overflow:hidden!important;
-  }
-  body:has(.myexp-page){position:relative!important}
+  @page{size:A4 landscape;margin:2mm}
   /* Print legibility: never break a word or a figure onto a second line
      inside a cell - a duty/hours value split as "12345:" / "30" is
      unreadable. Columns size to their content instead. */
@@ -104,44 +88,10 @@
      are siblings of <main>, not children of the page - so hiding the page's own
      children still left the navigation printed across the top of the sheet.
      The shell has no print rules of its own, so they are stated here. */
-  body:has(.myexp-page) .web-header,
-  body:has(.myexp-page) .flightcrews-tabs,
-  body:has(.myexp-page) .web-footer{display:none!important}
-  /* The Experience page is nested inside FlightCrews. Once its tab menu is
-     removed, also release the screen-only flex heights so the printable card
-     begins at the page origin and is measured from its natural content. */
-  body:has(.myexp-page) .flightcrews-page,
-  body:has(.myexp-page) .flightcrews-tab-body{
-    display:block!important;height:auto!important;min-height:0!important;
-    overflow:visible!important;margin:0!important;padding:0!important;
-  }
-  /* The sheet itself contributes no flow height. Its printable card is fixed
-     to the physical page below, so centring cannot manufacture blank pages. */
-  body:has(.myexp-page) .myexp-page{
-    display:block!important;position:static!important;
-    width:0!important;height:0!important;min-height:0!important;
-    margin:0!important;padding:0!important;overflow:visible!important;
-  }
+  body:has(.myexp-page) .web-header{display:none!important}
   /* Undo the screen view's internal scroll/height cap (added for the
-     sticky thead) before measuring/shrinking it below - the fit needs the
-     card's true natural size, not the 70vh-clamped screen box. */
-  .myexp-print-area{width:auto;background:white;border:none;color:black;padding:0;max-height:none;box-shadow:none;margin:0}
-  /* Always exactly one page. --print-fit-scale/-w/-h come from usePrintFit
-     (MyExperience.jsx), measured off the real rendered card - specialty rows,
-     both aircraft-group columns and all - rather than a fixed height guess.
-     transform doesn't change the element's own layout box, which is what
-     paginates print output - the explicit height here does, sized to exactly
-     the shrunk visual size so nothing spills onto a second page. This
-     replaces the previous "let it paginate, never clip" approach (see the
-     CONTENT WAS BEING CUT OFF note below) now that shrinking removes the
-     reason a second page was ever needed. */
-  .myexp-print-area{
-    position:absolute!important;top:50%!important;left:50%!important;
-    transform:translate(-50%,-50%) scale(var(--print-fit-scale,1));transform-origin:center center;
-    width:var(--print-fit-w,auto);
-    height:auto!important;max-height:none!important;
-    overflow:visible!important;margin:0!important;
-  }
+     sticky thead) - printing needs the full card to flow across page(s). */
+  .myexp-print-area{width:auto;background:white;border:none;color:black;padding:0;overflow:visible;max-height:none;box-shadow:none;margin:0}
   /* The sticky header is a screen affordance; while printing it can overlap
      the rows it is supposed to label. */
   .myexp-print-area thead{position:static}

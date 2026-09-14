@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { getSetting, saveSetting, getEmailConfig, sendEmail, listTraining} from "../../services/desktopDatabase.js";
+import { getSetting, saveSetting, getEmailConfig, sendEmail, listTraining, exportLogbookPdf } from "../../services/desktopDatabase.js";
 import { DEFAULT_FTL_LIMITS } from "../../utils/ftlLimits.js";
 import { loadAllPilotStatusRows, buildRecommendations, formatDateTime, STATUS_LABEL } from "../../utils/statusCompute.js";
 import { computeTrainingRow, withTrainingThresholdDefaults, withTrainingDisabledDefaults, buildTrainingRecommendations } from "../../utils/trainingDue.js";
@@ -68,6 +68,8 @@ export default function Dashboard() {
   const [lastEmailSentAt, setLastEmailSentAt] = useState(null);
   const [lastCheckedAt, setLastCheckedAt] = useState(null);
   const [branding, setBranding] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState("");
   const [fullScreen, setFullScreen] = useState(false);
 
   useEffect(() => { refresh(); }, []);
@@ -180,8 +182,6 @@ export default function Dashboard() {
     return [...ftl, ...training].sort((a, b) => rank[a.status] - rank[b.status]);
   }, [rows, limits, trainingPilots, trainingThresholds, trainingDisabledItems]);
 
-  const warningRecommendations = recommendations.filter((r) => r.status === "warn");
-
   useEffect(() => {
     if (loading) return;
     // Record that a check happened right now, independent of whether it
@@ -199,6 +199,20 @@ export default function Dashboard() {
 
   const activePilots = useMemo(() => rows.filter((r) => r.entries.length > 0).length, [rows]);
 
+  async function handleExport() {
+    setExporting(true);
+    setExportMsg("");
+    try {
+      const stamp = new Date().toISOString().slice(0, 10);
+      const result = await exportLogbookPdf(`Dashboard_${stamp}.pdf`);
+      if (result?.ok && result.filePath) setExportMsg(`Saved: ${result.filePath}`);
+    } catch (err) {
+      setExportMsg("Export failed: " + err.message);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className={`dashboard-page${fullScreen ? " page-fullscreen" : ""}`}>
       <div className="module-header no-print">
@@ -208,10 +222,9 @@ export default function Dashboard() {
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
           <div style={{ display: "flex", gap: "10px" }}>
-            {/* Per-page Refresh removed - the sidebar's single Refresh
-                (full page reload) now covers this. refresh() itself stays,
-                still called elsewhere (initial load, after actions). */}
-            <button onClick={() => window.print()} disabled={loading}>Print / Save PDF</button>
+            <button onClick={refresh}>Refresh</button>
+            <button onClick={() => window.print()} disabled={loading}>Print</button>
+            <button onClick={handleExport} disabled={exporting || loading}>{exporting ? "Exporting..." : "Export PDF"}</button>
             <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
           </div>
           <div className="dashboard-email-status">
@@ -220,6 +233,7 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+      {exportMsg && <div className="dashboard-export-msg no-print">{exportMsg}</div>}
 
       {loading && <div className="dashboard-empty">Loading...</div>}
 
@@ -263,15 +277,15 @@ export default function Dashboard() {
               <div className="dashboard-stat-label">With Daily Duty Records</div>
             </div>
             <div className="dashboard-stat ok">
-              <div className="dashboard-stat-value">{counts.ok}</div>
+              <div className="dashboard-stat-value"><span className="dashboard-stat-icon" aria-hidden="true">✓</span>{counts.ok}</div>
               <div className="dashboard-stat-label">{STATUS_LABEL.ok}</div>
             </div>
             <div className="dashboard-stat warn">
-              <div className="dashboard-stat-value">{counts.warn}</div>
+              <div className="dashboard-stat-value"><span className="dashboard-stat-icon" aria-hidden="true">⚠</span>{counts.warn}</div>
               <div className="dashboard-stat-label">{STATUS_LABEL.warn}</div>
             </div>
             <div className="dashboard-stat exc">
-              <div className="dashboard-stat-value">{counts.exc}</div>
+              <div className="dashboard-stat-value"><span className="dashboard-stat-icon" aria-hidden="true">✕</span>{counts.exc}</div>
               <div className="dashboard-stat-label">{STATUS_LABEL.exc}</div>
             </div>
           </div>
@@ -282,16 +296,20 @@ export default function Dashboard() {
               <div className="dashboard-stat-value">{trainingPilots.length}</div>
               <div className="dashboard-stat-label">Pilots With Training Records</div>
             </div>
+            {/* Spacer keeps this row's 4 real stats in the same 5-column
+                grid as the row above, so card edges line up vertically
+                instead of each row centering its own narrower set. */}
+            <div className="dashboard-stat dashboard-stat-spacer" aria-hidden="true" />
             <div className="dashboard-stat ok">
-              <div className="dashboard-stat-value">{trainingCounts.ok}</div>
+              <div className="dashboard-stat-value"><span className="dashboard-stat-icon" aria-hidden="true">✓</span>{trainingCounts.ok}</div>
               <div className="dashboard-stat-label">{STATUS_LABEL.ok}</div>
             </div>
             <div className="dashboard-stat warn">
-              <div className="dashboard-stat-value">{trainingCounts.warn}</div>
+              <div className="dashboard-stat-value"><span className="dashboard-stat-icon" aria-hidden="true">⚠</span>{trainingCounts.warn}</div>
               <div className="dashboard-stat-label">{STATUS_LABEL.warn}</div>
             </div>
             <div className="dashboard-stat exc">
-              <div className="dashboard-stat-value">{trainingCounts.exc}</div>
+              <div className="dashboard-stat-value"><span className="dashboard-stat-icon" aria-hidden="true">✕</span>{trainingCounts.exc}</div>
               <div className="dashboard-stat-label">{STATUS_LABEL.exc}</div>
             </div>
           </div>
@@ -312,16 +330,17 @@ export default function Dashboard() {
                   <div className="dashboard-stat-value">{fatigue.average.toFixed(2)}</div>
                   <div className="dashboard-stat-label">Fleet Average Index</div>
                 </div>
+                <div className="dashboard-stat dashboard-stat-spacer" aria-hidden="true" />
                 <div className="dashboard-stat ok">
-                  <div className="dashboard-stat-value">{fatigue.clear}</div>
+                  <div className="dashboard-stat-value"><span className="dashboard-stat-icon" aria-hidden="true">✓</span>{fatigue.clear}</div>
                   <div className="dashboard-stat-label">Below 2.50</div>
                 </div>
                 <div className="dashboard-stat warn">
-                  <div className="dashboard-stat-value">{fatigue.monitor.length}</div>
+                  <div className="dashboard-stat-value"><span className="dashboard-stat-icon" aria-hidden="true">⚠</span>{fatigue.monitor.length}</div>
                   <div className="dashboard-stat-label">Closely Monitor (2.50+)</div>
                 </div>
                 <div className="dashboard-stat exc">
-                  <div className="dashboard-stat-value">{fatigue.rest.length}</div>
+                  <div className="dashboard-stat-value"><span className="dashboard-stat-icon" aria-hidden="true">✕</span>{fatigue.rest.length}</div>
                   <div className="dashboard-stat-label">Recovery Rest (3.00+)</div>
                 </div>
               </div>
@@ -355,11 +374,11 @@ export default function Dashboard() {
           )}
 
           <h3 className="dashboard-section">Recommendations (FTL &amp; Training)</h3>
-          {warningRecommendations.length === 0 ? (
+          {recommendations.length === 0 ? (
             <div className="dashboard-empty">No issues — every pilot is within limits.</div>
           ) : (
             <div className="dashboard-recs">
-              {warningRecommendations.map((r, i) => (
+              {recommendations.map((r, i) => (
                 <div key={i} className={`dashboard-rec ${r.status}`}>
                   <span className={`mystatus-badge ${r.status}`}>{STATUS_LABEL[r.status]}</span>
                   <span>{r.text}</span>

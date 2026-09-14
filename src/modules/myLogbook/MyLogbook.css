@@ -58,15 +58,6 @@
 /* The two headline figures - the ones a renewal or an audit asks for first. */
 .logbook-summary-table th.logbook-summary-lead{background:rgba(22,119,255,.16);color:#bfdbfe}
 .logbook-summary-table td.logbook-summary-lead{color:#7dd3fc;background:rgba(22,119,255,.08)}
-/* Row labels in the aircraft-type table ("Last 90 days" / "Total to date").
-   Left-aligned and lighter than the figures, so the numbers stay the thing the
-   eye lands on. */
-.logbook-typerow-label{text-align:left!important;font-size:11px!important;font-weight:700!important;color:#94a3b8!important;white-space:nowrap;width:1%}
-.logbook-summary-note{margin-top:6px;font-size:10.5px;color:#94a3b8;line-height:1.45}
-/* The aircraft-type table has a LABEL column, so its widths cannot be split
-   evenly the way the career summary's are - table-layout:auto lets the label
-   size to its text and leaves the rest of the width to the figures. */
-.logbook-summary-table:has(.logbook-typerow-label){table-layout:auto}
 
 /* Certification block - print only. */
 .print-only{display:none}
@@ -75,19 +66,7 @@
 .logbook-sigline{border-bottom:1px solid #555;height:34px;margin-bottom:5px}
 
 @media print{
-  /* Page setup, including the "1/12" running header - see the note beside the
-     signature rules at the foot of this block. The top margin is 9mm rather than
-     2mm purely to leave room for that header. */
-  @page{
-    size:A4 landscape;
-    margin:9mm 2mm 2mm 2mm;
-    @top-right{
-      content:counter(page) "/" counter(pages);
-      font-family:system-ui,sans-serif;
-      font-size:8pt;
-      color:#333;
-    }
-  }
+  @page{size:A4 landscape;margin:2mm}
   /* Print legibility: never break a word or a figure onto a second line
      inside a cell - a duty/hours value split as "12345:" / "30" is
      unreadable. Columns size to their content instead. */
@@ -160,25 +139,7 @@
      coloured figure can print as near-white on a mono printer. */
   .logbook-summary-table th.logbook-summary-lead{background:#dbeafe}
   .logbook-summary-table td.logbook-summary-lead{background:#eff6ff;color:black}
-  /* Aircraft-type table on paper. The label column keeps its left alignment so
-     the two rows read as "Last 90 days: ..." rather than as more figures. */
-  .logbook-typerow-label{text-align:left!important;font-size:7pt!important;color:black!important;background:#f6f6f6}
-  .logbook-summary-note{font-size:6.5pt;color:#333;margin-top:2px}
-  /* SIGNATURES STAY WITH THE LAST ROWS OF DATA.
-     break-inside alone only stopped the block splitting down the middle - it did
-     not stop the whole block being pushed onto a page of its own, which is what
-     happened whenever the table ended near a page boundary. A signature page
-     carrying no flight data is not evidence of anything.
-     break-before:avoid asks the browser to keep it attached to what precedes it;
-     the tfoot grand-total row is told not to break after itself for the same
-     reason, so the chain total -> signatures holds together. */
-  /* The whole tail - career summary + certification - moves as one block.
-     See the note in MyLogbook.jsx: keeping each piece unbreakable individually
-     still let the pair be split across two pages, which put the signature lines
-     on a page of their own with no flight data above them. */
-  .logbook-tail{page-break-inside:avoid;break-inside:avoid}
   .logbook-certify{margin-top:14px;page-break-inside:avoid;break-inside:avoid}
-  .logbook-table tfoot tr{page-break-after:avoid;break-after:avoid}
   .logbook-certify-text{font-size:11px;color:black}
   body:has(.logbook-page) .print-only{display:block}
 }

@@ -3,7 +3,6 @@ import AllStatus from "../allStatus/AllStatus.jsx";
 import Tools from "../tools/Tools.jsx";
 import PilotRoster from "../pilotRoster/PilotRoster.jsx";
 import HoursSummary from "../pilotRoster/HoursSummary.jsx";
-import MyExperience from "../myExperience/MyExperience.jsx";
 import MyLogbook from "../myLogbook/MyLogbook.jsx";
 import Reports from "../reports/Reports.jsx";
 import DutyEntry from "../dutyEntry/DutyEntry.jsx";
@@ -36,10 +35,6 @@ const TABS = [
   { key: "hours", label: "Hours Summary", icon: "⏱️", Component: HoursSummary },
   { key: "tools", label: "Import & Setup", icon: "📥", Component: Tools },
   MIDDLE_TAB,
-  // Admin needs the same regulator-ready Pilot Experience Summary that Crew
-  // can print. Keep it beside Logbook because both tabs are the individual
-  // pilot's printable flight records.
-  { key: "experience", label: "Experience", icon: "🪪", Component: MyExperience },
   { key: "logbook", label: "Logbook", icon: "📔", Component: MyLogbook },
   { key: "reports", label: "Report", icon: "📈", Component: Reports }
 ];

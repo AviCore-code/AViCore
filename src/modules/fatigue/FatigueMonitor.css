@@ -1,4 +1,4 @@
-.fatigue-page{color:white;display:flex;flex-direction:column;flex:1;min-height:0}
+.fatigue-page{color:white}
 .fatigue-page .module-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:14px}
 .fatigue-page .module-header h1{margin:0;font-size:28px;font-weight:900}
 .fatigue-page .module-header p{margin:6px 0 0;color:#94a3b8;font-size:13px;max-width:720px}
@@ -12,17 +12,12 @@
    reproduction of a printed control document - the Crew Scheduler compares it
    side by side with the Excel original, and a dark recolour makes that harder,
    not easier. */
-.fatigue-sheet{background:white;color:#111;border-radius:12px;padding:12px;display:flex;flex-direction:column;flex:1;min-height:0}
-.fatigue-sheet-head{flex:none;display:flex;align-items:center;gap:14px;margin-bottom:8px}
+.fatigue-sheet{background:white;color:#111;border-radius:12px;padding:12px;overflow:hidden}
+.fatigue-sheet-head{display:flex;align-items:center;gap:14px;margin-bottom:8px}
 .fatigue-asof{font-weight:900;color:#1d4ed8;font-size:13px;border:1px solid #c7d2fe;background:#eef2ff;padding:4px 10px;border-radius:6px}
 .fatigue-sheet-title{font-weight:900;color:#1d4ed8;font-size:14px}
 
-/* Fills whatever the app shell leaves below the title/date row, and scrolls
-   within itself - same auto-fill pattern as Pilot Roster/All Status, so the
-   sheet always reaches the bottom of the screen instead of a fixed 66vh
-   guess that left dead space on a tall monitor or cut rows short on a
-   laptop. */
-.fatigue-scroll{flex:1;min-height:0;overflow:auto;border:1px solid #cbd5e1;border-radius:8px}
+.fatigue-scroll{overflow:auto;max-height:66vh;border:1px solid #cbd5e1;border-radius:8px}
 /* EVERY column shrinks to its content.
    width:auto on the table (not 100%) plus nowrap everywhere means the browser
    sizes each column to its widest cell and stops - no column is padded out to

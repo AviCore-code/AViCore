@@ -7,15 +7,12 @@ import { combineExperience, combineSpecialty } from "../../utils/experienceCombi
 import { isInstructorFromSpecialty } from "./weeklyPlanTrainingPairs.js";
 import {
   TRAINING_ITEMS, withTrainingDisabledDefaults, withTrainingDurationDefaults,
-  monitoredTrainingItems, classifyTrainingValue, withTrainingThresholdDefaults
+  monitoredTrainingItems
 } from "../../utils/trainingDue.js";
 import {
   planTrainingOntoRoster, describePlannedTraining, describeSkippedTraining,
   isoAddDays
 } from "../../services/rosterTrainingPlanner.js";
-import {
-  NIGHT_TRAINING_CUSTOMER_APPROVAL_LEAD_WEEKS, NIGHT_TRAINING_TYPICAL_CADENCE_WEEKS
-} from "./weeklyPlanRules.js";
 import { todayIso } from "../../utils/dateKeys.js";
 
 // Lays training onto the roster a long way ahead, from Training Monitor's due
@@ -73,7 +70,7 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
       const today = isoToday();
       const throughIso = addMonthsIso(today, horizon.months);
 
-      const [rosterRows, pilots, training, experience, savedDisabled, savedDurations, savedThresholds] = await Promise.all([
+      const [rosterRows, pilots, training, experience, savedDisabled, savedDurations] = await Promise.all([
         // Read the roster across the whole horizon: the planner can only use
         // days it can see, and a day it can't see is treated as "not a duty
         // day" (so it is never written on) rather than guessed at.
@@ -84,11 +81,7 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
         // Needed because night training must have a Captain on it.
         listExperience().catch(() => []),
         getSetting("training_disabled_items").catch(() => null),
-        getSetting("training_durations").catch(() => null),
-        // Needed for nightCurrentByCode below - the same caution-window
-        // number the Training page and WeeklySchedule.jsx use, so "current"
-        // never disagrees between screens.
-        getSetting("training_thresholds").catch(() => null)
+        getSetting("training_durations").catch(() => null)
       ]);
 
       const rosterByPilotDate = new Map();
@@ -113,25 +106,6 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
         const code = String(p.code || "").toUpperCase();
         const position = p.position || p.profile?.position;
         if (code && position) positionsByCode[code] = position;
-      }
-
-      // Who already holds Night Currency right now - night training needs at
-      // least one of these on the detail (Capt. Weera: "NT ต้องมี นักบินที่
-      // ยังมี Night Current อย่างน้อย 1 ท่าน"). Same computation
-      // WeeklySchedule.jsx uses for its own nightCurrentByCode: current = a
-      // recorded due date still in the future (or a lifetime item). No date
-      // recorded is NOT current - an unknown is treated as expired, same
-      // reasoning as everywhere else this gets checked.
-      const thresholds = withTrainingThresholdDefaults(savedThresholds);
-      const nightItem = TRAINING_ITEMS.find((i) => i.key === "night");
-      const nightCurrentByCode = new Set();
-      for (const t of training || []) {
-        const code = String(t.code || "").toUpperCase();
-        if (!code) continue;
-        const night = classifyTrainingValue(nightItem, t.record?.night, thresholds.night, new Date());
-        if ((night.daysRemaining != null && night.daysRemaining >= 0) || night.lifetime) {
-          nightCurrentByCode.add(code);
-        }
       }
 
       // Who can instruct on the simulator. TRI/TRE hours live on each pilot's
@@ -162,7 +136,6 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
         rosterByPilotDate,
         pilotInfoByCode,
         positionsByCode,
-        nightCurrentByCode,
         instructors,
         todayIso: today,
         throughIso
@@ -201,9 +174,6 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
 
   const planned = result?.planned || [];
   const skipped = result?.skipped || [];
-  // Real-aircraft Night Training was booked this run - unlike every other
-  // course here, it isn't purely an internal scheduling decision.
-  const nightPlanned = planned.some((p) => p.item === "night");
 
   // Which months the writes actually landed in ("2026-09"), in order. Used to
   // tell the reader where to look, since the grid shows one month at a time.
@@ -226,10 +196,10 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
       <p className="roster-note" style={{ margin: "0 0 10px" }}>
         Reads every monitored course from Training Monitor and writes it onto
         the roster before it falls due — simulator items 1–3 months ahead,
-        other courses 1–2 months ahead. Writes on a plain Duty (<code>O</code>)
-        day, Recovery Rest (<code>RR</code>), a Rest Day (<code>R</code>) or an
-        Off day (<code>X</code>); never on leave or a day that already has
-        training. Every cell stays editable by hand afterwards.
+        other courses 1–2 months ahead. Writes <b>only on plain Duty
+        (<code>O</code>) days</b>; never on <code>RR</code>, <code>R</code>,{" "}
+        <code>X</code>, leave, or a day that already has training. Every cell
+        stays editable by hand afterwards.
       </p>
 
       <div className="roster-import-row" style={{ flexWrap: "wrap" }}>
@@ -264,25 +234,6 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
                 Written — {planned.length} course{planned.length === 1 ? "" : "s"},{" "}
                 {result.written} day{result.written === 1 ? "" : "s"}
               </h4>
-
-              {/* Real-aircraft Night Training needs the customer's approval
-                  for which platform/day, unlike every other course this panel
-                  writes - this app has no approval record to check against,
-                  so it can only remind, not enforce (see
-                  NIGHT_TRAINING_CUSTOMER_APPROVAL_LEAD_WEEKS in
-                  weeklyPlanRules.js). Shown only when this run actually
-                  planned one, so it isn't noise on every other write. */}
-              {nightPlanned && (
-                <p className="roster-note" style={{ margin: "0 0 8px", borderLeft: "3px solid #fbbf24", paddingLeft: "8px" }}>
-                  <b>Night Training was written above.</b> Real-aircraft night
-                  flying needs the customer's (rig owner's) approval for which
-                  platform and which day — request it{" "}
-                  {NIGHT_TRAINING_CUSTOMER_APPROVAL_LEAD_WEEKS.min}–{NIGHT_TRAINING_CUSTOMER_APPROVAL_LEAD_WEEKS.max}{" "}
-                  week(s) before the date shown below. Typical fleet-wide
-                  cadence is one detail every{" "}
-                  {NIGHT_TRAINING_TYPICAL_CADENCE_WEEKS.min}–{NIGHT_TRAINING_TYPICAL_CADENCE_WEEKS.max} weeks.
-                </p>
-              )}
 
               {/* The grid below shows ONE month; courses are written 1-3
                   months ahead of their due dates, so most of what was just

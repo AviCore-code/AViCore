@@ -1,0 +1,216 @@
+/* ============================================================
+   AppSidebar — shared vertical nav for Admin (.admin-shell) and
+   Crew (.crew-shell) shells. Base rules below mirror the Admin theme;
+   .crew-shell overrides restyle a few surfaces for the Crew app.
+
+   UX fix (2026-09-14): items now show their label on first load whenever
+   the sidebar is `.pinned` (via the pin toggle in AppSidebar.jsx) or on
+   hover/focus like before. Unpinned + not hovered still collapses to
+   icon-only, but every icon carries a native `title` tooltip so meaning
+   is never fully hidden even in that state.
+   ============================================================ */
+
+.app-sidebar {
+  flex: 0 0 auto;
+  width: 68px;
+  overflow: hidden auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 0;
+  background: linear-gradient(rgba(11, 20, 38, 0.97), rgba(7, 13, 26, 0.97));
+  border-right: 1px solid var(--acw-border, rgba(148, 163, 184, 0.18));
+  transition: width 0.18s;
+  white-space: nowrap;
+}
+
+.app-sidebar:hover,
+.app-sidebar:focus-within,
+.app-sidebar.pinned {
+  width: 220px;
+}
+
+.app-sidebar-group { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+
+.app-sidebar-label {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--acw-text-dim, #94a3b8);
+  opacity: 0;
+  height: 16px;
+  padding-left: 20px;
+  line-height: 16px;
+  transition: opacity 0.15s;
+}
+.app-sidebar:hover .app-sidebar-label,
+.app-sidebar:focus-within .app-sidebar-label,
+.app-sidebar.pinned .app-sidebar-label {
+  opacity: 0.7;
+}
+
+.app-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 10px 0 10px 20px;
+  border: none;
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: var(--acw-text-dim, #94a3b8);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  text-align: left;
+}
+.app-sidebar-item:hover { color: var(--acw-text, #e2e8f0); background: rgba(148, 197, 214, 0.08); }
+.app-sidebar-item.active { color: var(--acw-accent, #22d3ee); background: rgba(34, 211, 238, 0.1); border-left-color: var(--acw-accent, #22d3ee); }
+
+/* Pin toggle sits right under the brand row, styled a touch dimmer than a
+   real nav item so it doesn't compete with Dashboard/Pilot Roster/etc. */
+.app-sidebar-pin {
+  color: var(--acw-text-dim, #94a3b8);
+  opacity: 0.85;
+  border-bottom: 1px solid var(--acw-border, rgba(148, 163, 184, 0.18));
+  margin-bottom: 6px;
+  padding-bottom: 12px;
+}
+.app-sidebar-pin:hover { opacity: 1; }
+.app-sidebar[class*="pinned"] .app-sidebar-pin { color: var(--acw-accent, #22d3ee); }
+
+.app-sidebar-icon { font-size: 17px; line-height: 1; flex: 0 0 auto; filter: grayscale(1) opacity(.85); }
+.app-sidebar-item.active .app-sidebar-icon { filter: none; }
+
+.app-sidebar-brand {
+  cursor: default;
+  align-items: flex-start;
+  margin-bottom: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--acw-border, rgba(148, 163, 184, 0.18));
+}
+.app-sidebar-brand:hover { color: var(--acw-text-dim, #94a3b8); background: transparent; }
+.app-sidebar-brand .app-sidebar-text { font-weight: 900; font-size: 13px; white-space: normal; line-height: 1.4; }
+.app-sidebar-brand .app-sidebar-text small { display: block; font-weight: 700; opacity: 0.6; font-size: 10px; margin-top: 2px; }
+
+.app-sidebar-text { opacity: 0; transition: opacity 0.12s 0.05s; }
+.app-sidebar:hover .app-sidebar-text,
+.app-sidebar:focus-within .app-sidebar-text,
+.app-sidebar.pinned .app-sidebar-text {
+  opacity: 1;
+}
+
+.app-sidebar-foot {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--acw-border, rgba(148, 163, 184, 0.18));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.app-sidebar-sync {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0 10px 20px;
+  margin: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 800;
+}
+.app-sidebar-sync .web-sync-dot { flex: 0 0 auto; }
+
+.app-sidebar-signout:hover { color: #fca5a5; background: rgba(248, 113, 113, 0.1); }
+
+/* --- Admin shell theme --- */
+.admin-shell .app-sidebar {
+  width: 68px;
+  padding: 12px 7px;
+  border: 1px solid var(--admin-line, rgba(148, 163, 184, 0.18));
+  border-radius: 18px;
+  background: linear-gradient(#203843, #192f39);
+  box-shadow: 0 18px 42px #030f163d, inset 0 1px #ffffff0a;
+  scrollbar-width: none;
+}
+.admin-shell .app-sidebar::-webkit-scrollbar { display: none; }
+.admin-shell .app-sidebar:hover,
+.admin-shell .app-sidebar:focus-within,
+.admin-shell .app-sidebar.pinned {
+  width: 232px;
+}
+.admin-shell .app-sidebar-group { gap: 4px; margin-bottom: 9px; }
+.admin-shell .app-sidebar-label { padding-left: 14px; color: #7f9daf; }
+.admin-shell .app-sidebar-item,
+.admin-shell .app-sidebar-sync {
+  min-height: 43px; gap: 13px; padding: 9px 11px;
+  border: 1px solid transparent; border-radius: 12px;
+}
+.admin-shell .app-sidebar-item:hover {
+  color: #f2f8f7; border-color: #62c3be33; background: #62c3be17; transform: translate(1px);
+}
+.admin-shell .app-sidebar-item.active {
+  color: #f3fbf9; border-color: #62c3be5c;
+  background: linear-gradient(105deg, #30848433, #34697c33);
+  box-shadow: inset 3px 0 0 var(--admin-cyan, #44d8e6), 0 7px 18px #030f1624;
+}
+.admin-shell .app-sidebar-icon {
+  display: grid; place-items: center; width: 28px; height: 28px;
+  border-radius: 9px; font-size: 15px; background: #ffffff09;
+}
+.admin-shell .app-sidebar-item.active .app-sidebar-icon {
+  background: #44d8e621; box-shadow: 0 0 18px #44d8e61c;
+}
+.admin-shell .app-sidebar-sync { margin-bottom: 4px; background: #ffffff05; }
+.admin-shell .app-sidebar-sync .web-sync-dot { margin-left: 10px; }
+.admin-shell .app-sidebar-foot { border-color: var(--admin-line, rgba(148, 163, 184, 0.18)); }
+
+/* --- Crew shell theme --- */
+.crew-shell .app-sidebar {
+  margin: 0;
+  border: 1px solid var(--acw-border, rgba(148, 163, 184, 0.18));
+  border-radius: 18px;
+  background: linear-gradient(#203843, #192f39);
+  box-shadow: 0 18px 42px #030f163d, inset 0 1px #ffffff0a;
+}
+.crew-shell .app-sidebar-item:hover { color: #f2f8f7; border-color: #62c3be33; background: #62c3be17; }
+.crew-shell .app-sidebar-item.active {
+  color: #f3fbf9; border-color: #62c3be5c;
+  background: linear-gradient(105deg, #30848433, #34697c33);
+  box-shadow: 3px 0 #62c3be inset, 0 7px 18px #030f1624;
+}
+
+/* --- Mobile: collapse to a bottom bar instead of a side rail --- */
+@media (max-width: 640px) {
+  .app-sidebar {
+    flex-direction: row;
+    width: 100% !important;
+    height: auto;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: none;
+    border-top: 1px solid var(--acw-border, rgba(148, 163, 184, 0.18));
+    padding: 6px 4px;
+    gap: 2px;
+  }
+  .app-sidebar-brand,
+  .app-sidebar-pin,
+  .app-sidebar-label,
+  .app-sidebar-sync { display: none; }
+  .app-sidebar-group { flex-direction: row; margin-bottom: 0; }
+  .app-sidebar-item {
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 10px;
+    font-size: 9px;
+    border-left: none;
+    border-top: 3px solid transparent;
+  }
+  .app-sidebar-item.active { border-top-color: var(--acw-accent, #22d3ee); }
+  .app-sidebar-text { opacity: 1 !important; }
+  .app-sidebar-foot { margin-top: 0; padding-top: 0; border-top: none; flex-direction: row; }
+}

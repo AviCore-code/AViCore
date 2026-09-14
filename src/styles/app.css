@@ -1,0 +1,46 @@
+
+*{box-sizing:border-box}html,body,#root{margin:0;width:100%;height:100%;font-family:Inter,system-ui,Arial,sans-serif;background:#020617}.app-shell{display:flex;min-height:100vh;background:linear-gradient(135deg,#020617,#0f172a)}.sidebar{width:280px;padding:24px;background:rgba(15,23,42,.92);border-right:1px solid rgba(255,255,255,.1);display:flex;flex-direction:column}.brand{font-size:29px;color:white;font-weight:950;margin-bottom:30px;line-height:1.1}.brand span{display:block;font-size:12px;color:#94a3b8;margin-top:8px}.brand small{display:block;font-size:10px;color:#64748b;margin-top:5px}.sidebar button{color:white;background:transparent;border:0;padding:14px;border-radius:12px;text-align:left;font-weight:850;cursor:pointer;font-size:15px}.sidebar button.active{background:linear-gradient(90deg,#06b6d4,#7c3aed,#ec4899)}.menu-group{margin-bottom:18px}.menu-group-label{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#64748b;padding:0 14px 8px}.main{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden}.placeholder{color:white;padding:30px;background:rgba(15,23,42,.65);border:1px solid rgba(148,163,184,.18);border-radius:18px}
+.sidebar-copyright{margin-top:auto;padding-top:18px;font-size:11px;color:#7dd3fc;font-weight:700;line-height:1.5}
+.main-content{flex:1;padding:26px;overflow:auto}
+
+.app-bg{position:fixed;inset:0;overflow:hidden;pointer-events:none;opacity:.5}
+.app-bg svg{width:100%;height:100%;display:block}
+.app-bg-custom{width:100%;height:100%;object-fit:cover;display:block}
+/* Photo presets. Sized like the SVG scenes, but dimmed further: the SVG scenes
+   were drawn muted on purpose, whereas a real photograph has bright sky and hard
+   edges that fight FTL figures for attention at .5 opacity. */
+.app-bg-photo{width:100%;height:100%;object-fit:cover;display:block;opacity:.55;filter:saturate(.85)}
+.app-shell{background:transparent}
+.sidebar{background:rgba(15,23,42,.86)}
+.main-content{background:rgba(2,6,23,.28)}
+
+/* Every per-page print stylesheet (Reports, Logbook, My Experience, ...)
+   hides this whole shell via visibility:hidden and absolutely-positions its
+   own print area on top of it - visibility:hidden preserves layout size, so
+   without this reset the shell's screen-only height:100vh/overflow:hidden
+   chain still dictates the printed page's height/pagination, producing a
+   spurious, dark (body's #020617) blank page after the real content. */
+@media print{
+  html,body,#root,.app-shell,.main,.main-content{height:auto!important;min-height:0!important;overflow:visible!important;background:white!important}
+  /* visibility:hidden (used by the per-page print rules) keeps the sidebar's
+     layout box - and its own natural nav-list height - in the flex row,
+     which still inflates the page. display:none removes it outright. */
+  .sidebar{display:none!important}
+}
+
+/* Admin PIN gate indicator/lock button inline with the "Admin" group label
+   (see App.jsx / AdminGate.jsx). */
+.menu-group-label{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.menu-group-lock-indicator{font-size:12px;opacity:.75}
+.menu-group-lock{background:transparent;border:1px solid rgba(255,255,255,.18)!important;color:#9fb0c3!important;font-size:10px!important;font-weight:700!important;padding:2px 8px!important;border-radius:999px!important;text-transform:none!important;letter-spacing:normal!important}
+.menu-group-lock:hover{color:#f4f7fb!important;border-color:rgba(255,255,255,.35)!important}
+.sidebar button:disabled{opacity:.4;cursor:default}
+.menu-icon{display:inline-block;width:20px;text-align:center;margin-right:2px}
+
+/* Generic "Full Screen" takeover, shared by every page's own Full Screen
+   toggle button (see each module's fullScreen state) - covers the whole
+   viewport including the sidebar, same look as the more detailed per-page
+   versions (.allstatus-fullscreen, .roster-fullscreen). Pages with their
+   own tall inner-scrolling area can still add a page-specific ".xyz-page.
+   page-fullscreen .xyz-scroll{max-height:...}" override on top of this. */
+.page-fullscreen{position:fixed!important;inset:0;z-index:500;background:#020617;padding:22px;overflow:auto}

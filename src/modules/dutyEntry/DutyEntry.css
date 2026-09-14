@@ -41,18 +41,7 @@
 .duty-crossday-note{font-size:12px;color:#7dd3fc;background:rgba(22,119,255,.08);border:1px solid rgba(125,211,252,.25);border-radius:8px;padding:8px 12px;margin-bottom:12px}
 
 .duty-legs{margin-bottom:14px}
-/* On a narrow phone screen, a plain fluid grid (1fr 1fr 70px 70px 2fr 32px)
-   squeezes EVERY column down proportionally to fit - including Route (the
-   2fr column), which is exactly the field that most needs room to type a
-   real "VTSH-CPOC-VTSH" string. Capt. Weera: "route area ให้ช่องยาวเท่าเดิม
-   ถึงแม้จะรันบนจอโทรศัพท์" - so instead the row gets a fixed MINIMUM total
-   width (sum of the same column widths used on desktop) and the wrapper
-   below scrolls horizontally once the viewport is narrower than that,
-   rather than ever shrinking the columns themselves. Same fixed-width-row
-   pattern as a spreadsheet or a real paper form: you scroll sideways to see
-   the rest of the row, the columns never get thinner than usable. */
-.duty-legs-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.duty-legs-head,.duty-legs-row{display:grid;grid-template-columns:1fr 1fr 70px 70px 2fr 32px;gap:8px;align-items:center;margin-bottom:6px;min-width:640px}
+.duty-legs-head,.duty-legs-row{display:grid;grid-template-columns:1fr 1fr 70px 70px 2fr 32px;gap:8px;align-items:center;margin-bottom:6px}
 .duty-legs-head span{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
 .duty-legs-row select,.duty-legs-row input{padding:8px 10px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px;width:100%}
 .duty-legs-row button{background:transparent;border:none;color:#f87171;font-size:16px;cursor:pointer}
