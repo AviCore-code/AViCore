@@ -6,18 +6,35 @@ import { transformSync } from "esbuild";
 function setup(role = "admin", valid = true) {
   let handler;
   const send = vi.fn().mockResolvedValue(undefined);
+  const makeQuery = table => {
+    const q = {
+      select: () => q,
+      eq: () => q,
+      not: () => q,
+      is: () => q,
+      in: () => q,
+      order: () => q,
+      limit: () => q,
+      single: async () => ({ data: { id: "company" } }),
+      maybeSingle: async () => ({ data: role ? { role } : null }),
+      then: resolve => {
+        if (table === "admin_line_user_events") resolve({ data: [], error: null });
+        else resolve({ data: [], error: null });
+      },
+    };
+    return q;
+  };
   const db = {
     auth: { getUser: async () => valid ? { data: { user: { id: "user" } } } : { data: {}, error: {} } },
-    from: table => {
-      const q = { select: () => q, eq: () => q,
-        single: async () => ({ data: { id: "company" } }),
-        maybeSingle: async () => ({ data: role ? { role } : null }) };
-      return q;
-    },
+    from: makeQuery,
   };
   const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8").replace(/^import .*;\r?\n/gm, "");
   runInNewContext(transformSync(source, { loader: "ts" }).code, {
-    createClient: () => db, pushBatch: send, deliveryRetryKey: async () => "retry",
+    createClient: () => db,
+    pushBatch: send,
+    deliveryRetryKey: async () => "retry",
+    fetch: vi.fn().mockResolvedValue(new Response("{}", { status: 200 })),
+    AbortSignal,
     Deno: { serve: h => { handler = h; }, env: { get: key => key === "LINE_PILOT_GROUP_ID" ? "C" + "1".repeat(32) : "test" } },
     Request, Response, Date, console,
   });

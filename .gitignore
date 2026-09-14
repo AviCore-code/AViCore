@@ -10,3 +10,5 @@ build/
 *.log
 .DS_Store
 shared/supabase/.temp/
+supabase/.temp/
+shared/supabase/supabase/.temp/
