@@ -215,17 +215,23 @@ export default function Dashboard() {
 
   return (
     <div className={`dashboard-page${fullScreen ? " page-fullscreen" : ""}`}>
-      <div className="module-header no-print">
+      <div className="module-header dashboard-module-header no-print">
         <div>
-          <h1>Dashboard</h1>
-          <p>Fleet-wide FTL and Training summary, built from All Status and Training.</p>
+          <h1>Fleet Summary</h1>
+          <p>FTL, training, and fatigue overview built from All Status and Training.</p>
         </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
-          <div style={{ display: "flex", gap: "10px" }}>
-            <button onClick={refresh}>Refresh</button>
-            <button onClick={() => window.print()} disabled={loading}>Print</button>
-            <button onClick={handleExport} disabled={exporting || loading}>{exporting ? "Exporting..." : "Export PDF"}</button>
-            <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
+        <div className="dashboard-header-actions">
+          <div className="dashboard-actions">
+            <button className="dashboard-action dashboard-action-primary" onClick={refresh} disabled={loading}>
+              {loading ? "Refreshing..." : "Refresh Data"}
+            </button>
+            <button className="dashboard-action dashboard-action-secondary" onClick={handleExport} disabled={exporting || loading}>
+              {exporting ? "Exporting..." : "Export PDF"}
+            </button>
+            <button className="dashboard-action dashboard-action-ghost" onClick={() => window.print()} disabled={loading}>Print</button>
+            <button className="dashboard-action dashboard-action-ghost" onClick={() => setFullScreen((v) => !v)}>
+              {fullScreen ? "Exit Full Screen" : "Full Screen"}
+            </button>
           </div>
           <div className="dashboard-email-status">
             <span className={`dashboard-health-dot ${alertHealth}`} />
@@ -235,7 +241,18 @@ export default function Dashboard() {
       </div>
       {exportMsg && <div className="dashboard-export-msg no-print">{exportMsg}</div>}
 
-      {loading && <div className="dashboard-empty">Loading...</div>}
+      {loading && (
+        <div className="dashboard-loading" aria-live="polite" aria-busy="true">
+          <div className="dashboard-loading-line dashboard-loading-title" />
+          <div className="dashboard-loading-line dashboard-loading-subtitle" />
+          <div className="dashboard-loading-grid">
+            {Array.from({ length: 5 }).map((_, i) => <div className="dashboard-loading-card" key={i} />)}
+          </div>
+          <div className="dashboard-loading-grid dashboard-loading-grid-short">
+            {Array.from({ length: 4 }).map((_, i) => <div className="dashboard-loading-card" key={i} />)}
+          </div>
+        </div>
+      )}
 
       {!loading && (
         <div className="dashboard-print-area">
