@@ -18,6 +18,7 @@ import ErrorBoundary from "./ErrorBoundary.jsx";
 import LoginShell from "./LoginShell.jsx";
 import { ADMIN_ALLOWED_EMAILS } from "../config/adminAllowlist.js";
 import AppSidebar from "./AppSidebar.jsx";
+import adminLoginBg from "./admin-login-bg.png";
 import "./WebApp.css";
 import "./AdminWebApp.css";
 import "./AppSidebar.css";
@@ -211,7 +212,7 @@ export default function AdminWebApp() {
 
   if (!session) {
     return (
-      <LoginShell className="admin-login">
+      <LoginShell className="admin-login" defaultBackground={adminLoginBg}>
         <span className="web-version-badge">v{APP_VERSION}</span>
         <div className="web-login-card admin-login-card">
           <div className="admin-login-accent" aria-hidden="true" />

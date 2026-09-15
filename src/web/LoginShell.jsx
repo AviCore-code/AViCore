@@ -12,8 +12,8 @@ import useLoginBackground from "./useLoginBackground.js";
 // The image arrives as a CSS variable consumed by .web-login::before in
 // WebApp.css, which keeps all the sizing rules (cover, focal point, the vignette
 // over the top) in one place instead of splitting them between CSS and JS.
-export default function LoginShell({ children, className = "" }) {
-  const bg = useLoginBackground();
+export default function LoginShell({ children, className = "", defaultBackground }) {
+  const bg = useLoginBackground(defaultBackground);
 
   return (
     <div

@@ -24,7 +24,13 @@ import defaultLoginBg from "./login-bg.jpg";
 //    React components, not URLs, and cannot go into a CSS background-image; if an
 //    admin picks one, this falls back to the default photo rather than showing
 //    nothing. The picker labels the photo ones "(photo)".
-export default function useLoginBackground() {
+// `fallback` lets a caller swap the built-in default photo shown when the
+// admin hasn't configured Settings > Sign-in Screen Background yet (or the
+// read failed/is offline) - Admin passes its own dashboard-mockup image here
+// (see AdminWebApp.jsx) so its default look differs from Crew's oil-rig
+// photo, while an admin-configured custom/preset background still wins for
+// both, since only the built-in fallback changes.
+export default function useLoginBackground(fallback = defaultLoginBg) {
   const [image, setImage] = useState(null);
 
   useEffect(() => {
@@ -34,23 +40,24 @@ export default function useLoginBackground() {
       try {
         const saved = await getSetting("login_background");
         if (!alive) return;
-        setImage(resolveLoginBackground(saved));
+        setImage(resolveLoginBackground(saved, fallback));
       } catch {
         // Offline, misconfigured, or the row does not exist yet - all mean
         // "use what we ship with".
-        if (alive) setImage(defaultLoginBg);
+        if (alive) setImage(fallback);
       }
     })();
 
     return () => { alive = false; };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fallback]);
 
   return image;
 }
 
 // Pulled out of the hook so it can be unit-tested without React or a network.
-export function resolveLoginBackground(saved) {
-  if (!saved) return defaultLoginBg;
+export function resolveLoginBackground(saved, fallback = defaultLoginBg) {
+  if (!saved) return fallback;
 
   if (saved.mode === "custom" && saved.customImage) return saved.customImage;
 
@@ -61,5 +68,5 @@ export function resolveLoginBackground(saved) {
     if (preset?.image) return preset.image;
   }
 
-  return defaultLoginBg;
+  return fallback;
 }
