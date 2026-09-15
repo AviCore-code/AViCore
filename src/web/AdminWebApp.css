@@ -268,3 +268,159 @@
   .admin-shell .stats-page .module-header,
   .admin-shell .cdash-head { gap: 12px; }
 }
+/* --------------------------------------------------------------------------
+   Admin sign-in screen — restored to the v1.0.267 "Secure Operations
+   Console" look (Capt. Weera: make it look like v267 again). Scoped under
+   .admin-login (applied to the .web-login root by AdminWebApp.jsx) plus
+   .admin-login-card (on .web-login-card) so nothing here touches the Crew
+   sign-in screen, which keeps its own plain .web-login-card look.
+   -------------------------------------------------------------------------- */
+
+/* Background sizing/position + vignette, admin variant only. */
+.web-login.admin-login { isolation: isolate; }
+.web-login.admin-login::after {
+  background: linear-gradient(90deg, rgba(1,12,20,.83) 0%, rgba(2,18,27,.57) 42%, rgba(2,14,22,.12) 72%, transparent);
+}
+@media screen {
+  .web-login.admin-login {
+    justify-content: flex-end;
+    padding-right: clamp(22px, 4vw, 72px);
+    padding-left: clamp(22px, 4vw, 72px);
+    background: #050e19;
+  }
+  .web-login.admin-login::before { background-size: cover; background-position: center center; }
+}
+@media screen and (max-width: 760px) {
+  .web-login.admin-login {
+    justify-content: center;
+    align-items: flex-end;
+    min-height: 100dvh;
+    padding: 44vw 14px 18px !important;
+  }
+  .web-login.admin-login::before { background-size: 100% auto; background-position: top center; background-color: #050e19; }
+  .web-login.admin-login::after { background: linear-gradient(180deg, transparent 0 32%, rgba(3,13,22,.68) 52%, #06131f 76%); }
+}
+@media (max-width: 640px) {
+  .web-login.admin-login { padding: 16px !important; }
+}
+
+/* Card: bigger, cyan hairline, stronger glass than the plain login card. */
+.admin-login-card {
+  max-width: 460px !important;
+  padding: 32px 34px 27px !important;
+  border: 1px solid rgba(142, 224, 229, .5) !important;
+  border-radius: 25px !important;
+  background: linear-gradient(145deg, rgba(5, 20, 29, .82), rgba(6, 30, 38, .64)) !important;
+  box-shadow: 0 32px 90px rgba(0, 0, 0, .5), inset 0 1px rgba(255, 255, 255, .11) !important;
+  backdrop-filter: blur(24px) saturate(145%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(145%) !important;
+  overflow: hidden;
+}
+@media (max-width: 640px) {
+  .admin-login-card { padding: 25px 21px 21px !important; border-radius: 20px !important; }
+}
+
+/* Top accent bar - cyan/amber split, echoes the sidebar active-item glow. */
+.admin-login-accent {
+  position: absolute; inset: 0 0 auto; height: 4px;
+  background: linear-gradient(90deg, #22d3ee 0 58%, #f59e0b 58% 74%, transparent 74%);
+}
+
+/* "SECURE OPERATIONS CONSOLE · ADMIN" kicker row above the brand mark. */
+.admin-login-kicker {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px; color: #9ab7c0; font-size: 8px; font-weight: 900; letter-spacing: .17em;
+}
+.admin-login-kicker b {
+  padding: 5px 9px; border: 1px solid rgba(245, 158, 11, .55); border-radius: 999px;
+  background: rgba(245, 158, 11, .11); color: #fbbf24; font-size: 8px;
+}
+
+.admin-login-card .login-brand { justify-content: flex-start !important; margin: 8px 0 2px; }
+.admin-login-card .login-brand > span {
+  display: grid; place-items: center; width: 48px; height: 48px;
+  border: 1px solid rgba(92, 200, 215, .42); border-radius: 14px;
+  background: linear-gradient(145deg, rgba(34, 211, 238, .18), rgba(34, 211, 238, .04));
+  box-shadow: 0 10px 28px rgba(34, 211, 238, .15); font-size: 29px !important;
+}
+.admin-login-card .login-brand strong { font-size: inherit; }
+.login-brand-core { color: #f59e0b; }
+@media (max-width: 640px) { .admin-login-card .login-brand strong { font-size: 28px; } }
+
+.admin-login-card .login-series { text-align: left !important; margin: 12px 0 21px !important; color: #75d6e2 !important; }
+.admin-login-card h1 { font-size: 38px !important; letter-spacing: -.025em !important; }
+.admin-login-dot { color: #f59e0b; }
+@media (max-width: 640px) { .admin-login-card h1 { font-size: 32px !important; } }
+.admin-login-card .login-copy { max-width: 355px; margin-bottom: 22px !important; }
+
+.admin-login-card form { gap: 14px !important; }
+
+/* Fields with a left icon glyph (@ / ●) instead of a plain input. */
+.admin-login-field { position: relative; display: flex !important; }
+.admin-login-field > i {
+  position: absolute; z-index: 2; left: 13px; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 27px; height: 27px; border-radius: 8px;
+  background: rgba(92, 200, 215, .11); color: #73d4df; font-size: 10px; font-style: normal; font-weight: 900;
+}
+.admin-login-card form .admin-login-field input {
+  height: 53px; padding-left: 52px !important;
+  border: 1px solid #385d68 !important; border-radius: 12px !important;
+  background: rgba(3, 15, 22, .7) !important;
+  transition: border-color .18s, box-shadow .18s, transform .18s;
+}
+.admin-login-card form .admin-login-field input:focus {
+  border-color: #5cc8d7 !important;
+  box-shadow: 0 0 0 4px rgba(92, 200, 215, .11), 0 10px 25px rgba(0, 0, 0, .17);
+  transform: translateY(-1px);
+}
+
+/* Password field: reuses the shared .login-password-field/-toggle pattern
+   from the Crew offline login, restyled to the admin field look above. */
+.web-login-card .login-password-field { position: relative; display: flex; }
+.web-login-card .login-password-field input { padding-right: 56px; }
+.admin-login-card .login-password-field input { padding-right: 65px !important; }
+.web-login-card .login-password-toggle {
+  position: absolute; top: 0; right: 0; bottom: 0; padding: 0 13px;
+  border: 0; background: transparent; color: #5cc8d7;
+  font-size: 9px; font-weight: 850; letter-spacing: .1em; cursor: pointer;
+}
+.web-login-card .login-password-toggle:hover { color: #8fdbe6; }
+.admin-login-card .login-password-toggle {
+  right: 7px !important; top: 7px !important; bottom: 7px !important;
+  border-radius: 8px !important; background: rgba(92, 200, 215, .1) !important;
+}
+
+/* Primary action: filled teal pill with a trailing arrow chip, not the
+   plain outlined button the Crew screen uses. */
+.admin-login-card .login-primary {
+  min-height: 54px !important; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 13px 0 19px !important; border: 0 !important; border-radius: 12px !important;
+  background: linear-gradient(100deg, #087f88, #0b7285) !important; color: #fff !important;
+  box-shadow: 0 15px 35px rgba(4, 108, 121, .34);
+  transition: transform .18s, box-shadow .18s;
+}
+.admin-login-card .login-primary:hover:not(:disabled) {
+  transform: translateY(-2px); box-shadow: 0 19px 42px rgba(4, 108, 121, .44);
+}
+.admin-login-card .login-primary > i {
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px;
+  background: rgba(255, 255, 255, .13); font-size: 18px; font-style: normal;
+}
+
+.admin-login-card .login-links {
+  margin-top: 14px !important; padding: 8px 10px; border-radius: 8px;
+  background: rgba(34, 211, 238, .055);
+}
+
+.admin-login-card .login-owner {
+  margin-top: 18px !important; padding-top: 12px !important;
+  grid-template-columns: auto auto; align-items: center; text-align: left !important;
+}
+.admin-login-card .login-owner span,
+.admin-login-card .login-owner strong { grid-column: 1; }
+.admin-login-card .login-owner a,
+.admin-login-card .login-owner small { grid-column: 2; text-align: right; }
+@media (max-width: 640px) {
+  .admin-login-card .login-owner { grid-template-columns: 1fr; }
+  .admin-login-card .login-owner > * { grid-column: 1 !important; text-align: center !important; }
+}
