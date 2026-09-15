@@ -567,6 +567,11 @@ export async function sendTestEmail() {
   return { ok: false, error: "Not available in browser preview" };
 }
 
+export async function sendLineTestMessage() {
+  if (isWeb()) return (await webDb()).sendLineTestMessage();
+  return { ok: false, error: "LINE test messaging is only available in the web admin." };
+}
+
 export async function sendEmail(payload) {
   if (window.aviCoreAPI) return window.aviCoreAPI.sendEmail(payload);
   return { ok: false, error: "Not available in browser preview" };

@@ -6,6 +6,7 @@ import ThemeScene from "../../components/backgroundThemes/ThemeScene.jsx";
 import { ADMIN_LOCK_ENABLED } from "../../config/adminLock.js";
 import { formatDueDate } from "../../utils/trainingDue.js";
 import ServerBackupPanel from "./ServerBackupPanel.jsx";
+import LineSettingsPanel from "./LineSettingsPanel.jsx";
 import "./Settings.css";
 
 // Injected by Vite from package.json's version (see vite.config.js). Guarded
@@ -382,6 +383,8 @@ export default function AdminSettingsTab() {
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px" }}>
         <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
       </div>
+
+      {isWeb() && <LineSettingsPanel />}
 
       {/* Web/admin build only: this reads and writes the Supabase tables
           directly. The PC build keeps its own local database and has its own

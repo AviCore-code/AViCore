@@ -69,6 +69,22 @@ export async function getAdminSession() {
   const { data } = await supabase.auth.getSession();
   return data?.session || null;
 }
+
+export async function sendLineTestMessage() {
+  const sb = requireSupabase();
+  const { data, error } = await sb.functions.invoke("line-test-message", { body: {} });
+  if (error) {
+    let message = error.message;
+    try {
+      const payload = await error.context?.json?.();
+      if (payload?.error) message = payload.error;
+    } catch { /* use the invoke error */ }
+    throw new Error(message);
+  }
+  if (!data?.ok) throw new Error(data?.error || "ส่งทดสอบ LINE ไม่สำเร็จ");
+  return data;
+}
+
 export function onAdminAuthChange(cb) {
   if (!supabase) return () => {};
   // Pass the event name through too - the UI needs to tell a real SIGNED_OUT

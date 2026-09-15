@@ -27,25 +27,39 @@ Deno.serve(async req => {
     if (!destinations.length) return json({ error: "ยังไม่พบ Group ID จาก LINE Webhook กรุณาส่งข้อความในกลุ่มใหม่หา Bot ก่อน" }, 503);
     const now = new Date();
     const time = now.toLocaleString("th-TH", { timeZone: "Asia/Bangkok" });
-    // Collapse repeated clicks/retries within the same minute using LINE's retry key.
-    const retryKey = await deliveryRetryKey(`admin-test|${company.id}|${groupId}|${auth.user.id}|${Math.floor(now.getTime() / 60000)}`);
     const messages = [{ type: "text" as const,
-      text: `AviCore Bot — ทดสอบจาก Admin ✅\nเวลาไทย ${time}\nระบบส่งข้อความเข้า LINE Group และ LINE ส่วนตัวแล้วครับ\nข้อความนี้เป็นการทดสอบ ไม่ใช่สรุป Due Date ประจำวัน` }];
+      text: `AviCore Bot — ทดสอบจาก Admin ✅\nเวลาไทย ${time}\nระบบรับคำขอส่งข้อความทดสอบแล้วครับ\nข้อความนี้เป็นการทดสอบ ไม่ใช่สรุป Due Date ประจำวัน` }];
+    let groupRecipients = 0;
     for (const destination of destinations) {
-      const groupCheck = await fetch(`https://api.line.me/v2/bot/group/${destination}/summary`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10000) });
-      if (!groupCheck.ok) continue;
-      await pushBatch({ token, groupId: destination, retryKey: await deliveryRetryKey(`admin-test|${company.id}|${destination}|${auth.user.id}|${Math.floor(now.getTime() / 60000)}`), messages });
+      try {
+        const groupCheck = await fetch(`https://api.line.me/v2/bot/group/${destination}/summary`, { headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10000) });
+        if (!groupCheck.ok) continue;
+        await pushBatch({ token, groupId: destination, retryKey: await deliveryRetryKey(`admin-test|${company.id}|${destination}|${auth.user.id}|${Math.floor(now.getTime() / 60000)}`), messages });
+        groupRecipients += 1;
+      } catch (error) {
+        console.error("LINE admin group test failed", error instanceof Error ? error.message : "Unknown error");
+      }
     }
     const { data: privateRows, error: privateError } = await sb.from("admin_line_user_events")
       .select("line_user_id").eq("company_id", company.id).is("line_group_id", null)
       .in("event_type", ["friend_added", "message"]);
     if (privateError) throw privateError;
     const privateIds = [...new Set((privateRows || []).map((r: any) => r.line_user_id).filter(Boolean))];
+    let privateRecipients = 0;
     for (const userId of privateIds) {
-      await pushBatch({ token, groupId: userId,
-        retryKey: await deliveryRetryKey(`admin-test|${company.id}|private|${userId}|${auth.user.id}|${Math.floor(now.getTime() / 60000)}`), messages });
+      try {
+        await pushBatch({ token, groupId: userId,
+          retryKey: await deliveryRetryKey(`admin-test|${company.id}|private|${userId}|${auth.user.id}|${Math.floor(now.getTime() / 60000)}`), messages });
+        privateRecipients += 1;
+      } catch (error) {
+        console.error("LINE admin private test failed", error instanceof Error ? error.message : "Unknown error");
+      }
     }
-    return json({ ok: true, acceptedAt: now.toISOString(), groupRecipients: destinations.length, privateRecipients: privateIds.length });
+    const delivery = { acceptedAt: now.toISOString(), groupRecipients, privateRecipients };
+    if (groupRecipients === 0 && privateRecipients === 0) {
+      return json({ ok: false, error: "LINE ไม่สามารถส่งข้อความทดสอบไปยังปลายทางใดได้", ...delivery }, 502);
+    }
+    return json({ ok: true, ...delivery });
   } catch (error) {
     console.error("LINE admin test failed", error instanceof Error ? error.message : "Unknown error");
     return json({ error: "ส่งทดสอบไม่สำเร็จ กรุณาตรวจ Token การเข้ากลุ่ม และโควตา LINE" }, 502);

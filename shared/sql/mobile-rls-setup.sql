@@ -53,6 +53,18 @@ DROP POLICY IF EXISTS "anon read app_settings" ON public.app_settings;
 CREATE POLICY "anon read app_settings" ON public.app_settings
   FOR SELECT TO anon USING (true);
 
+-- Staff-training settings contain employee names/IDs, certificate numbers and
+-- notes. Keep the general read policy above for Crew settings, but AND it with
+-- this restrictive policy so anonymous clients can never read those PII keys.
+DROP POLICY IF EXISTS "anon cannot read staff training PII" ON public.app_settings;
+CREATE POLICY "anon cannot read staff training PII" ON public.app_settings
+  AS RESTRICTIVE FOR SELECT TO anon
+  USING (key NOT IN (
+    'staff_training_courses_v1',
+    'staff_training_personnel_v1',
+    'staff_training_records_v1'
+  ));
+
 -- pilot_training: RLS enabled above with ZERO policies for the anon role on
 -- purpose - this means the anon key (and therefore the Android app) cannot
 -- read or write this table at all. Nothing else to add here.

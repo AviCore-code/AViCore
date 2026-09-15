@@ -1,7 +1,7 @@
 {
   "name": "avicore-crew",
   "productName": "AviCore Crew",
-  "version": "1.0.272",
+  "version": "1.0.274",
   "description": "AviCore Crew Flight Operations Web Application",
   "author": "Captain Weera",
   "license": "MIT",
@@ -50,10 +50,12 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.4.1",
+    "@testing-library/react": "^16.3.3",
     "@vitejs/plugin-react": "^5.0.0",
     "concurrently": "^9.2.0",
     "electron": "^37.3.1",
     "electron-builder": "^26.0.12",
+    "jsdom": "^30.0.1",
     "vite": "^7.0.0",
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^4.1.10",
@@ -89,15 +91,15 @@
       "installerIcon": "build/crew.ico",
       "uninstallerIcon": "build/crew.ico",
       "runAfterFinish": true
+    },
+    "allowScripts": {
+      "@firebase/util@1.15.1": true,
+      "better-sqlite3@12.11.2": true,
+      "canvas@2.11.2": true,
+      "electron@37.10.3": true,
+      "electron-winstaller@5.4.0": true,
+      "esbuild@0.28.1": true,
+      "protobufjs@7.6.5": true
     }
-  },
-  "allowScripts": {
-    "@firebase/util@1.15.1": true,
-    "better-sqlite3@12.11.1": true,
-    "canvas@2.11.2": true,
-    "electron@37.10.3": true,
-    "electron-winstaller@5.4.0": true,
-    "esbuild@0.28.1": true,
-    "protobufjs@7.6.5": true
   }
 }
