@@ -12,3 +12,4 @@ build/
 shared/supabase/.temp/
 supabase/.temp/
 shared/supabase/supabase/.temp/
+.firebase/
