@@ -1,7 +1,7 @@
 import { Preferences } from "@capacitor/preferences";
 import { all, get, run } from "./mobileSqlite.js";
 import { syncNow as doSyncNow, getSyncStatus as doGetSyncStatus } from "./mobileSync.js";
-import { downloadElementAsPdf } from "./downloadPdf.js";
+import { downloadElementAsPdf, resolvePdfExportTarget } from "./downloadPdf.js";
 
 const normalize = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
 
@@ -96,11 +96,8 @@ export async function exportLogbookPdf(suggestedName) {
   // Generates a real PDF and downloads it under the given name. The old
   // window.print() here dropped the name entirely - see downloadPdf.js for why
   // the print dialog cannot be told what to call the file.
-  const element =
-    document.querySelector(".logbook-print-area") ||
-    document.querySelector(".myexp-print-area") ||
-    document.body;
-  return downloadElementAsPdf(element, suggestedName, { landscape: true });
+  const { element, fitToPage } = resolvePdfExportTarget();
+  return downloadElementAsPdf(element, suggestedName, { landscape: true, fitToPage });
 }
 
 export async function syncNow() {

@@ -31,7 +31,7 @@
 .staff-check-list input, .staff-inline input { width: auto; }
 .staff-actions, .staff-row-actions { display: flex; gap: 8px; }
 .staff-actions button, .staff-table-wrap button, .staff-all-controls button { padding: 7px 12px; cursor: pointer; }
-.staff-delete { color: #b91c1c; border-color: #fecaca !important; background: #fff1f2 !important; }
+.staff-delete { color: #b91c1c !important; border-color: #fecaca !important; background: #fff1f2 !important; }
 .staff-table-wrap { overflow: auto; border: 1px solid var(--staff-line); border-radius: 10px; background: var(--staff-card); }
 .staff-table-wrap table { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
 .staff-table-wrap th, .staff-table-wrap td { padding: 9px 10px; border-bottom: 1px solid var(--staff-line); text-align: left; vertical-align: top; }

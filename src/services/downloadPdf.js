@@ -44,6 +44,29 @@ function scaleForHeight(px) {
   return 1.25;                   // 24-36 months
 }
 
+const ONE_PAGE_REPORT_SELECTORS = [
+  ".trainingperson-print-area",
+  ".pe-print-area",
+  ".myexp-print-area"
+];
+const PDF_REPORT_SELECTORS = [
+  ...ONE_PAGE_REPORT_SELECTORS,
+  ".logbook-print-area",
+  ".dashboard-print-area",
+  ".allstatus-print-area"
+];
+
+// Keep report selection identical on desktop fallback, mobile, and web. The
+// returned fit flag is tied to the selected element, so one-page records can
+// never accidentally fall through to the multi-page logbook path.
+export function resolvePdfExportTarget(root = document) {
+  for (const selector of PDF_REPORT_SELECTORS) {
+    const element = root.querySelector(selector);
+    if (element) return { element, fitToPage: ONE_PAGE_REPORT_SELECTORS.includes(selector) };
+  }
+  return { element: root.body, fitToPage: false };
+}
+
 export async function downloadElementAsPdf(element, filename, options = {}) {
   if (!element) return { ok: false, error: "Nothing to export." };
 
@@ -161,7 +184,9 @@ export async function downloadElementAsPdf(element, filename, options = {}) {
            fit-to-page then shrinks everything to half the size to compensate.
            Kept as two columns there, which is both shorter and closer to the
            printed layout. */
-        .top-grid, .exp-grid{ display:block !important; }
+        ${options.fitToPage
+          ? ".top-grid,.exp-grid{ display:grid !important; grid-template-columns:1fr 1fr !important; }"
+          : ".top-grid,.exp-grid{ display:block !important; }"}
         /* Code / Name / Licence / Update stay on ONE row. Flattened to blocks
            they became four stacked lines - taller, and it breaks up what reads
            as a single identity line on the printed sheet. */
@@ -199,6 +224,29 @@ export async function downloadElementAsPdf(element, filename, options = {}) {
            shrunk to fit. Shrinking the finished image scales the text down with
            it; removing dead space costs nothing legible. Applied only when
            fitting to one page, so the multi-page logbook keeps its spacing. */
+        /* Pilot Experience uses the same one-page raster path but its editor CSS
+           is screen-sized. Reproduce the compact print sheet in the clone: keep
+           both grids two-across, remove the duplicate screen footer, and leave
+           the first header through final certification in the captured flow. */
+        .pe-print-area{ width:auto !important; min-width:0 !important; padding:0 !important; font-size:8px !important; }
+        .pe-print-area .paper-head{ grid-template-columns:62px 1fr 62px !important; gap:8px !important; margin-bottom:4px !important; }
+        .pe-print-area .image-box{ width:58px !important; height:58px !important; }
+        .pe-print-area .title-area h2{ font-size:17px !important; margin:0 0 3px !important; }
+        .pe-print-area .line{ gap:6px !important; margin:1px 0 !important; font-size:8px !important; line-height:1.15 !important; }
+        .pe-print-area .line input{ width:210px !important; }
+        .pe-print-area .top-grid,.pe-print-area .exp-grid{ display:grid !important; grid-template-columns:1fr 1fr !important; gap:4px 7px !important; margin-top:4px !important; }
+        .pe-print-area p{ font-size:7px !important; margin:3px 0 !important; }
+        .pe-print-area table{ font-size:7px !important; table-layout:fixed !important; width:100% !important; }
+        .pe-print-area th,.pe-print-area td{ height:auto !important; padding:1px 2px !important; line-height:1.1 !important; }
+        .pe-print-area .summary{ margin-top:4px !important; height:23px !important; font-size:7.5px !important; }
+        .pe-print-area .grand{ margin-top:4px !important; height:26px !important; font-size:10px !important; grid-template-columns:1fr 180px 1fr !important; }
+        .pe-print-area .footer{ display:none !important; }
+        .pe-print-area .pe-certify{ margin-top:4px !important; }
+        .pe-print-area .pe-certify-text{ font-size:7.5px !important; line-height:1.2 !important; margin-bottom:2px !important; }
+        .pe-print-area .pe-certify-sigs{ gap:16px !important; margin-top:7px !important; }
+        .pe-print-area .pe-certify-sigs > div{ font-size:7.5px !important; text-align:center !important; }
+        .pe-print-area .pe-sigline{ height:12px !important; margin-bottom:2px !important; }
+
         /* Sized per BLOCK, not one size for the sheet.
            The identity line and the totals hold a handful of short values and
            can carry a larger face; the aircraft tables hold many rows and are

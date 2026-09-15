@@ -64,7 +64,9 @@ describe("AllStaffTraining", () => {
     expect(planning).toContain("Non-pilot staff only");
     expect(planning).toContain("Personnel in scope");
     expect(planning).toContain("Course");
-        expect(planning).toContain("Ada Example");
+    expect(planning).toContain('class="staff-table-wrap"><table');
+    expect(planning).not.toContain('<table class="staff-table-wrap"');
+    expect(planning).toContain("Ada Example");
   });
 
   it("renders the FOO, Helpers, and GOO Excel import workflow", () => {

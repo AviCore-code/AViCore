@@ -624,8 +624,9 @@ export default function MyLogbook() {
           return (
             <div className="logbook-summary">
               <div className="logbook-summary-title">Pilot Experience — Total Hours to Date</div>
-              <table className="logbook-summary-table">
-                <thead>
+              <div className="logbook-summary-scroll">
+                <table className="logbook-summary-table">
+                  <thead>
                   <tr>{cells.map((c) => (
                     <th key={c.label} className={c.lead ? "logbook-summary-lead" : undefined}>{c.label}</th>
                   ))}</tr>
@@ -636,8 +637,9 @@ export default function MyLogbook() {
                       {decimalToHHMM(c.value)}
                     </td>
                   ))}</tr>
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
             </div>
           );
         })()}

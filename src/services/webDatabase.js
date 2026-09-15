@@ -2,7 +2,7 @@ import { showDataErrorBanner } from "./dataErrorBanner.js";
 import { cacheableRead, queueableWrite } from "./offlineWrap.js";
 import { registerCurrentReader } from "./offlineQueue.js";
 import { createClient } from "@supabase/supabase-js";
-import { downloadElementAsPdf } from "./downloadPdf.js";
+import { downloadElementAsPdf, resolvePdfExportTarget } from "./downloadPdf.js";
 
 // Data layer for the plain-browser web build (`npm run build:web`, see
 // vite.config.js's "web" mode and src/web/WebApp.jsx). Unlike the Android
@@ -1002,22 +1002,8 @@ export async function exportLogbookPdf(suggestedName) {
     // Which print area belongs to the page that asked. Ordered most-specific
     // first; <body> only as a last resort so a page without one still exports
     // something rather than silently nothing.
-    const experience = document.querySelector(".myexp-print-area");
-    const element =
-      document.querySelector(".logbook-print-area") ||
-      experience ||
-      document.querySelector(".dashboard-print-area") ||
-      document.querySelector(".allstatus-print-area") ||
-      document.body;
-
-    // An experience summary is a ONE-SHEET document - split over two pages the
-    // signature block lands on a page with nothing above it to sign for. The
-    // logbook is the opposite: a 12-month extract is inherently many pages and
-    // must be sliced, never shrunk to fit.
-    return downloadElementAsPdf(element, filename, {
-      landscape: true,
-      fitToPage: element === experience
-    });
+    const { element, fitToPage } = resolvePdfExportTarget();
+    return downloadElementAsPdf(element, filename, { landscape: true, fitToPage });
   } catch (err) {
     console.error("exportLogbookPdf:", err.message);
     return { ok: false, error: `Export failed: ${err.message}` };

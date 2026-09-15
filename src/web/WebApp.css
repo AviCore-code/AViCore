@@ -53,7 +53,10 @@ html, body, #root { height: 100%; margin: 0; background: var(--acw-bg); color-sc
 }
 .web-main .web-content { flex: 1; }
 @media (max-width: 640px) {
-  .web-body { flex-direction: column-reverse; }
+  .web-body {
+    flex-direction: column;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
 }
 
 /* NOTE: the web builds deliberately have NO background behind the app pages.

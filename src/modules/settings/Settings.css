@@ -7,10 +7,10 @@
 .settings-hub-tab{padding:10px 16px;border-radius:10px 10px 0 0;border:1px solid transparent;background:transparent;color:#94a3b8;font-weight:800;font-size:12.5px;cursor:pointer;letter-spacing:.02em}
 .settings-hub-tab:hover{color:#e2e8f0}
 .settings-hub-tab.active{color:white;background:rgba(22,119,255,.14);border-color:rgba(22,119,255,.4);border-bottom-color:transparent}
-.settings-hub-tab-body{min-height:200px}
+.settings-hub-tab-body{min-height:200px;min-width:0;max-width:100%;overflow-x:auto}
 
-.settings-card{background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.15);border-radius:14px;padding:22px;max-width:560px;display:flex;flex-direction:column;gap:14px}
-.settings-card-wide{max-width:900px}
+.settings-card{box-sizing:border-box;width:100%;background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.15);border-radius:14px;padding:22px;max-width:min(560px,100%);display:flex;flex-direction:column;gap:14px}
+.settings-card-wide{max-width:min(900px,100%)}
 
 .settings-theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
 .settings-theme-tile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;border-radius:12px;border:2px solid transparent;background:rgba(148,163,184,.06);cursor:pointer;font-size:11px;color:#cbd5e1;font-weight:700}
@@ -50,6 +50,7 @@
 .settings-subheader p{margin:6px 0 0;color:#94a3b8;font-size:12px;max-width:640px}
 
 .settings-devices-table{width:100%;border-collapse:collapse;font-size:13px}
+.settings-devices-table{min-width:620px}
 .settings-devices-table th{text-align:left;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:6px 10px;border-bottom:1px solid rgba(148,163,184,.18)}
 .settings-devices-table td{padding:10px;border-bottom:1px solid rgba(148,163,184,.08);color:#e2e8f0}
 .settings-devices-icon{font-size:16px;width:28px}
@@ -268,3 +269,18 @@ input.fatcrit-n:hover,input.fatcrit-t:hover{border-color:#94a3b8}
   background:rgba(148,163,184,.05);border-radius:8px;padding:7px 10px}
 .sp-pick-item:hover{background:rgba(148,163,184,.1)}
 .sp-pick-item input{width:16px;height:16px;accent-color:#1677ff;cursor:pointer;flex:none}
+
+@media (max-width:700px){
+  .settings-page{min-width:0}
+  .settings-hub-tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .settings-hub-tab{min-height:44px;flex:0 0 auto}
+  .settings-card{padding:16px}
+  .settings-theme-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+  .settings-ftl-grid{grid-template-columns:minmax(0,1fr)}
+  .settings-ftl-field,.settings-field,.settings-field input{min-width:0;box-sizing:border-box}
+  .settings-ftl-pair,.settings-logo-row,.settings-hwid-row,.admin-about-rows div{flex-wrap:wrap}
+  .settings-bulk-mode{flex-wrap:wrap;gap:10px}
+  .settings-bulk-pilotlist,.sp-groups,.sp-pick{grid-template-columns:minmax(0,1fr)}
+  .fatcrit-table{min-width:520px}
+  .bk-table{min-width:420px}
+}

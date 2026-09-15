@@ -201,9 +201,9 @@ function StaffPlanning({ people, courses, records, today }) {
       <div className="staff-table-wrap"><table><thead><tr><th>Course</th><th>People</th><th>Groups</th></tr></thead><tbody>
         {[...new Map(rows.map((row) => [row.courseCode, row])).values()].map((row) => <tr key={row.courseCode}><td><b>{row.courseName}</b></td><td>{rows.filter((r) => r.courseCode === row.courseCode).length}</td><td>{(new Set(rows.filter((r) => r.courseCode === row.courseCode).map((r) => r.group))).size}</td></tr>)}
       </tbody></table></div>
-      <table className="staff-table-wrap"><thead><tr><th>Name</th><th>Position</th><th>Course</th><th>Due date</th><th>Status</th><th>Days left</th></tr></thead><tbody>
+      <div className="staff-table-wrap"><table><thead><tr><th>Name</th><th>Position</th><th>Course</th><th>Due date</th><th>Status</th><th>Days left</th></tr></thead><tbody>
         {rows.length ? rows.map((row) => <tr key={row.id}><th>{row.name}</th><td>{row.role}</td><td>{row.courseName}</td><td>{row.dueDate || "—"}</td><td><span className={`staff-status staff-status-${row.status}`}>{row.detail}</span></td><td>{row.daysRemaining == null ? "—" : row.daysRemaining < 0 ? `${Math.abs(row.daysRemaining)}d overdue` : `${row.daysRemaining}d`}</td></tr>) : <tr><td colSpan={6} className="staff-empty">No staff training records match these filters.</td></tr>}
-      </tbody></table>
+      </tbody></table></div>
     </div>
   </section>;
 }

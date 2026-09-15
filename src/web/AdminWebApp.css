@@ -26,22 +26,29 @@
    touching data calculations, Supabase calls, or shared Crew screens.
    -------------------------------------------------------------------------- */
 .admin-shell {
+  --admin-font-sans: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --admin-font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, ui-monospace, monospace;
+  --admin-space-1: 8px;
+  --admin-space-2: 16px;
+  --admin-space-3: 24px;
   --admin-bg-0: #050b14;
   --admin-bg-1: #081322;
-  --admin-panel: rgba(10, 18, 32, .78);
-  --admin-panel-strong: rgba(15, 27, 46, .9);
-  --admin-line: rgba(137, 190, 204, .18);
-  --admin-line-strong: rgba(98, 195, 190, .34);
-  --admin-cyan: #44d8e6;
-  --admin-cyan-2: #67e8f9;
-  --admin-green: #4ade80;
-  --admin-amber: #fbbf24;
-  --admin-red: #fb7185;
-  --admin-text: #f6fbff;
-  --admin-muted: #93a9b8;
+  --admin-panel: rgba(10, 18, 32, .92);
+  --admin-panel-strong: rgba(15, 27, 46, .96);
+  --admin-line: rgba(166, 211, 222, .24);
+  --admin-line-strong: rgba(103, 232, 249, .42);
+  --admin-cyan: #67e8f9;
+  --admin-cyan-2: #a5f3fc;
+  --admin-green: #86efac;
+  --admin-amber: #fcd34d;
+  --admin-red: #fda4af;
+  --admin-text: #f8fafc;
+  --admin-muted: #b3c5d1;
+  font-family: var(--admin-font-sans);
+  font-size: 14px;
+  line-height: 1.5;
   background:
-    radial-gradient(900px 420px at 9% 0%, rgba(68, 216, 230, .11), transparent 62%),
-    radial-gradient(900px 480px at 96% 4%, rgba(124, 58, 237, .10), transparent 60%),
+    radial-gradient(900px 420px at 9% 0%, rgba(68, 216, 230, .08), transparent 62%),
     linear-gradient(145deg, var(--admin-bg-0), var(--admin-bg-1));
 }
 
@@ -112,11 +119,6 @@
   .admin-shell .web-content { padding: 12px; }
   :root { --admin-scale: clamp(0.80, calc(100vw / 1280), 1.0); }
 }
-@media (max-width: 720px) {
-  .admin-shell .web-body { padding: 4px; gap: 4px; }
-  .admin-shell .web-content { padding: 8px; }
-  :root { --admin-scale: clamp(0.75, calc(100vw / 720), 0.95); }
-}
 @media (min-width: 1600px) {
   :root { --admin-scale: clamp(1.0, calc(100vw / 1920), 1.3); }
 }
@@ -126,7 +128,7 @@
 .admin-shell .stats-page .module-header,
 .admin-shell .cdash-head,
 .admin-shell .crewmon-page .module-header,
-.admin-shell .crewaccess-page .module-header {
+.admin-shell .crewacc-page .module-header {
   position: relative;
   align-items: flex-start;
   padding: 2px 0 14px;
@@ -139,7 +141,7 @@
 .admin-shell .stats-page .module-header h1,
 .admin-shell .cdash-head h1,
 .admin-shell .crewmon-page .module-header h1,
-.admin-shell .crewaccess-page .module-header h1 {
+.admin-shell .crewacc-page .module-header h1 {
   font-size: clamp(24px, 2vw, 34px);
   line-height: 1.05;
   letter-spacing: -.035em;
@@ -152,10 +154,10 @@
 .admin-shell .stats-page .module-header p,
 .admin-shell .cdash-head p,
 .admin-shell .crewmon-page .module-header p,
-.admin-shell .crewaccess-page .module-header p {
+.admin-shell .crewacc-page .module-header p {
   max-width: 86ch;
   color: var(--admin-muted);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -163,7 +165,7 @@
 .admin-shell .header-tools button,
 .admin-shell .stats-actions button,
 .admin-shell .crewmon-btn-danger,
-.admin-shell .crewaccess-page button {
+.admin-shell .crewacc-page button {
   border-radius: 12px;
   border-color: rgba(137, 190, 204, .24);
   background: rgba(13, 25, 42, .66);
@@ -174,7 +176,7 @@
 .admin-shell button:not(.app-sidebar-item):not(.login-primary):not(.login-offline):hover:not(:disabled),
 .admin-shell .header-tools button:hover:not(:disabled),
 .admin-shell .stats-actions button:hover:not(:disabled),
-.admin-shell .crewaccess-page button:hover:not(:disabled) {
+.admin-shell .crewacc-page button:hover:not(:disabled) {
   transform: translateY(-1px);
   border-color: rgba(68, 216, 230, .46);
   background: rgba(68, 216, 230, .13);
@@ -192,6 +194,14 @@
   box-shadow: 0 16px 36px rgba(14, 165, 233, .24), inset 0 1px rgba(255, 255, 255, .28);
 }
 .admin-shell button:disabled { opacity: .48; cursor: not-allowed; transform: none !important; }
+
+@media (pointer: coarse) {
+  .admin-shell button,
+  .admin-shell [role="button"] { min-height: 44px; min-width: 44px; }
+  .admin-shell input,
+  .admin-shell select,
+  .admin-shell textarea { min-height: 44px; }
+}
 
 .admin-shell .cdash-card,
 .admin-shell .cdash-panel,
@@ -232,7 +242,12 @@
 }
 .admin-shell .cdash-card-value,
 .admin-shell .stats-kpi-value,
-.admin-shell .stats-band-count {
+.admin-shell .stats-band-count,
+.admin-shell .crewmon-time,
+.admin-shell .crewmon-code,
+.admin-shell .crewmon-card-code,
+.admin-shell .crewacc-code {
+  font-family: var(--admin-font-mono);
   letter-spacing: -.04em;
   font-variant-numeric: tabular-nums;
 }
@@ -295,6 +310,16 @@
   .admin-shell .roster-page .module-header,
   .admin-shell .stats-page .module-header,
   .admin-shell .cdash-head { gap: 12px; }
+}
+@media (max-width: 640px) {
+  .admin-shell .web-body {
+    padding: 4px;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+    gap: 4px;
+  }
+  .admin-shell .web-main { border: 0; border-radius: 0; }
+  .admin-shell .web-content { padding: 8px; }
+  .admin-shell .web-header { padding: 10px 12px; }
 }
 /* --------------------------------------------------------------------------
    Admin sign-in screen — restored to the v1.0.267 "Secure Operations

@@ -5,7 +5,8 @@ import {
   loadExperience,
   listExperience,
   deleteExperience,
-  saveImage
+  saveImage,
+  exportLogbookPdf
 } from "../../services/desktopDatabase.js";
 import { sumHours, normalizeAircraftRow } from "../../utils/timeMath.js";
 import "./PilotExperienceBuilder.css";
@@ -180,6 +181,15 @@ export default function PilotExperienceBuilder() {
     setData(next);
   }
 
+  async function handleExportPdf() {
+    try {
+      const result = await exportLogbookPdf(`PilotExperience_${data.code || data.licence || "pilot"}.pdf`);
+      if (result && !result.ok) alert("Export failed: " + result.error);
+    } catch (err) {
+      alert("Export failed: " + err.message);
+    }
+  }
+
   async function handleImportPdf() {
     setLoading(true);
     try {
@@ -337,10 +347,11 @@ export default function PilotExperienceBuilder() {
           <button onClick={() => setData(blank)}>New / Clear</button>
           <button className="primary" onClick={handleSave}>Save Experience</button>
           <button className="danger" onClick={handleDelete}>Delete</button>
-          {/* Prints the sheet only, A4 landscape, with the photo and a
-              signature block - see the @media print rules in the CSS. */}
-          <button onClick={() => window.print()} title="Print the experience summary — A4 landscape, with signature block.">
-            Print / Save PDF
+          {/* Export captures only .pe-print-area and scales the complete record
+              to one A4 landscape page; unlike browser print it cannot clip a
+              long final table or leave the signature block on page two. */}
+          <button onClick={handleExportPdf} title="Export the complete experience summary as one A4 landscape PDF.">
+            Export PDF
           </button>
           <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
         </div>
@@ -356,7 +367,7 @@ export default function PilotExperienceBuilder() {
         ))}
       </div>
 
-      <section className="paper">
+      <section className="paper pe-print-area">
         <div className="paper-head">
           <ImageBox label="LOGO" image={data.logo} onFile={(file) => setImage("logo", file)} onRemove={() => removeImage("logo")} />
 
@@ -390,16 +401,16 @@ export default function PilotExperienceBuilder() {
           </table>
 
           <table>
-            <thead><tr><th>Sim.Type</th><th>Date Last Attended</th><th></th></tr></thead>
+            <thead><tr><th>Sim.Type</th><th>Date Last Attended</th><th className="no-print"></th></tr></thead>
             <tbody>
               {data.sim.map((row, i) => (
                 <tr key={i}>
                   <td><input value={row[0]} onChange={(e) => updateSimulator(i, 0, e.target.value)} /></td>
                   <td><input value={row[1]} onChange={(e) => updateSimulator(i, 1, e.target.value)} /></td>
-                  <td><button onClick={() => deleteSimulator(i)}>X</button></td>
+                  <td className="no-print"><button onClick={() => deleteSimulator(i)}>X</button></td>
                 </tr>
               ))}
-              <tr><td colSpan="3"><button onClick={addSimulator}>+ Add Simulator</button></td></tr>
+              <tr className="no-print"><td colSpan="3"><button onClick={addSimulator}>+ Add Simulator</button></td></tr>
             </tbody>
           </table>
         </div>
@@ -458,7 +469,7 @@ function ImageBox({ label, image, onFile, onRemove }) {
   return (
     <div className="image-wrap">
       <div className="image-box">{image ? <img src={image} /> : label}</div>
-      <div className="image-box-actions">
+      <div className="image-box-actions no-print">
         <label className="upload-btn">
           Upload
           <input hidden type="file" accept="image/*" onChange={(e) => onFile(e.target.files?.[0])} />
@@ -480,8 +491,8 @@ function ExperienceTable({ title, subTitle, group, rows, update, add, del }) {
   return (
     <table>
       <thead>
-        <tr><th rowSpan="2">{title}<br /><span>{subTitle}</span></th><th colSpan="5">Hours</th></tr>
-        <tr><th>PIC</th><th>PICUS</th><th>SIC</th><th>Total Type</th><th></th></tr>
+        <tr><th rowSpan="2">{title}<br /><span>{subTitle}</span></th><th colSpan="4">Hours</th><th className="no-print" rowSpan="2"></th></tr>
+        <tr><th>PIC</th><th>PICUS</th><th>SIC</th><th>Total Type</th></tr>
       </thead>
       <tbody>
         {rows.map((row, i) => (
@@ -489,11 +500,11 @@ function ExperienceTable({ title, subTitle, group, rows, update, add, del }) {
             {[0, 1, 2, 3, 4].map((c) => (
               <td key={c}><input readOnly={c === 4} value={row[c]} onChange={(e) => update(group, i, c, e.target.value)} /></td>
             ))}
-            <td><button onClick={() => del(group, i)}>X</button></td>
+            <td className="no-print"><button onClick={() => del(group, i)}>X</button></td>
           </tr>
         ))}
-        <tr className="total"><td>Total</td><td>{total[0]}</td><td>{total[1]}</td><td>{total[2]}</td><td>{total[3]}</td><td></td></tr>
-        <tr><td colSpan="6"><button onClick={() => add(group)}>+ Add Aircraft</button></td></tr>
+        <tr className="total"><td>Total</td><td>{total[0]}</td><td>{total[1]}</td><td>{total[2]}</td><td>{total[3]}</td><td className="no-print"></td></tr>
+        <tr className="no-print"><td colSpan="6"><button onClick={() => add(group)}>+ Add Aircraft</button></td></tr>
       </tbody>
     </table>
   );

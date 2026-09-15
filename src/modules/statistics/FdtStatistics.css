@@ -60,7 +60,8 @@
 .stats-swatch-dt{background:#8b5cf6}
 
 /* Tables */
-.stats-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:8px}
+.stats-table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.stats-table{width:100%;min-width:640px;border-collapse:collapse;font-size:12.5px;margin-bottom:8px}
 /* Blue column headings, on a tinted band.
    Separates the labels from the figures at a glance - useful when the page is
    projected and the reader is scanning several tables. The tint carries the
@@ -163,7 +164,8 @@
   .stats-kpi-value{font-size:20px}
   .stats-band-count{font-size:24px}
 
-  .stats-table{font-size:10px}
+  .stats-table-wrap{max-width:none;overflow:visible}
+  .stats-table{font-size:10px;min-width:0}
   .stats-table th,.stats-table td{padding:3px 7px;border-color:#999!important}
   .stats-table tbody tr:nth-child(odd){background:#f6f6f6!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .stats-table tfoot td{background:#eee!important;border-top:2px solid #333!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
