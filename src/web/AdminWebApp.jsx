@@ -18,6 +18,7 @@ import ErrorBoundary from "./ErrorBoundary.jsx";
 import LoginShell from "./LoginShell.jsx";
 import { ADMIN_ALLOWED_EMAILS } from "../config/adminAllowlist.js";
 import AppSidebar from "./AppSidebar.jsx";
+import { ADMIN_SECTIONS, ADMIN_SCREEN_KEYS, defaultScreenForSection, sectionForScreen } from "./adminNavigation.js";
 import adminLoginBg from "./admin-login-bg.png";
 import "./WebApp.css";
 import "./AdminWebApp.css";
@@ -64,8 +65,8 @@ const TABS = [
   { key: "utility", label: "Utility", icon: "🛠️", Component: CrewLoginMonitor }
 ];
 
-// The tab names this build knows about, used to validate a remembered one.
-const TAB_KEYS = TABS.map((t) => t.key);
+// The screen names this build knows about, used to validate a remembered one.
+const TAB_KEYS = ADMIN_SCREEN_KEYS;
 
 // Injected by Vite from package.json's version (see vite.config.js).
 const APP_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "";
@@ -291,28 +292,20 @@ export default function AdminWebApp() {
   }
 
   const Active = TABS.find((t) => t.key === tab)?.Component;
+  const activeSection = sectionForScreen(tab);
 
-  const sidebarGroups = [
-    { label: "Operations", items: [
-      { key: "dashboard", label: "Dashboard", icon: "📊", active: tab === "dashboard", onClick: () => setTab("dashboard") },
-      { key: "pilotRoster", label: "Pilot Roster", icon: "🗓️", active: tab === "pilotRoster", onClick: () => setTab("pilotRoster") },
-    ]},
-    { label: "Compliance", items: [
-      { key: "crews", label: "FDT", icon: "✈️", active: tab === "crews", onClick: () => setTab("crews") },
-      { key: "fatigue", label: "Fatigue", icon: "😴", active: tab === "fatigue", onClick: () => setTab("fatigue") },
-      { key: "training", label: "Training", icon: "🎓", active: tab === "training", onClick: () => setTab("training") },
-    ]},
-    { label: "Reports", items: [
-      { key: "statistics", label: "Statistics", icon: "📈", active: tab === "statistics", onClick: () => setTab("statistics") },
-      { key: "logbook", label: "Logbook", icon: "📖", active: tab === "logbook", onClick: () => setTab("logbook") },
-    ]},
-    { label: "System", items: [
-      { key: "settings", label: "Settings", icon: "⚙️", active: tab === "settings", onClick: () => setTab("settings") },
-      { key: "access", label: "Crew Access", icon: "🔑", active: tab === "access", onClick: () => setTab("access") },
-      { key: "utility", label: "Login Monitor", icon: "🛠️", active: tab === "utility", onClick: () => setTab("utility") },
-      { key: "signout", label: "Sign Out", icon: "⏻", danger: true, onClick: handleSignOut },
-    ]},
-  ];
+  const sidebarGroups = [{
+    label: "Main",
+    items: ADMIN_SECTIONS.map((section) => ({
+      key: section.key,
+      label: section.label,
+      icon: section.icon,
+      active: section.key === activeSection.key,
+      onClick: () => setTab(
+        section.key === activeSection.key ? tab : defaultScreenForSection(section.key),
+      ),
+    })),
+  }];
 
   return (
     <div className="web-app admin-shell">
@@ -323,7 +316,10 @@ export default function AdminWebApp() {
           brand={{ icon: "✦", title: "AviCore Enterprise", subtitle: `ADMIN · v${APP_VERSION}` }}
           sync={{ status: syncStatus.status, label: SYNC_LABEL[syncStatus.status] || syncStatus.status }}
           groups={sidebarGroups}
-          footItems={[{ key: "refresh", label: "Refresh", icon: "⟳", onClick: () => window.location.reload() }]}
+          footItems={[
+            { key: "refresh", label: "Refresh", icon: "⟳", onClick: () => window.location.reload() },
+            { key: "signout", label: "Sign Out", icon: "⏻", danger: true, onClick: handleSignOut },
+          ]}
         />
         <div className="web-main">
           <header className="web-header">
@@ -343,6 +339,23 @@ export default function AdminWebApp() {
               <span className="web-sync-label">{SYNC_LABEL[syncStatus.status] || syncStatus.status}</span>
             </span>
           </header>
+
+          {activeSection.screens.length > 1 && (
+            <nav className="admin-subtabs" aria-label={`${activeSection.label} screens`}>
+              {activeSection.screens.map((screen) => (
+                <button
+                  key={screen.key}
+                  type="button"
+                  aria-current={screen.key === tab ? "page" : undefined}
+                  className={screen.key === tab ? "active" : ""}
+                  onClick={() => setTab(screen.key)}
+                >
+                  <span aria-hidden="true">{screen.icon}</span>
+                  {screen.label}
+                </button>
+              ))}
+            </nav>
+          )}
 
           <main className="web-content">
             <ErrorBoundary key={tab}>
