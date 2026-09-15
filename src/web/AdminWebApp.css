@@ -320,6 +320,15 @@
   .admin-login-card { padding: 25px 21px 21px !important; border-radius: 20px !important; }
 }
 
+/* .web-login-card's base rule sets margin:auto (all four sides), which as a
+   flex child self-centers regardless of the parent's justify-content: the
+   auto margins on left AND right absorb the free space equally. The v1.0.267
+   layout puts the card at the RIGHT edge (parent has justify-content:
+   flex-end - see .web-login.admin-login above), so the left/right auto
+   margins must be cleared here; only a vertical auto margin is kept so the
+   card still centers top-to-bottom in a tall viewport. */
+.admin-login-card { margin: auto 0 !important; }
+
 /* Top accent bar - cyan/amber split, echoes the sidebar active-item glow. */
 .admin-login-accent {
   position: absolute; inset: 0 0 auto; height: 4px;
