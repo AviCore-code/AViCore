@@ -1,6 +1,7 @@
-// isWeb covers Crew + admin - Admin-only is handled by import.meta.env.MODE === "admin"
-const isAdminBuild = import.meta.env.MODE === "admin";
 import { useEffect, useState } from "react";
+// isWeb covers Crew + admin - Admin-only is handled by import.meta.env.MODE === "admin".
+// isAdminBuild is captured at module-load time so TABS below reflects the build target.
+const isAdminBuild = import.meta.env.MODE === "admin";
 import { listTraining, getSetting } from "../../services/desktopDatabase.js";
 import { TRAINING_ITEMS, withTrainingThresholdDefaults, withTrainingDisabledDefaults } from "../../utils/trainingDue.js";
 import TrainingAllStatus from "./TrainingAllStatus.jsx";

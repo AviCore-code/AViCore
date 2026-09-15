@@ -8,6 +8,12 @@
   min-width: 0;
   color: inherit;
 }
+/* Inside the admin shell the surface is dark; flip the staff card surface so
+   white labels stay readable without breaking the dark theme look. */
+.admin-shell .staff-training {
+  --staff-card: #0f1a2c;
+  --staff-muted: #93a9b8;
+}
 .staff-training-head h2 { margin: 0 0 4px; }
 .staff-training-head p, .staff-form small { margin: 0; color: var(--staff-muted); }
 .staff-training .training-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--staff-line); margin-bottom: 2px; }
@@ -43,9 +49,9 @@
 .staff-overall-expired, .staff-overall-missing, .staff-status-expired, .staff-status-missing { background: #fee2e2; color: #991b1b; }
 .staff-status-planned { background: #dbeafe; color: #1e40af; }
 .staff-matrix table { width: max-content; min-width: 100%; }
-.staff-matrix th:first-child, .staff-matrix tbody th { position: sticky; left: 0; z-index: 1; background: var(--staff-card); }
-.staff-matrix thead th:first-child { z-index: 3; background: #17365d; }
-.staff-matrix th, .staff-matrix td.staff-course-cell { min-width: 108px; max-width: 140px; }
+.staff-matrix th:first-child, .staff-matrix tbody th { position: sticky; left: 0; z-index: 1; background: var(--staff-card); color: inherit; }
+.staff-matrix thead th:first-child { z-index: 3; background: #17365d; color: #fff; }
+.staff-matrix th, .staff-matrix td.staff-course-cell { min-width: 108px; max-width: 140px; color: inherit; }
 .staff-matrix-cell { cursor: pointer; }
 .staff-matrix-cell:hover { filter: brightness(.96); }
 .staff-matrix-date { display: block; white-space: nowrap; font-size: 12px; }

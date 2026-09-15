@@ -1,8 +1,13 @@
 /* Enterprise Web admin (dist-admin) - small additions on top of WebApp.css */
+:root {
+  /* Auto-fit to display: scale by viewport so cards/tables fit in any window without scrolling sideways.
+     --admin-scale = clamp(min, vw_factor, max). 1.0 = original size. */
+  --admin-scale: clamp(0.85, calc(100vw / 1440), 1.25);
+}
 .admin-web-badge {
-  font-size: 10px; font-weight: 800; letter-spacing: .04em;
+  font-size: calc(10px * var(--admin-scale)); font-weight: 800; letter-spacing: .04em;
   background: rgba(245, 158, 11, .18); color: #f59e0b;
-  padding: 2px 7px; border-radius: 6px; margin-left: 8px; vertical-align: middle;
+  padding: calc(2px * var(--admin-scale)) calc(7px * var(--admin-scale)); border-radius: 6px; margin-left: 8px; vertical-align: middle;
   text-transform: uppercase;
 }
 .admin-web-badge-edit { background: rgba(74,222,128,.16); color: #4ade80; }
@@ -89,8 +94,31 @@
 }
 
 .admin-shell .web-content {
-  max-width: 1760px;
-  padding: clamp(18px, 2vw, 30px);
+  max-width: min(100%, 1760px);
+  width: 100%;
+  padding: clamp(14px, 2vw, 30px);
+  margin: 0 auto;
+}
+
+.admin-shell .web-main {
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Fit-to-display: when window is narrow (<1024px) tighten padding + font sizes;
+   when wide (>=1600px) let everything breathe. */
+@media (max-width: 1024px) {
+  .admin-shell .web-body { padding: 8px; gap: 8px; }
+  .admin-shell .web-content { padding: 12px; }
+  :root { --admin-scale: clamp(0.80, calc(100vw / 1280), 1.0); }
+}
+@media (max-width: 720px) {
+  .admin-shell .web-body { padding: 4px; gap: 4px; }
+  .admin-shell .web-content { padding: 8px; }
+  :root { --admin-scale: clamp(0.75, calc(100vw / 720), 0.95); }
+}
+@media (min-width: 1600px) {
+  :root { --admin-scale: clamp(1.0, calc(100vw / 1920), 1.3); }
 }
 
 .admin-shell .module-header,
