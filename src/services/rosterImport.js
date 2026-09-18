@@ -111,10 +111,8 @@ export function parseRosterWorkbook(workbook, sheetName) {
 
     for (const dc of dateCols) {
       const raw = cellVal(ws, r, dc.c);
-      if (raw == null) continue;
-      const text = String(raw).trim();
-      if (!text) continue;
-      entries.push({ pilotCode, pilotName, base: currentBase, date: dc.date, code: text.toUpperCase() });
+      const text = String(raw ?? "").trim();
+      entries.push({ pilotCode, pilotName, base: currentBase, date: dc.date, code: text.toUpperCase(), clearExisting: !text });
     }
   }
 

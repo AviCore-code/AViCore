@@ -13,3 +13,8 @@ shared/supabase/.temp/
 supabase/.temp/
 shared/supabase/supabase/.temp/
 .firebase/
+
+.env.admin
+.env.mobile
+private-data/
+.codex-work/

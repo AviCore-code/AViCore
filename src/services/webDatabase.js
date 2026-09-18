@@ -2,6 +2,7 @@ import { showDataErrorBanner } from "./dataErrorBanner.js";
 import { cacheableRead, queueableWrite } from "./offlineWrap.js";
 import { registerCurrentReader } from "./offlineQueue.js";
 import { createClient } from "@supabase/supabase-js";
+import { resolveCompanyId } from "./companyContext.js";
 import { downloadElementAsPdf, resolvePdfExportTarget } from "./downloadPdf.js";
 
 // Data layer for the plain-browser web build (`npm run build:web`, see
@@ -20,6 +21,7 @@ import { downloadElementAsPdf, resolvePdfExportTarget } from "./downloadPdf.js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const COMPANY_SLUG = String(import.meta.env.VITE_COMPANY_SLUG || "").trim();
 
 let supabase = null;
 if (SUPABASE_URL && SUPABASE_ANON_KEY) {
@@ -39,6 +41,7 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   // next person just by reopening the browser.
   const adminBuild = import.meta.env.MODE === "admin";
   supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: COMPANY_SLUG ? { "x-avicore-company": COMPANY_SLUG } : {} },
     auth: {
       persistSession: true,
       autoRefreshToken: true,
@@ -99,6 +102,18 @@ const normalize = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "")
 function requireSupabase() {
   if (!supabase) throw new Error("Web build is not configured (missing VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY).");
   return supabase;
+}
+
+async function currentCompanyId() {
+  return resolveCompanyId(requireSupabase(), COMPANY_SLUG);
+}
+
+export async function getCompanyLicence() {
+  const sb = requireSupabase();
+  const id = await currentCompanyId();
+  const { data, error } = await sb.from("companies").select("name, expires_at").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data;
 }
 
 // ---- Sync status: a small pub/sub the header's top-right status pill
@@ -271,6 +286,7 @@ export async function fetchPilotRoster() {
 
 async function rawAddDutyEntry(entry) {
   const sb = requireSupabase();
+  const companyId = await currentCompanyId();
   const pilotCode = normalize(entry.pilotCode);
   if (!pilotCode) throw new Error("Pilot code is required");
   if (!entry.date) throw new Error("Date is required");
@@ -278,6 +294,7 @@ async function rawAddDutyEntry(entry) {
   const uuid = makeId();
   const { error } = await sb.from("Admin_pilot_duty_entries").insert({
     uuid,
+    company_id: companyId,
     device_id: getDeviceId(),
     pilot_code: pilotCode,
     date: entry.date,
@@ -367,6 +384,7 @@ async function rawGetSetting(key) {
 // written here is identical to one the PC/Android sync would produce.
 async function rawSaveSetting(key, value) {
   const sb = requireSupabase();
+  const companyId = await currentCompanyId();
   // created_at is NOT NULL on this table and an UPSERT that inserts a new row
   // has to supply it. Sending it on every write is harmless: on a row that
   // already exists this is an UPDATE, and Postgres keeps the stored value for
@@ -383,12 +401,13 @@ async function rawSaveSetting(key, value) {
       // PC/Android sync, where every row records which device wrote it. The
       // browser has no device, so it uses the same generated id it already
       // stamps on experience records.
+      company_id: companyId,
       device_id: getDeviceId(),
       created_at: now,
       modified_at: now,
       deleted_at: null
     },
-    { onConflict: "key" }
+    { onConflict: "company_id,key" }
   );
   if (error) {
     // This one has a specific cause and a one-line fix, so say which rather
@@ -408,6 +427,7 @@ async function rawSaveSetting(key, value) {
 
 async function rawSaveExperience(record) {
   const sb = requireSupabase();
+  const companyId = await currentCompanyId();
   const licence = record?.profile?.licence || "";
   const licenceKey = normalize(licence);
   if (!licenceKey) throw new Error("Pilot licence is required");
@@ -424,6 +444,7 @@ async function rawSaveExperience(record) {
   const uuid = existing?.uuid || makeId();
   const { error } = await sb.from("Admin_pilot_experience").upsert({
     uuid,
+    company_id: companyId,
     device_id: getDeviceId(),
     licence,
     licence_key: licenceKey,
@@ -467,12 +488,14 @@ async function existingTrainingUuids(sb, codeKeys) {
 
 async function rawSaveTraining(code, name, record) {
   const sb = requireSupabase();
+  const companyId = await currentCompanyId();
   const codeKey = normalize(code);
   if (!codeKey) throw new Error("Pilot code is required");
   const now = new Date().toISOString();
   const existing = await existingTrainingUuids(sb, [codeKey]);
   const { error } = await sb.from("Admin_pilot_training").upsert({
     uuid: existing.get(codeKey) || makeId(),
+    company_id: companyId,
     device_id: getDeviceId(),
     // created_at is NOT NULL on these tables; an upsert that INSERTS has to
     // carry it or Postgres rejects the write. Same class of failure as
@@ -487,6 +510,7 @@ async function rawSaveTraining(code, name, record) {
 
 async function rawImportTrainingMany(pilots) {
   const sb = requireSupabase();
+  const companyId = await currentCompanyId();
   const now = new Date().toISOString();
   const wanted = (pilots || []).map((p) => normalize(p.code)).filter(Boolean);
   const existing = await existingTrainingUuids(sb, wanted);
@@ -494,6 +518,7 @@ async function rawImportTrainingMany(pilots) {
     const codeKey = normalize(p.code);
     return {
       uuid: existing.get(codeKey) || makeId(),
+      company_id: companyId,
       device_id: getDeviceId(),
       code_key: codeKey, code: p.code, name: p.name || "",
       record_json: p.record,
@@ -508,6 +533,7 @@ async function rawImportTrainingMany(pilots) {
 
 export async function addDutyEntriesMany(code, entries) {
   const sb = requireSupabase();
+  const companyId = await currentCompanyId();
   const now = new Date().toISOString();
   const pilotCode = normalize(code);
   const sourceFile = (entries || []).find((e) => e.sourceFile)?.sourceFile || null;
@@ -516,6 +542,7 @@ export async function addDutyEntriesMany(code, entries) {
   if (sourceFile) await removeDutyEntriesBySourceFile(code, sourceFile);
   const rows = (entries || []).map((e) => ({
     uuid: makeId(),
+    company_id: companyId,
     device_id: getDeviceId(),
     pilot_code: pilotCode,
     date: e.date,
@@ -639,6 +666,7 @@ async function rawListRosterPilots() {
 
 async function rawImportRosterMany(entries) {
   const sb = requireSupabase();
+  const companyId = await currentCompanyId();
   const now = new Date().toISOString();
   const rows = (entries || []).map((e) => {
     const pilotCode = String(e.pilotCode ?? e.pilot_code ?? "").toUpperCase();
@@ -646,6 +674,7 @@ async function rawImportRosterMany(entries) {
     if (!pilotCode || !date) return null;
     return {
       uuid: `${pilotCode}_${date}`,
+      company_id: companyId,
       device_id: getDeviceId(),
       pilot_code: pilotCode,
       pilot_name: e.pilotName ?? e.pilot_name ?? "",
@@ -654,7 +683,7 @@ async function rawImportRosterMany(entries) {
       code: e.code ?? "",
       created_at: now,
       modified_at: now,
-      deleted_at: null
+      deleted_at: e.clearExisting ? now : null
     };
   }).filter(Boolean);
   if (!rows.length) return { ok: true, count: 0 };
@@ -706,6 +735,7 @@ async function rawListWeeklyPlan(query) {
 // reappearing from a stale copy.
 async function rawSaveWeeklyPlanMany(cells) {
   const sb = requireSupabase();
+  const companyId = await currentCompanyId();
   const now = new Date().toISOString();
   const deviceId = getDeviceId();
   const rows = (cells || []).map((c) => {
@@ -716,6 +746,7 @@ async function rawSaveWeeklyPlanMany(cells) {
     const code = String(c.pilotCode ?? c.pilot_code ?? "").trim().toUpperCase();
     return {
       uuid: weeklyPlanUuid(date, section, slot),
+      company_id: companyId,
       device_id: deviceId,
       date,
       section,
@@ -1056,9 +1087,11 @@ async function rawListTraining() {
 export async function recordCrewLogin(code, name) {
   if (!supabase) return { ok: false };
   try {
+    const companyId = await currentCompanyId();
     const { error } = await supabase.from("Admin_crew_login_events").insert({
       pilot_code: normalize(code),
       pilot_name: name || "",
+      company_id: companyId,
       device_id: getDeviceId(),
       user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "",
       logged_in_at: new Date().toISOString()

@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
-const modulesDir = path.dirname(new URL(import.meta.url).pathname);
+const modulesDir = path.dirname(fileURLToPath(import.meta.url));
 const read = (relativePath) => fs.readFileSync(path.join(modulesDir, relativePath), "utf8");
 const compact = (value) => value.replace(/\s+/g, "");
 
