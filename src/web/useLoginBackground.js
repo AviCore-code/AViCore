@@ -1,37 +1,13 @@
 import { useEffect, useState } from "react";
 import { getSetting } from "../services/webDatabase.js";
 import { BACKGROUND_PRESETS } from "../components/backgroundThemes/presets.jsx";
-import defaultLoginBg from "./login-bg.jpg";
+import defaultLoginBg from "../../public-web/avicore-crew-login-background.png";
 
-// The picture behind the sign-in card, chosen by the admin at
-// Settings > Admin Setting > Sign-in Screen Background (key `login_background`).
-// Shared by the Crew and Enterprise Web login screens so both look the same.
-//
-// Returns a CSS value ready for `background-image`, or null while loading.
-//
-// THREE THINGS SHAPE THIS:
-//
-// 1. It runs BEFORE anyone is signed in, so it can only use an anonymous read.
-//    That works: `app_settings` is selected with the public anon key, the same
-//    way the Crew login screen already fetches the pilot roster.
-//
-// 2. It must never delay or break the sign-in screen. A pilot on a rig with one
-//    weak bar needs the card, not the scenery - so a failure, a slow network, or
-//    a missing setting all fall back to the bundled photo rather than surfacing
-//    an error or leaving the screen blank.
-//
-// 3. Only PHOTO presets are offered. The hand-drawn SVG scenes in presets.jsx are
-//    React components, not URLs, and cannot go into a CSS background-image; if an
-//    admin picks one, this falls back to the default photo rather than showing
-//    nothing. The picker labels the photo ones "(photo)".
-// `fallback` lets a caller swap the built-in default photo shown when the
-// admin hasn't configured Settings > Sign-in Screen Background yet (or the
-// read failed/is offline) - Admin passes its own dashboard-mockup image here
-// (see AdminWebApp.jsx) so its default look differs from Crew's oil-rig
-// photo, while an admin-configured custom/preset background still wins for
-// both, since only the built-in fallback changes.
+// Show each app's current branded artwork immediately, then apply any
+// administrator-selected custom image or photo preset. Read failures keep
+// the bundled artwork so sign-in never depends on the settings request.
 export default function useLoginBackground(fallback = defaultLoginBg) {
-  const [image, setImage] = useState(null);
+  const [image, setImage] = useState(fallback);
 
   useEffect(() => {
     let alive = true;

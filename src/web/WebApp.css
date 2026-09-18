@@ -239,7 +239,7 @@ html, body, #root { height: 100%; margin: 0; background: var(--acw-bg); color-sc
    Nothing here is a fixed pixel size, which is what makes it follow the window. */
 .web-login::before {
   content: ""; position: absolute; inset: 0;
-  background-image: var(--login-bg, url("./login-bg.jpg"));
+  background-image: var(--login-bg, url("../../public-web/avicore-crew-login-background.png"));
   background-size: cover; background-position: center 30%; background-repeat: no-repeat;
   opacity: 1; pointer-events: none;
 }
