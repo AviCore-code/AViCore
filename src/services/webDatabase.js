@@ -276,17 +276,25 @@ async function rawAddDutyEntry(entry) {
   if (!entry.date) throw new Error("Date is required");
   const now = new Date().toISOString();
   const uuid = makeId();
-  const { error } = await sb.from("Admin_pilot_duty_entries").insert({
-    uuid,
-    device_id: getDeviceId(),
-    pilot_code: pilotCode,
-    date: entry.date,
-    duty_type: entry.dutyType,
-    entry_json: entry,
-    created_at: now,
-    modified_at: now,
-    deleted_at: null
-  });
+  // Use upsert so a typed-in entry for a pilot+date+duty_type that already
+  // exists (from a previous manual entry OR from an FDT file import) overwrites
+  // the existing row instead of inserting a duplicate.
+  // Conflict key: unique constraint Admin_pilot_duty_entries_pilot_date_type_key
+  // (pilot_code, date, duty_type) — see migration 20260919_typed_in_upsert.sql.
+  const { error } = await sb.from("Admin_pilot_duty_entries").upsert(
+    {
+      uuid,
+      device_id: getDeviceId(),
+      pilot_code: pilotCode,
+      date: entry.date,
+      duty_type: entry.dutyType,
+      entry_json: entry,
+      created_at: now,
+      modified_at: now,
+      deleted_at: null,
+    },
+    { onConflict: "pilot_code,date,duty_type" }
+  );
   if (error) throw new Error("add duty entry: " + error.message);
   return { ok: true, id: uuid };
 }
