@@ -47,7 +47,7 @@ async function setMeta(key, value) {
 export async function fetchPilotRoster() {
   if (!supabase) return [];
   const { data, error } = await supabase
-    .from("pilot_experience")
+    .from("Admin_pilot_experience")
     .select("code, name")
     .is("deleted_at", null)
     .order("name", { ascending: true });
@@ -67,7 +67,7 @@ async function pullExperience() {
 
   const lastPullAt = (await getMeta("last_pull_pilot_experience")) || "1970-01-01T00:00:00.000Z";
   const { data, error } = await supabase
-    .from("pilot_experience")
+    .from("Admin_pilot_experience")
     .select("uuid, licence, licence_key, code, name, update_date, record_json, created_at, modified_at, deleted_at")
     .eq("code", pairedCode)
     .gt("modified_at", lastPullAt)
@@ -114,7 +114,7 @@ async function pushDutyEntries() {
       modified_at: r.modified_at,
       deleted_at: r.deleted_at
     }));
-    const { error } = await supabase.from("pilot_duty_entries").upsert(payload, { onConflict: "uuid" });
+    const { error } = await supabase.from("Admin_pilot_duty_entries").upsert(payload, { onConflict: "uuid" });
     if (error) throw new Error("push pilot_duty_entries: " + error.message);
 
     for (const r of chunk) {
@@ -131,7 +131,7 @@ async function pullDutyEntries() {
 
   const lastPullAt = (await getMeta("last_pull_pilot_duty_entries")) || "1970-01-01T00:00:00.000Z";
   const { data, error } = await supabase
-    .from("pilot_duty_entries")
+    .from("Admin_pilot_duty_entries")
     .select("uuid, pilot_code, date, duty_type, entry_json, created_at, modified_at, deleted_at")
     .eq("pilot_code", pairedCode)
     .gt("modified_at", lastPullAt)
@@ -171,7 +171,7 @@ async function pullDutyEntries() {
 async function pullAppSettingKey(key) {
   if (!supabase) return null;
   const { data, error } = await supabase
-    .from("app_settings")
+    .from("Admin_app_settings")
     .select("value_json, modified_at")
     .eq("key", key)
     .is("deleted_at", null)

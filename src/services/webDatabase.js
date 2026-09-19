@@ -2,7 +2,7 @@ import { showDataErrorBanner } from "./dataErrorBanner.js";
 import { cacheableRead, queueableWrite } from "./offlineWrap.js";
 import { registerCurrentReader } from "./offlineQueue.js";
 import { createClient } from "@supabase/supabase-js";
-import { downloadElementAsPdf } from "./downloadPdf.js";
+import { downloadElementAsPdf, resolvePdfExportTarget } from "./downloadPdf.js";
 
 // Data layer for the plain-browser web build (`npm run build:web`, see
 // vite.config.js's "web" mode and src/web/WebApp.jsx). Unlike the Android
@@ -69,6 +69,22 @@ export async function getAdminSession() {
   const { data } = await supabase.auth.getSession();
   return data?.session || null;
 }
+
+export async function sendLineTestMessage() {
+  const sb = requireSupabase();
+  const { data, error } = await sb.functions.invoke("line-test-message", { body: {} });
+  if (error) {
+    let message = error.message;
+    try {
+      const payload = await error.context?.json?.();
+      if (payload?.error) message = payload.error;
+    } catch { /* use the invoke error */ }
+    throw new Error(message);
+  }
+  if (!data?.ok) throw new Error(data?.error || "ส่งทดสอบ LINE ไม่สำเร็จ");
+  return data;
+}
+
 export function onAdminAuthChange(cb) {
   if (!supabase) return () => {};
   // Pass the event name through too - the UI needs to tell a real SIGNED_OUT
@@ -117,7 +133,7 @@ export async function pingServer() {
   }
   setSyncState({ status: "syncing" });
   try {
-    const { error } = await supabase.from("app_settings").select("key").limit(1);
+    const { error } = await supabase.from("Admin_app_settings").select("key").limit(1);
     if (error) throw error;
     setSyncState({ status: "online", lastSyncAt: new Date().toISOString(), lastError: null });
   } catch (err) {
@@ -245,7 +261,7 @@ export async function getPairingHoursLeft() {
 export async function fetchPilotRoster() {
   const sb = requireSupabase();
   const { data, error } = await sb
-    .from("pilot_experience")
+    .from("Admin_pilot_experience")
     .select("code, name")
     .is("deleted_at", null)
     .order("name", { ascending: true });
@@ -260,17 +276,25 @@ async function rawAddDutyEntry(entry) {
   if (!entry.date) throw new Error("Date is required");
   const now = new Date().toISOString();
   const uuid = makeId();
-  const { error } = await sb.from("pilot_duty_entries").insert({
-    uuid,
-    device_id: getDeviceId(),
-    pilot_code: pilotCode,
-    date: entry.date,
-    duty_type: entry.dutyType,
-    entry_json: entry,
-    created_at: now,
-    modified_at: now,
-    deleted_at: null
-  });
+  // Use upsert so a typed-in entry for a pilot+date+duty_type that already
+  // exists (from a previous manual entry OR from an FDT file import) overwrites
+  // the existing row instead of inserting a duplicate.
+  // Conflict key: unique constraint Admin_pilot_duty_entries_pilot_date_type_key
+  // (pilot_code, date, duty_type) — see migration 20260919_typed_in_upsert.sql.
+  const { error } = await sb.from("Admin_pilot_duty_entries").upsert(
+    {
+      uuid,
+      device_id: getDeviceId(),
+      pilot_code: pilotCode,
+      date: entry.date,
+      duty_type: entry.dutyType,
+      entry_json: entry,
+      created_at: now,
+      modified_at: now,
+      deleted_at: null,
+    },
+    { onConflict: "pilot_code,date,duty_type" }
+  );
   if (error) throw new Error("add duty entry: " + error.message);
   return { ok: true, id: uuid };
 }
@@ -298,7 +322,7 @@ async function rawDeleteDutyEntry(_code, id) {
   const sb = requireSupabase();
   const now = new Date().toISOString();
   const { error } = await sb
-    .from("pilot_duty_entries")
+    .from("Admin_pilot_duty_entries")
     .update({ deleted_at: now, modified_at: now })
     .eq("uuid", id);
   if (error) throw explainRls(error, "Deleting this duty entry");
@@ -312,7 +336,7 @@ async function rawUpdateDutyEntry(_code, id, entry) {
   if (!entry.date) throw new Error("Date is required");
   const now = new Date().toISOString();
   const { error } = await sb
-    .from("pilot_duty_entries")
+    .from("Admin_pilot_duty_entries")
     .update({
       pilot_code: pilotCode,
       date: entry.date,
@@ -337,7 +361,7 @@ async function rawUpdateDutyEntry(_code, id, entry) {
 async function rawGetSetting(key) {
   const sb = requireSupabase();
   const { data, error } = await sb
-    .from("app_settings")
+    .from("Admin_app_settings")
     .select("value_json")
     .eq("key", key)
     .is("deleted_at", null)
@@ -359,7 +383,7 @@ async function rawSaveSetting(key, value) {
   // (re)created", which is what the column means to this app. Nothing reads
   // it for ordering.
   const now = new Date().toISOString();
-  const { error } = await sb.from("app_settings").upsert(
+  const { error } = await sb.from("Admin_app_settings").upsert(
     {
       key,
       value_json: value,
@@ -401,12 +425,12 @@ async function rawSaveExperience(record) {
   // is already on file (so a re-save updates in place), otherwise mint a new
   // one. licence_key stays the human/natural key we match on.
   const { data: existing } = await sb
-    .from("pilot_experience")
+    .from("Admin_pilot_experience")
     .select("uuid")
     .eq("licence_key", licenceKey)
     .maybeSingle();
   const uuid = existing?.uuid || makeId();
-  const { error } = await sb.from("pilot_experience").upsert({
+  const { error } = await sb.from("Admin_pilot_experience").upsert({
     uuid,
     device_id: getDeviceId(),
     licence,
@@ -427,7 +451,7 @@ export async function deleteExperience(query) {
   const sb = requireSupabase();
   const key = normalize(query);
   const now = new Date().toISOString();
-  const { error } = await sb.from("pilot_experience")
+  const { error } = await sb.from("Admin_pilot_experience")
     .update({ deleted_at: now, modified_at: now })
     .eq("licence_key", key);
   if (error) throw new Error("delete experience: " + error.message);
@@ -442,7 +466,7 @@ async function existingTrainingUuids(sb, codeKeys) {
   const keys = [...new Set(codeKeys)].filter(Boolean);
   if (!keys.length) return new Map();
   const { data, error } = await sb
-    .from("pilot_training")
+    .from("Admin_pilot_training")
     .select("code_key, uuid")
     .in("code_key", keys);
   if (error) throw new Error("look up training rows: " + error.message);
@@ -455,7 +479,7 @@ async function rawSaveTraining(code, name, record) {
   if (!codeKey) throw new Error("Pilot code is required");
   const now = new Date().toISOString();
   const existing = await existingTrainingUuids(sb, [codeKey]);
-  const { error } = await sb.from("pilot_training").upsert({
+  const { error } = await sb.from("Admin_pilot_training").upsert({
     uuid: existing.get(codeKey) || makeId(),
     device_id: getDeviceId(),
     // created_at is NOT NULL on these tables; an upsert that INSERTS has to
@@ -485,7 +509,7 @@ async function rawImportTrainingMany(pilots) {
     };
   }).filter((r) => r.code_key);
   if (!rows.length) return { ok: true, count: 0 };
-  const { error } = await sb.from("pilot_training").upsert(rows, { onConflict: "code_key" });
+  const { error } = await sb.from("Admin_pilot_training").upsert(rows, { onConflict: "code_key" });
   if (error) throw new Error("import training: " + error.message);
   return { ok: true, count: rows.length };
 }
@@ -510,7 +534,7 @@ export async function addDutyEntriesMany(code, entries) {
     deleted_at: null
   }));
   if (!rows.length) return { ok: true, count: 0 };
-  const { error } = await sb.from("pilot_duty_entries").insert(rows);
+  const { error } = await sb.from("Admin_pilot_duty_entries").insert(rows);
   if (error) throw new Error("import duty entries: " + error.message);
   return { ok: true, count: rows.length };
 }
@@ -540,7 +564,7 @@ export async function removeDutyEntriesBySourceFile(code, sourceFile) {
   let removed = 0;
   for (let pass = 0; pass < 50; pass++) {
     const now = new Date().toISOString();
-    let q = sb.from("pilot_duty_entries")
+    let q = sb.from("Admin_pilot_duty_entries")
       .update({ deleted_at: now, modified_at: now })
       .eq("pilot_code", pilotCode)
       .is("deleted_at", null);
@@ -563,7 +587,7 @@ export async function listImportedFdtFiles() {
   // three pilots and every later import looked as though it had not happened.
   let data;
   try {
-    data = await fetchAllRows(() => sb.from("pilot_duty_entries")
+    data = await fetchAllRows(() => sb.from("Admin_pilot_duty_entries")
       .select("pilot_code, entry_json")
       .is("deleted_at", null)
       .order("pilot_code", { ascending: true }));
@@ -599,7 +623,7 @@ async function rawListRoster(query) {
   // unpaged read would return the first 1000 and the planner would treat every
   // unseen day as "not a duty day", silently refusing to book training.
   const data = await fetchAllRows(() => {
-    let q = sb.from("pilot_roster").select("pilot_code, pilot_name, base, date, code").is("deleted_at", null);
+    let q = sb.from("Admin_pilot_roster").select("pilot_code, pilot_name, base, date, code").is("deleted_at", null);
     if (from) q = q.gte("date", from);
     if (to) q = q.lte("date", to);
     return q.order("date", { ascending: true });
@@ -612,7 +636,7 @@ async function rawListRosterPilots() {
   // Paged: same table, same row count - and this one builds the PILOT LIST, so
   // truncation drops whole pilots off the roster board.
   const data = await fetchAllRows(() => sb
-    .from("pilot_roster").select("pilot_code, pilot_name, base")
+    .from("Admin_pilot_roster").select("pilot_code, pilot_name, base")
     .is("deleted_at", null)
     .order("pilot_code", { ascending: true })
   ).catch((error) => { throw new Error("list roster pilots: " + error.message); });
@@ -642,7 +666,7 @@ async function rawImportRosterMany(entries) {
     };
   }).filter(Boolean);
   if (!rows.length) return { ok: true, count: 0 };
-  const { error } = await sb.from("pilot_roster").upsert(rows, { onConflict: "uuid" });
+  const { error } = await sb.from("Admin_pilot_roster").upsert(rows, { onConflict: "uuid" });
   if (error) throw new Error("import roster: " + error.message);
   return { ok: true, count: rows.length };
 }
@@ -651,7 +675,7 @@ async function rawDeleteRosterEntry(query) {
   const sb = requireSupabase();
   const { pilotCode, date } = query || {};
   const now = new Date().toISOString();
-  const { error } = await sb.from("pilot_roster")
+  const { error } = await sb.from("Admin_pilot_roster")
     .update({ deleted_at: now, modified_at: now })
     .eq("uuid", `${String(pilotCode || "").toUpperCase()}_${date}`);
   if (error) throw new Error("delete roster entry: " + error.message);
@@ -674,7 +698,7 @@ async function rawListWeeklyPlan(query) {
   // Paged: several rows per date (one per section/slot), so a multi-week
   // range crosses 1000 quickly and would drop the tail of the plan.
   const data = await fetchAllRows(() => {
-    let q = sb.from("pilot_weekly_plan")
+    let q = sb.from("Admin_pilot_weekly_plan")
       .select("date, section, slot, pilot_code, level, note")
       .is("deleted_at", null);
     if (from) q = q.gte("date", from);
@@ -713,7 +737,7 @@ async function rawSaveWeeklyPlanMany(cells) {
     };
   }).filter(Boolean);
   if (!rows.length) return { ok: true, count: 0 };
-  const { error } = await sb.from("pilot_weekly_plan").upsert(rows, { onConflict: "uuid" });
+  const { error } = await sb.from("Admin_pilot_weekly_plan").upsert(rows, { onConflict: "uuid" });
   if (error) throw new Error("save weekly plan: " + error.message);
   return { ok: true, count: rows.length };
 }
@@ -726,7 +750,7 @@ export async function clearWeeklyPlanRange(query) {
   const { from, to } = query || {};
   if (!from || !to) return { ok: true };
   const now = new Date().toISOString();
-  const { error } = await sb.from("pilot_weekly_plan")
+  const { error } = await sb.from("Admin_pilot_weekly_plan")
     .update({ deleted_at: now, modified_at: now })
     .gte("date", from).lte("date", to).is("deleted_at", null);
   if (error) throw new Error("clear weekly plan: " + error.message);
@@ -751,7 +775,7 @@ async function rawListExperience() {
   // for the least it possibly can. Rank is fetched separately, below, where a
   // failure costs a label rather than the whole fleet.
   const { data, error } = await sb
-    .from("pilot_experience")
+    .from("Admin_pilot_experience")
     .select("code, name, licence, update_date, modified_at")
     .is("deleted_at", null)
     .order("name", { ascending: true });
@@ -793,7 +817,7 @@ async function rawListExperience() {
 export async function listExperiencePositions() {
   const sb = requireSupabase();
   const { data, error } = await sb
-    .from("pilot_experience")
+    .from("Admin_pilot_experience")
     .select("code, position:record_json->profile->>position")
     .is("deleted_at", null);
   if (error) throw new Error(error.message);
@@ -830,7 +854,7 @@ async function rawLoadExperience(licence) {
     // are the same licence and must find the same record; matching the raw
     // string means a stray dot or space silently finds nothing.
     const { data, error } = await sb
-      .from("pilot_experience")
+      .from("Admin_pilot_experience")
       .select("*")
       .eq("licence_key", normalize(licence))
       .is("deleted_at", null)
@@ -911,7 +935,7 @@ async function rawListDutyEntriesByPilot(pilotCode) {
     let data;
     try {
       data = await fetchAllRows(() => sb
-        .from("pilot_duty_entries")
+        .from("Admin_pilot_duty_entries")
         .select("uuid, pilot_code, date, duty_type, entry_json")
         .eq("pilot_code", pilotCode)
         .is("deleted_at", null)
@@ -986,22 +1010,8 @@ export async function exportLogbookPdf(suggestedName) {
     // Which print area belongs to the page that asked. Ordered most-specific
     // first; <body> only as a last resort so a page without one still exports
     // something rather than silently nothing.
-    const experience = document.querySelector(".myexp-print-area");
-    const element =
-      document.querySelector(".logbook-print-area") ||
-      experience ||
-      document.querySelector(".dashboard-print-area") ||
-      document.querySelector(".allstatus-print-area") ||
-      document.body;
-
-    // An experience summary is a ONE-SHEET document - split over two pages the
-    // signature block lands on a page with nothing above it to sign for. The
-    // logbook is the opposite: a 12-month extract is inherently many pages and
-    // must be sliced, never shrunk to fit.
-    return downloadElementAsPdf(element, filename, {
-      landscape: true,
-      fitToPage: element === experience
-    });
+    const { element, fitToPage } = resolvePdfExportTarget();
+    return downloadElementAsPdf(element, filename, { landscape: true, fitToPage });
   } catch (err) {
     console.error("exportLogbookPdf:", err.message);
     return { ok: false, error: `Export failed: ${err.message}` };
@@ -1019,7 +1029,7 @@ async function rawGetMyTraining(code) {
   const key = normalize(code);
   if (!key) return null;
   const { data, error } = await sb
-    .from("pilot_training")
+    .from("Admin_pilot_training")
     .select("code, name, record_json")
     .eq("code_key", key)
     .is("deleted_at", null)
@@ -1037,7 +1047,7 @@ async function rawGetMyTraining(code) {
 async function rawListTraining() {
   const sb = requireSupabase();
   const { data, error } = await sb
-    .from("pilot_training")
+    .from("Admin_pilot_training")
     .select("code, name, record_json")
     .is("deleted_at", null)
     .order("name", { ascending: true });
@@ -1054,7 +1064,7 @@ async function rawListTraining() {
 export async function recordCrewLogin(code, name) {
   if (!supabase) return { ok: false };
   try {
-    const { error } = await supabase.from("crew_login_events").insert({
+    const { error } = await supabase.from("Admin_crew_login_events").insert({
       pilot_code: normalize(code),
       pilot_name: name || "",
       device_id: getDeviceId(),
@@ -1072,7 +1082,7 @@ export async function recordCrewLogin(code, name) {
 export async function listCrewLogins(limit = 300) {
   const sb = requireSupabase();
   const { data, error } = await sb
-    .from("crew_login_events")
+    .from("Admin_crew_login_events")
     .select("id, pilot_code, pilot_name, device_id, user_agent, logged_in_at")
     .order("logged_in_at", { ascending: false })
     .limit(limit);
@@ -1085,7 +1095,7 @@ export async function deleteCrewLogins(ids) {
   const sb = requireSupabase();
   const list = (ids || []).filter((v) => v != null);
   if (!list.length) return { ok: true, removed: 0 };
-  const { error } = await sb.from("crew_login_events").delete().in("id", list);
+  const { error } = await sb.from("Admin_crew_login_events").delete().in("id", list);
   if (error) throw new Error("delete crew logins: " + error.message);
   return { ok: true, removed: list.length };
 }
@@ -1094,7 +1104,7 @@ export async function deleteCrewLogins(ids) {
 // `neq id, -1` matches every row (identity ids are always >= 1).
 export async function clearAllCrewLogins() {
   const sb = requireSupabase();
-  const { error } = await sb.from("crew_login_events").delete().neq("id", -1);
+  const { error } = await sb.from("Admin_crew_login_events").delete().neq("id", -1);
   if (error) throw new Error("clear crew logins: " + error.message);
   return { ok: true };
 }
@@ -1259,7 +1269,7 @@ registerCurrentReader(async (document, keys) => {
     // would report "no conflict" for rows it never saw, letting one planner
     // silently overwrite another's edits.
     const data = await fetchAllRows(() => sb
-      .from("pilot_roster")
+      .from("Admin_pilot_roster")
       .select("pilot_code, date, code")
       .in("date", dates)
       .is("deleted_at", null)
@@ -1276,7 +1286,7 @@ registerCurrentReader(async (document, keys) => {
     if (!dates.length) return new Map();
     // Paged: same conflict-check reasoning as the roster branch above.
     const data = await fetchAllRows(() => sb
-      .from("pilot_weekly_plan")
+      .from("Admin_pilot_weekly_plan")
       .select("date, section, slot, pilot_code")
       .in("date", dates)
       .is("deleted_at", null)

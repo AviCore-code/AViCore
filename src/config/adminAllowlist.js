@@ -14,8 +14,5 @@
 // For hard server-side enforcement, the write-RLS can also be tied to these
 // emails - ask if you want that added.
 export const ADMIN_ALLOWED_EMAILS = [
-  // "weera@uoathai.com",
-  // "kanachana@uoathai.com",
-  // "thitiwaree@uoathai.com",
-  // "phawinee@uoathai.com",
+  "weera@uoathai.com",
 ];

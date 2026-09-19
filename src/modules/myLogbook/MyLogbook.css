@@ -51,7 +51,8 @@
 /* Career experience summary - the standing total behind the 12-month extract. */
 .logbook-summary{margin-top:16px;border:1px solid rgba(148,163,184,.22);border-radius:12px;padding:14px 16px;background:rgba(15,23,42,.5)}
 .logbook-summary-title{font-size:12.5px;font-weight:900;color:#e2e8f0;margin-bottom:10px;letter-spacing:.3px}
-.logbook-summary-table{width:100%;border-collapse:collapse;table-layout:fixed}
+.logbook-summary-scroll{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.logbook-summary-table{width:100%;min-width:820px;border-collapse:collapse;table-layout:fixed}
 .logbook-summary-table th,.logbook-summary-table td{border:1px solid rgba(148,163,184,.2);padding:6px 4px;text-align:center}
 .logbook-summary-table th{font-size:9.5px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.3px;background:rgba(2,6,23,.35);white-space:normal}
 .logbook-summary-table td{font-size:14px;color:#e2e8f0;font-variant-numeric:tabular-nums;font-weight:800}
@@ -131,6 +132,8 @@
   /* Keep the whole summary on one page - a career total split across a page
      break is exactly the sort of thing someone misreads. */
   .logbook-summary{margin-top:10px;background:none;border:none;border-radius:0;padding:0;page-break-inside:avoid;break-inside:avoid}
+  .logbook-summary-scroll{overflow:visible}
+  .logbook-summary-table{min-width:0}
   .logbook-summary-title{color:black;font-size:8.5pt;margin-bottom:4px;font-weight:900}
   .logbook-summary-table th,.logbook-summary-table td{border-color:#999;color:black;padding:2px 3px}
   .logbook-summary-table th{background:#eee;font-size:6pt}

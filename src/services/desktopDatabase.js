@@ -1,7 +1,7 @@
 import { showDataErrorBanner } from "./dataErrorBanner.js";
 import { Capacitor } from "@capacitor/core";
 import { DEMO_PILOT_CODES } from "../config/demoUsers.js";
-import { downloadElementAsPdf } from "./downloadPdf.js";
+import { downloadElementAsPdf, resolvePdfExportTarget } from "./downloadPdf.js";
 
 const DEMO_SET = new Set((DEMO_PILOT_CODES || []).map((c) => String(c).toUpperCase()));
 
@@ -272,6 +272,13 @@ export async function updateDutyEntry(code, id, entry) {
 
 export async function exportLogbookPdf(suggestedName) {
   if (isDemoSession()) return { ok: false, error: "Demo account — export is disabled." };
+
+  // One-page reports must use the in-page raster path on every platform. The
+  // Electron bridge prints the whole BrowserWindow and cannot target this DOM
+  // node or guarantee fit-to-page, which caused blank/clipped extra sheets.
+  const { element, fitToPage } = resolvePdfExportTarget();
+  if (fitToPage) return downloadElementAsPdf(element, suggestedName, { landscape: true, fitToPage: true });
+
   if (window.aviCoreAPI) return window.aviCoreAPI.exportLogbookPdf(suggestedName);
   if (isMobile()) return (await mobileDb()).exportLogbookPdf(suggestedName);
   if (isWeb()) return (await webDb()).exportLogbookPdf(suggestedName);
@@ -279,11 +286,7 @@ export async function exportLogbookPdf(suggestedName) {
   // Last-resort path (plain browser, no Electron bridge, not the web build).
   // A bare window.print() here dropped the requested name entirely; a generated
   // download is ours to name. See downloadPdf.js.
-  const element =
-    document.querySelector(".logbook-print-area") ||
-    document.querySelector(".myexp-print-area") ||
-    document.body;
-  return downloadElementAsPdf(element, suggestedName, { landscape: true });
+  return downloadElementAsPdf(element, suggestedName, { landscape: true, fitToPage });
 }
 
 export async function addDutyEntriesMany(code, entries) {
@@ -565,6 +568,11 @@ export async function setEmailConfig(cfg) {
 export async function sendTestEmail() {
   if (window.aviCoreAPI) return window.aviCoreAPI.sendTestEmail();
   return { ok: false, error: "Not available in browser preview" };
+}
+
+export async function sendLineTestMessage() {
+  if (isWeb()) return (await webDb()).sendLineTestMessage();
+  return { ok: false, error: "LINE test messaging is only available in the web admin." };
 }
 
 export async function sendEmail(payload) {

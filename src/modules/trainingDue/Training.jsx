@@ -1,17 +1,22 @@
 import { useEffect, useState } from "react";
+// isWeb covers Crew + admin - Admin-only is handled by import.meta.env.MODE === "admin".
+// isAdminBuild is captured at module-load time so TABS below reflects the build target.
+const isAdminBuild = import.meta.env.MODE === "admin";
 import { listTraining, getSetting } from "../../services/desktopDatabase.js";
 import { TRAINING_ITEMS, withTrainingThresholdDefaults, withTrainingDisabledDefaults } from "../../utils/trainingDue.js";
 import TrainingAllStatus from "./TrainingAllStatus.jsx";
 import TrainingPersonStatus from "./TrainingPersonStatus.jsx";
 import TrainingInput from "./TrainingInput.jsx";
 import TrainingImportTab from "./TrainingImportTab.jsx";
+import StaffTraining from "../staffTraining/StaffTraining.jsx";
 import "./Training.css";
 
 const TABS = [
   { key: "all", label: "All Training Status", icon: "📋" },
   { key: "person", label: "Person Training Status", icon: "👤" },
   { key: "input", label: "Input", icon: "✍️" },
-  { key: "import", label: "Import PDF / Excel", icon: "📥" }
+  { key: "import", label: "Import PDF / Excel", icon: "📥" },
+  ...(isAdminBuild ? [{ key: "staff", label: "All Staff Training", icon: "👥" }] : []),
 ];
 
 // Flight crew training/certificate module - one main page with four
@@ -72,6 +77,7 @@ export default function Training() {
         {tab === "person" && <TrainingPersonStatus pilots={pilots} thresholds={thresholds} disabledItems={disabledItems} loading={loading} />}
         {tab === "input" && <TrainingInput pilots={pilots} onSaved={refresh} />}
         {tab === "import" && <TrainingImportTab pilots={pilots} thresholds={thresholds} onImported={refresh} />}
+        {tab === "staff" && <StaffTraining />}
       </div>
     </div>
   );

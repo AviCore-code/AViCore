@@ -13,6 +13,18 @@ export function testReply(event, now = new Date()) {
   return null;
 }
 
+async function startLoadingAnimation(fetcher, token, userId, seconds = 20, logger = console) {
+  try {
+    const res = await fetcher("https://api.line.me/v2/bot/chat/loading/start", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId: userId, loadingSeconds: Math.max(5, Math.min(60, seconds)) }),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) logger.error("LINE loading animation failed", res.status);
+  } catch { /* best-effort only; never block the real reply on this */ }
+}
+
 export async function handleWebhook(req, { secret, token, knowledgeReply = async () => null, auditEvent = async () => {}, fetcher = fetch, logger = console, now = () => new Date() }) {
   if (req.method !== "POST") return new Response(null, { status: 405 });
   if (!secret) return new Response(null, { status: 503 });
@@ -32,6 +44,14 @@ export async function handleWebhook(req, { secret, token, knowledgeReply = async
     const rawGroupText = String(event?.message?.text || "");
     const groupMentioned = /^\s*@?avicore\s*bot\b/i.test(rawGroupText) || event?.message?.mention?.mentionees?.some(m => m.isSelf === true);
     if (["group", "room"].includes(event?.source?.type) && !groupMentioned) continue;
+    // Show LINE's native "..." loading animation while the knowledge search
+    // runs (IQSMS FTS + optional Gemini can take a few seconds), the same
+    // affordance the Jarvis bot shows. LINE only supports this in one-on-one
+    // chats (chatId = userId) — it silently does nothing for group/room, so
+    // this is safe to fire unconditionally and not await.
+    if (token && event?.source?.type === "user" && event?.source?.userId && event?.message?.type === "text") {
+      startLoadingAnimation(fetcher, token, event.source.userId, 30, logger).catch(() => {});
+    }
     const knowledgeText = await knowledgeReply(event);
     // `false` is an explicit admin switch: do not answer this event at all.
     // `null` keeps the normal fallback (test/ping response) for compatibility.

@@ -85,10 +85,26 @@ export function formatKnowledgeResult(result) {
  const direct=directNumericAnswer(result);
  return `${direct?`${direct}\n\n`:""}${header}\n\nคำตอบจากเอกสาร:\n${blocks.join("\n\n")}\n\nแหล่งข้อมูล: IQSMS Company Database\nตรวจสอบเอกสารฉบับเต็มและ revision ล่าสุดก่อนใช้งาน\n\n${KNOWLEDGE_NOTE}`;
 }
+function envValue(name){try{return globalThis.Deno?.env?.get(name)||"";}catch{return "";}}
+function externalAiEnabled(){return /^(1|true|yes)$/i.test(envValue("AVICORE_ENABLE_EXTERNAL_AI"));}
+async function searchJarvisFts(query){
+ const url=envValue("JARVIS_KNOWLEDGE_URL");
+ const token=envValue("JARVIS_KNOWLEDGE_TOKEN");
+ if(!url||!token)return null;
+ try{
+  const response=await fetch(`${url.replace(/\/$/,"")}/search`,{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${token}`},body:JSON.stringify({query:query.searchText,original:query.original,limit:5}),signal:AbortSignal.timeout(9000)});
+  if(!response.ok)return null;
+  const data=await response.json();
+  if(!data?.ok||!Array.isArray(data.results))return null;
+  return {query,results:data.results.map((r,i)=>({code:r.code||r.document_id||"IQSMS",title:r.title||r.original_file||"IQSMS document",revision:r.revision||"local FTS",page_no:r.page_no||r.page||i+1,excerpt:r.excerpt||r.snippet||"",checked_at:r.checked_at||new Date().toISOString(),source:"jarvis_iqsms_fts"})),mode:"jarvis_fts"};
+ }catch{return null;}
+}
 export async function searchKnowledge(sb,model,companyId,value) {
  const query=normalizeKnowledgeQuery(value);
  if(!query.searchText)return {query,results:[],mode:"hybrid"};
  if(query.searchText.split(/\s+/).filter(Boolean).length < 2 && !query.documentCode) return {query,results:[],mode:"clarify"};
+ const localResult=await searchJarvisFts(query);
+ if(localResult?.results?.length)return localResult;
  let embedding=null,mode="hybrid";
  try {embedding=await model.run(query.searchText,{mean_pool:true,normalize:true});
   if(embedding.length!==384||!embedding.every(Number.isFinite))throw new Error("Invalid embedding");
@@ -105,14 +121,16 @@ export async function searchKnowledge(sb,model,companyId,value) {
  return {query,results,mode};
 }
 async function geminiAnswer(result) {
- const key=Deno.env.get("GEMINI_API_KEY");
+ if(!externalAiEnabled())return null;
+ const key=envValue("GEMINI_API_KEY");
  if(!key||!result.results?.length)return null;
  const sources=result.results.slice(0,5).map((r,i)=>`อ้างอิง ${i+1}: ${r.code} — ${r.title}; Revision ${r.revision}; หน้า ${r.page_no}\n${clipReadable(cleanExcerpt(r.excerpt),1800)}`).join("\n\n");
  const prompt=`คุณคือ AviCore Bot สำหรับงานปฏิบัติการบิน ตอบภาษาไทยให้กระชับและแม่นยำ\nคำถาม: ${result.query.original}\n\nข้อมูลจาก Company Database (IQSMS):\n${sources}\n\nกติกาสำคัญ: บรรทัดแรกต้องเป็นคำตอบตรง ๆ พร้อมตัวเลขและหน่วยที่ถาม เช่น “Minimum Offshore Take-off Visibility = 400 เมตร” หรือ “Maximum Crosswind = 20 knots” ห้ามเริ่มด้วยคำว่า ผลค้นเอกสาร และห้ามอ้างอิงก่อนคำตอบ จากนั้นค่อยอธิบายเงื่อนไข แล้วใส่อ้างอิงเอกสารและหน้า PDF ไว้ท้ายคำตอบ ตอบจากข้อมูลที่ให้เท่านั้น ห้ามเดาตัวเลขหรือสร้างข้อกำหนดใหม่ หากข้อมูลไม่พอให้บอกว่าไม่พบตัวเลขที่ยืนยันได้ และลงท้ายด้วย: ${KNOWLEDGE_NOTE}`;
  try{const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent`,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]}),signal:AbortSignal.timeout(15000)});if(!response.ok){const errText=await response.text(); console.error("[gemini] request failed",response.status,errText.slice(0,500)); return null;}const data=await response.json();return data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim()||null;}catch{return null;}
 }
 async function geminiTranslate(command) {
- const key=Deno.env.get("GEMINI_API_KEY");
+ if(!externalAiEnabled())return null;
+ const key=envValue("GEMINI_API_KEY");
  if(!key)return null;
  const m=String(command).match(/^(?:แปลอังกฤษ|แปลคำว่า\s*(.*?)\s*เป็นภาษาอังกฤษ|translate\s+to\s+english)\s*[:：]?\s*(.*)$/i);
  const n=String(command).match(/^(?:แปลไทย|แปลคำว่า\s*(.*?)\s*เป็นภาษาไทย|translate\s+to\s+thai)\s*[:：]?\s*(.*)$/i);
@@ -124,7 +142,8 @@ async function geminiTranslate(command) {
  try{const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent`,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]}),signal:AbortSignal.timeout(15000)});if(!response.ok){const errText=await response.text(); console.error("[gemini] request failed",response.status,errText.slice(0,500)); return null;}const data=await response.json();return data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim()||null;}catch{return null;}
 }
 async function geminiGeneral(command) {
- const key=Deno.env.get("GEMINI_API_KEY"); if(!key)return null;
+ if(!externalAiEnabled())return null;
+ const key=envValue("GEMINI_API_KEY"); if(!key)return null;
  const prompt=`คุณคือ AviCore Bot ผู้ช่วยทั่วไป ตอบภาษาไทยแบบตรงประเด็น ห้ามทักทายและห้ามขึ้นต้นด้วยคำอธิบาย หากถามเวลาพระอาทิตย์ขึ้นหรือตก ให้ตอบบรรทัดแรกเป็นเวลาทันทีในรูปแบบ “พระอาทิตย์ขึ้นที่จังหวัดสงขลา: HH:MM น.” แล้วค่อยระบุวันที่และแหล่งข้อมูล หากข้อมูลเปลี่ยนแปลงได้ให้บอกสั้น ๆ ท้ายคำตอบ คำถาม: ${String(command).slice(0,1000)}`;
  try{const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent`,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]}),signal:AbortSignal.timeout(15000)});if(!response.ok){const errText=await response.text(); console.error("[gemini] request failed",response.status,errText.slice(0,500)); return null;}const data=await response.json();return data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim()||null;}catch{return null;}
 }

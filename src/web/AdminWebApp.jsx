@@ -18,6 +18,8 @@ import ErrorBoundary from "./ErrorBoundary.jsx";
 import LoginShell from "./LoginShell.jsx";
 import { ADMIN_ALLOWED_EMAILS } from "../config/adminAllowlist.js";
 import AppSidebar from "./AppSidebar.jsx";
+import { ADMIN_SECTIONS, ADMIN_SCREEN_KEYS, defaultScreenForSection, sectionForScreen } from "./adminNavigation.js";
+import adminLoginBg from "./admin-login-bg.png";
 import "./WebApp.css";
 import "./AdminWebApp.css";
 import "./AppSidebar.css";
@@ -63,8 +65,8 @@ const TABS = [
   { key: "utility", label: "Utility", icon: "🛠️", Component: CrewLoginMonitor }
 ];
 
-// The tab names this build knows about, used to validate a remembered one.
-const TAB_KEYS = TABS.map((t) => t.key);
+// The screen names this build knows about, used to validate a remembered one.
+const TAB_KEYS = ADMIN_SCREEN_KEYS;
 
 // Injected by Vite from package.json's version (see vite.config.js).
 const APP_VERSION = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "";
@@ -104,6 +106,7 @@ export default function AdminWebApp() {
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
   const [signingIn, setSigningIn] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [tab, setTab] = useState(() => rememberedTab("avicore_admin_tab", "dashboard", TAB_KEYS));
   const [branding, setBranding] = useState(null);
   const [syncStatus, setSyncStatus] = useState({ status: "connecting", lastSyncAt: null, lastError: null });
@@ -210,9 +213,14 @@ export default function AdminWebApp() {
 
   if (!session) {
     return (
-      <LoginShell>
+      <LoginShell className="admin-login" defaultBackground={adminLoginBg}>
         <span className="web-version-badge">v{APP_VERSION}</span>
-        <div className="web-login-card">
+        <div className="web-login-card admin-login-card">
+          <div className="admin-login-accent" aria-hidden="true" />
+          <div className="admin-login-kicker">
+            <span>SECURE OPERATIONS CONSOLE</span>
+            <b>ADMIN</b>
+          </div>
           {/* Same layout as the Crew sign-in screen (see WebPilotLogin.jsx),
               which follows the AviCore Flight Planner reference. Admin really
               does sign in with an email and password - Supabase auth - so unlike
@@ -222,34 +230,48 @@ export default function AdminWebApp() {
           <div className="login-brand">
             <span aria-hidden="true">✣</span>
             <div>
-              <strong>AVICORE</strong>
+              <strong>AVI<span className="login-brand-core">CORE</span></strong>
               <small>ENTERPRISE · V{APP_VERSION}</small>
             </div>
           </div>
           <p className="login-series">ADMIN · MONITORING &amp; REPORTS</p>
-          <h1>Welcome back</h1>
-          <p className="login-copy">Sign in with your authorized admin account.</p>
+          <h1>Welcome back<span className="admin-login-dot">.</span></h1>
+          <p className="login-copy">Sign in to monitor operations, crew readiness and enterprise records.</p>
 
           <form onSubmit={handleSignIn}>
             <label>
-              <span>EMAIL</span>
-              <input
-                type="email" lang="en" autoComplete="username"
-                value={email} placeholder="admin@example.com"
-                onChange={(e) => { setEmail(e.target.value); setAuthError(""); }}
-              />
+              <span>EMAIL ADDRESS</span>
+              <div className="admin-login-field">
+                <i aria-hidden="true">@</i>
+                <input
+                  type="email" lang="en" autoComplete="username"
+                  value={email} placeholder="admin@example.com"
+                  onChange={(e) => { setEmail(e.target.value); setAuthError(""); }}
+                />
+              </div>
             </label>
             <label>
               <span>PASSWORD</span>
-              <input
-                type="password" lang="en" autoComplete="current-password"
-                value={password} placeholder="Password"
-                onChange={(e) => { setPassword(e.target.value); setAuthError(""); }}
-              />
+              <div className="login-password-field admin-login-field">
+                <i aria-hidden="true">●</i>
+                <input
+                  type={showPassword ? "text" : "password"} lang="en" autoComplete="current-password"
+                  value={password} placeholder="Password"
+                  onChange={(e) => { setPassword(e.target.value); setAuthError(""); }}
+                />
+                <button
+                  type="button" className="login-password-toggle" tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((v) => !v)}
+                >
+                  {showPassword ? "HIDE" : "SHOW"}
+                </button>
+              </div>
             </label>
             {authError && <p className="login-message">{authError}</p>}
             <button className="login-primary" type="submit" disabled={signingIn || !email.trim() || !password}>
-              {signingIn ? "PLEASE WAIT…" : "SIGN IN"}
+              <span>{signingIn ? "AUTHENTICATING…" : "ENTER ADMIN CONSOLE"}</span>
+              <i aria-hidden="true">→</i>
             </button>
           </form>
 
@@ -270,28 +292,20 @@ export default function AdminWebApp() {
   }
 
   const Active = TABS.find((t) => t.key === tab)?.Component;
+  const activeSection = sectionForScreen(tab);
 
-  const sidebarGroups = [
-    { label: "Operations", items: [
-      { key: "dashboard", label: "Dashboard", icon: "📊", active: tab === "dashboard", onClick: () => setTab("dashboard") },
-      { key: "pilotRoster", label: "Pilot Roster", icon: "🗓️", active: tab === "pilotRoster", onClick: () => setTab("pilotRoster") },
-    ]},
-    { label: "Compliance", items: [
-      { key: "crews", label: "FDT", icon: "✈️", active: tab === "crews", onClick: () => setTab("crews") },
-      { key: "fatigue", label: "Fatigue", icon: "😴", active: tab === "fatigue", onClick: () => setTab("fatigue") },
-      { key: "training", label: "Training", icon: "🎓", active: tab === "training", onClick: () => setTab("training") },
-    ]},
-    { label: "Reports", items: [
-      { key: "statistics", label: "Statistics", icon: "📈", active: tab === "statistics", onClick: () => setTab("statistics") },
-      { key: "logbook", label: "Logbook", icon: "📖", active: tab === "logbook", onClick: () => setTab("logbook") },
-    ]},
-    { label: "System", items: [
-      { key: "settings", label: "Settings", icon: "⚙️", active: tab === "settings", onClick: () => setTab("settings") },
-      { key: "access", label: "Crew Access", icon: "🔑", active: tab === "access", onClick: () => setTab("access") },
-      { key: "utility", label: "Login Monitor", icon: "🛠️", active: tab === "utility", onClick: () => setTab("utility") },
-      { key: "signout", label: "Sign Out", icon: "⏻", danger: true, onClick: handleSignOut },
-    ]},
-  ];
+  const sidebarGroups = [{
+    label: "Main",
+    items: ADMIN_SECTIONS.map((section) => ({
+      key: section.key,
+      label: section.label,
+      icon: section.icon,
+      active: section.key === activeSection.key,
+      onClick: () => setTab(
+        section.key === activeSection.key ? tab : defaultScreenForSection(section.key),
+      ),
+    })),
+  }];
 
   return (
     <div className="web-app admin-shell">
@@ -302,7 +316,10 @@ export default function AdminWebApp() {
           brand={{ icon: "✦", title: "AviCore Enterprise", subtitle: `ADMIN · v${APP_VERSION}` }}
           sync={{ status: syncStatus.status, label: SYNC_LABEL[syncStatus.status] || syncStatus.status }}
           groups={sidebarGroups}
-          footItems={[{ key: "refresh", label: "Refresh", icon: "⟳", onClick: () => window.location.reload() }]}
+          footItems={[
+            { key: "refresh", label: "Refresh", icon: "⟳", onClick: () => window.location.reload() },
+            { key: "signout", label: "Sign Out", icon: "⏻", danger: true, onClick: handleSignOut },
+          ]}
         />
         <div className="web-main">
           <header className="web-header">
@@ -322,6 +339,23 @@ export default function AdminWebApp() {
               <span className="web-sync-label">{SYNC_LABEL[syncStatus.status] || syncStatus.status}</span>
             </span>
           </header>
+
+          {activeSection.screens.length > 1 && (
+            <nav className="admin-subtabs" aria-label={`${activeSection.label} screens`}>
+              {activeSection.screens.map((screen) => (
+                <button
+                  key={screen.key}
+                  type="button"
+                  aria-current={screen.key === tab ? "page" : undefined}
+                  className={screen.key === tab ? "active" : ""}
+                  onClick={() => setTab(screen.key)}
+                >
+                  <span aria-hidden="true">{screen.icon}</span>
+                  {screen.label}
+                </button>
+              ))}
+            </nav>
+          )}
 
           <main className="web-content">
             <ErrorBoundary key={tab}>

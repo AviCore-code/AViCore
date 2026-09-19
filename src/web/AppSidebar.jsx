@@ -94,7 +94,7 @@ export default function AppSidebar({ groups, brand, sync, footItems }) {
             <button
               key={item.key}
               type="button"
-              className="app-sidebar-item"
+              className={`app-sidebar-item${item.danger ? " app-sidebar-signout" : ""}`}
               title={item.label}
               onClick={item.onClick}
             >

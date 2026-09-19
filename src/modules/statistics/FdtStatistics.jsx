@@ -222,10 +222,11 @@ export default function FdtStatistics() {
 
         <TrendChart months={summary?.monthly || []} max={chartMax} />
 
-        <table className="stats-table">
-          <thead>
-            <tr>
-              <th>Month</th>
+        <div className="stats-table-wrap">
+          <table className="stats-table">
+            <thead>
+              <tr>
+                <th>Month</th>
               <th>Flight Time</th>
               <th>Duty Time</th>
               <th>Flights</th>
@@ -257,8 +258,9 @@ export default function FdtStatistics() {
               <td>{summary?.pilotCount || 0}</td>
               <td>{hhmm(summary?.avgFtPerPilot)}</td>
             </tr>
-          </tfoot>
-        </table>
+            </tfoot>
+          </table>
+        </div>
 
         {/* ---- 3. Limit exposure ---- */}
         <h2 className="stats-section">Pilots Approaching Limits</h2>
@@ -273,10 +275,11 @@ export default function FdtStatistics() {
             ✓ No pilot is within {Math.round((1 - THRESHOLD) * 100)}% of any FTL limit.
           </div>
         ) : (
-          <table className="stats-table">
-            <thead>
-              <tr>
-                <th>Pilot</th><th>Limit</th><th>Used</th><th>Maximum</th>
+          <div className="stats-table-wrap">
+            <table className="stats-table">
+              <thead>
+                <tr>
+                  <th>Pilot</th><th>Limit</th><th>Used</th><th>Maximum</th>
                 <th>Remaining</th><th>Used %</th><th />
               </tr>
             </thead>
@@ -296,8 +299,9 @@ export default function FdtStatistics() {
                   </td>
                 </tr>
               ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
         )}
 
         {/* ---- 4. Per-pilot comparison ---- */}
@@ -316,11 +320,12 @@ export default function FdtStatistics() {
           <span>{comparison?.flownCount || 0} of {comparison?.pilots?.length || 0} pilots flew in this period</span>
         </div>
 
-        <table className="stats-table">
-          <thead>
-            <tr>
-              <th>Pilot</th>
-              <th>Flight Time</th>
+        <div className="stats-table-wrap">
+          <table className="stats-table">
+            <thead>
+              <tr>
+                <th>Pilot</th>
+                <th>Flight Time</th>
               <th>Duty Time</th>
               <th>Flights</th>
               <th>Months flown</th>
@@ -369,8 +374,9 @@ export default function FdtStatistics() {
               <td />
               <td>100%</td>
             </tr>
-          </tfoot>
-        </table>
+            </tfoot>
+          </table>
+        </div>
 
         {/* ---- 5. Fatigue distribution ---- */}
         <h2 className="stats-section">Fatigue Index Distribution</h2>
@@ -403,8 +409,9 @@ export default function FdtStatistics() {
         {(fatigue?.bands || []).filter((b) => b.key !== "normal" && b.count > 0).map((b) => (
           <div key={b.key} className="stats-band-list">
             <h3>{b.label} — {b.count} pilot{b.count === 1 ? "" : "s"}</h3>
-            <table className="stats-table">
-              <thead>
+            <div className="stats-table-wrap">
+              <table className="stats-table">
+                <thead>
                 <tr><th>Pilot</th><th>TOTAL INDEX</th><th>DT Index</th><th>Fatigue Index</th></tr>
               </thead>
               <tbody>
@@ -416,8 +423,9 @@ export default function FdtStatistics() {
                     <td>{p.fatigueIndex.toFixed(2)}</td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           </div>
         ))}
 
@@ -429,7 +437,7 @@ export default function FdtStatistics() {
           used / limit; amber is approaching, red is at or over.
         </p>
 
-        <div className="stats-allstatus-wrap">
+        <div className="stats-table-wrap stats-allstatus-wrap">
           <table className="stats-table stats-allstatus">
             <thead>
               <tr>

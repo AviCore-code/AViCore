@@ -44,83 +44,58 @@
 .paper tbody tr:focus-within{ background:#f8fafc; }
 
 /* ---------------------------------------------------------------------------
-   PRINT / EXPORT PDF  —  A4 LANDSCAPE
-   ---------------------------------------------------------------------------
-   This page had NO print stylesheet at all, so printing produced the whole dark
-   app chrome around a sheet sized for the screen, broken across portrait pages.
-
-   Landscape to match the Logbook, because the experience form is a wide
-   two-column grid; forced to portrait the right-hand column either shrinks to
-   unreadable or spills onto its own page away from its headings. */
+   PRINT / EXPORT PDF — one complete A4 landscape sheet
+   --------------------------------------------------------------------------- */
 .pe-certify{display:none}
 
 @media print{
-  @page{size:A4 landscape;margin:8mm}
+  @page{size:A4 landscape;margin:5mm}
 
-  /* Only the sheet prints. Everything else is app furniture.
-     Hidden with display:none rather than visibility:hidden + absolute
-     positioning: the latter takes the sheet out of normal flow, and content
-     taller than one page is then CLIPPED at the first page instead of
-     paginating - which on a full experience record silently loses rows. */
-  .pe-page .paper{
-    width:auto;max-width:none;min-width:0;
-    margin:0;padding:0;
-    box-shadow:none;border-radius:0;
-    max-height:none;overflow:visible;   /* the screen's 78vh scroll box would clip the page */
-    background:white;color:#000;
-  }
-  .module-header,.header-tools,.saved-strip,.upload-btn,.image-box-actions,.remove-btn{display:none !important}
-  /* The on-screen footer carries its own "Signature : ____" line. Left in, the
-     printed sheet would show two signature areas one above the other. The
-     Update date it also holds is reprinted inside the block below. */
-  .footer{display:none !important}
+  /* Remove editor chrome from layout instead of merely making it invisible.
+     The report stays static and in normal flow, avoiding a leading blank page. */
+  body:has(.pe-print-area) .pe-page > *:not(.pe-print-area){display:none!important}
+  body:has(.pe-print-area) .sidebar,
+  body:has(.pe-print-area) .topbar,
+  body:has(.pe-print-area) .web-header,
+  body:has(.pe-print-area) .app-sidebar,
+  body:has(.pe-print-area) .web-footer,
+  body:has(.pe-print-area) .offbar-wrap{display:none!important}
+  body:has(.pe-print-area) .app-shell,
+  body:has(.pe-print-area) .main,
+  body:has(.pe-print-area) .main-content,
+  body:has(.pe-print-area) .web-body,
+  body:has(.pe-print-area) .web-main,
+  body:has(.pe-print-area) .web-content{display:block!important;width:auto!important;min-width:0!important;max-width:none!important;margin:0!important;padding:0!important}
 
-  /* The photo and logo are part of the record - a signed experience summary
-     without the pilot's photograph is not the same document. Print colours are
-     forced because browsers drop background images and tints by default. */
-  .paper img{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .image-box{border:1px solid #666}
-  .grand b,th,.total td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pe-print-area{position:static;width:auto;max-width:100%;min-width:0;margin:0;padding:0;box-shadow:none;border-radius:0;max-height:none;overflow:visible;background:white;color:#000}
+  .pe-print-area button,.pe-print-area .image-box-actions,.pe-print-area .no-print{display:none!important}
+  .pe-print-area img{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pe-print-area input,.pe-print-area select,.pe-print-area textarea{background:transparent!important;color:#000!important;-webkit-text-fill-color:#000!important;outline:0!important;box-shadow:none!important}
+  .pe-print-area input[readonly]{background:transparent!important;color:#000!important;-webkit-text-fill-color:#000!important}
+  .pe-print-area tbody tr:focus-within{background:transparent!important}
 
-  /* Fields are data here, not controls: no boxes, no grey fills. */
-  .paper input,.paper select,.paper textarea{
-    background:transparent !important;color:#000 !important;
-    -webkit-text-fill-color:#000 !important;
-    outline:0 !important;box-shadow:none !important;
-  }
-  .paper input[readonly]{background:transparent !important;color:#000 !important;-webkit-text-fill-color:#000 !important}
-  .paper tbody tr:focus-within{background:transparent !important}
+  .pe-print-area .paper-head{grid-template-columns:62px 1fr 62px;gap:8px;margin-bottom:4px}
+  .pe-print-area .image-box{width:58px;height:58px;border:1px solid #666}
+  .pe-print-area .title-area h2{font-size:17px;margin:0 0 3px}
+  .pe-print-area .line{gap:6px;margin:1px 0;font-size:8px;line-height:1.15}
+  .pe-print-area .line input{width:210px}
 
-  /* GRID DOES NOT PAGINATE.
-     .top-grid / .exp-grid are two-column CSS grids holding the experience
-     tables. A grid container is not broken across printed pages the way a
-     block is, so anything past page 1 is dropped rather than continued - which
-     silently loses the bottom of a long record. Laid out as blocks for print
-     so the tables stack and break normally.
-     .paper-head, .summary and .grand are grids too but are single-row and
-     short, so they are left alone - their layout is the point (photo left,
-     title centre, photo right) and they cannot outgrow a page. */
-  .top-grid,.exp-grid{display:block!important}
-  .top-grid > *,.exp-grid > *{margin-bottom:12px}
+  /* Both report grids remain two columns. Flattening them doubles the height
+     and is what pushed the final totals/signature content off page one. */
+  .pe-print-area .top-grid,.pe-print-area .exp-grid{display:grid!important;grid-template-columns:1fr 1fr!important;gap:4px 7px;margin-top:4px}
+  .pe-print-area .top-grid > *,.pe-print-area .exp-grid > *{margin:0;break-inside:avoid;page-break-inside:avoid}
+  .pe-print-area p{font-size:7px;margin:3px 0}
+  .pe-print-area table{font-size:7px;table-layout:fixed;width:100%;max-width:100%}
+  .pe-print-area th,.pe-print-area td{height:auto;padding:1px 2px;line-height:1.1;break-inside:avoid;page-break-inside:avoid}
+  .pe-print-area thead{display:table-header-group;position:static}
+  .pe-print-area .grand b,.pe-print-area th,.pe-print-area .total td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 
-  table{font-size:10.5px}
-  th,td{height:auto;padding:3px 4px}
-  /* Rows, not whole tables. `break-inside:avoid` on a table taller than the
-     page cannot be honoured, and the browser's fallback is to push or clip it -
-     which loses the bottom of a long experience record. A row split across two
-     pages is unreadable; a table spanning two pages is normal. */
-  tr,td,th{page-break-inside:avoid;break-inside:avoid}
-  thead{display:table-header-group}          /* repeat headings on page 2+ */
-
-  /* Signature block, same shape as the Logbook's so the two documents read as
-     a set. Screen-hidden: on screen it is an editor, on paper it is a record
-     that has to say who certified it. */
-  .pe-certify{
-    display:block;margin-top:16px;
-    page-break-inside:avoid;break-inside:avoid;
-  }
-  .pe-certify-text{font-size:10.5px;color:#000;margin-bottom:4px}
-  .pe-certify-sigs{display:flex;gap:34px;margin-top:24px}
-  .pe-certify-sigs > div{flex:1;font-size:10.5px;text-align:center;color:#000}
-  .pe-sigline{border-bottom:1px solid #555;height:32px;margin-bottom:5px}
+  .pe-print-area .summary{margin-top:4px;height:23px;font-size:7.5px}
+  .pe-print-area .grand{margin-top:4px;height:26px;font-size:10px;grid-template-columns:1fr 180px 1fr}
+  .pe-print-area .footer{display:none!important}
+  .pe-print-area .pe-certify{display:block;margin-top:4px;break-inside:avoid;page-break-inside:avoid}
+  .pe-print-area .pe-certify-text{font-size:7.5px;line-height:1.2;color:#000;margin-bottom:2px}
+  .pe-print-area .pe-certify-sigs{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:7px}
+  .pe-print-area .pe-certify-sigs > div{font-size:7.5px;text-align:center;color:#000}
+  .pe-print-area .pe-sigline{border-bottom:1px solid #555;height:12px;margin-bottom:2px}
 }

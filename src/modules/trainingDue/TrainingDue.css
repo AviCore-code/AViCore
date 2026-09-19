@@ -76,13 +76,32 @@
   .trainingdue-name{color:black}
   .trainingdue-detail{display:none!important}
 
-  body:has(.trainingdue-page) .trainingperson-print-area,
-  body:has(.trainingdue-page) .trainingperson-print-area *{visibility:visible}
-  .trainingperson-print-area{position:absolute;top:0;left:0;width:100%;background:white;color:black}
-  .training-person-detail{background:white;border-color:#999}
-  .training-person-detail-head h2{color:black}
-  .trainingdue-item{background:white;border-color:#ccc}
-  .trainingdue-item-label{color:#444}
+  /* Personal Training is a one-sheet report. Remove shell/page siblings from
+     layout (visibility:hidden still reserves their height), then keep the report
+     itself in normal flow so Chrome does not create a leading blank sheet. */
+  body:has(.trainingperson-print-area) .trainingdue-page > *:not(.trainingperson-print-area){display:none!important}
+  body:has(.trainingperson-print-area) .sidebar,
+  body:has(.trainingperson-print-area) .topbar,
+  body:has(.trainingperson-print-area) .web-header,
+  body:has(.trainingperson-print-area) .app-sidebar,
+  body:has(.trainingperson-print-area) .web-footer,
+  body:has(.trainingperson-print-area) .offbar-wrap{display:none!important}
+  body:has(.trainingperson-print-area) .app-shell,
+  body:has(.trainingperson-print-area) .main,
+  body:has(.trainingperson-print-area) .main-content,
+  body:has(.trainingperson-print-area) .web-body,
+  body:has(.trainingperson-print-area) .web-main,
+  body:has(.trainingperson-print-area) .web-content{display:block!important;width:auto!important;min-width:0!important;max-width:none!important;margin:0!important;padding:0!important}
+  body:has(.trainingperson-print-area) .trainingperson-print-area,
+  body:has(.trainingperson-print-area) .trainingperson-print-area *{visibility:visible}
+  .trainingperson-print-area{position:static;width:auto;max-width:100%;margin:0;padding:0;background:white;color:black}
+  .trainingperson-print-area .training-person-detail{background:white;border-color:#999;padding:0}
+  .trainingperson-print-area .training-person-detail-head{margin-bottom:4px}
+  .trainingperson-print-area .training-person-detail-head h2{color:black;font-size:14px;margin:0}
+  .trainingperson-print-area .trainingdue-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px 5px}
+  .trainingperson-print-area .trainingdue-item{background:white;border-color:#ccc;padding:3px 5px;gap:0;break-inside:avoid}
+  .trainingperson-print-area .trainingdue-item-label{color:#444;font-size:8px;line-height:1.15}
+  .trainingperson-print-area .trainingdue-item-value{font-size:9px;line-height:1.15}
 }
 
 /* ---- Attached document viewer ------------------------------------------

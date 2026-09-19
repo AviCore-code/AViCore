@@ -19,3 +19,44 @@
 .crewacc-pw { padding: 8px 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #fff; font-size: 13px; min-width: 160px; }
 .crewacc-eye { padding: 8px 10px !important; }
 .crewacc-save { border-color: #1677ff !important; background: #1677ff !important; color: #fff !important; }
+
+@media (pointer: coarse) {
+  .crewacc-page button { min-height: 44px; min-width: 44px; }
+  .crewacc-page input,
+  .crewacc-page select { min-height: 44px; }
+}
+
+@media (max-width: 640px) {
+  .crewacc-page .module-header { align-items: stretch; gap: 12px; }
+  .crewacc-page .module-header > div:last-child { width: 100%; }
+  .crewacc-filter { width: 100%; font-size: 14px; }
+  .crewacc-th { display: none; }
+  .crewacc-table { gap: 10px; }
+  .crewacc-tr {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 14px;
+    border: 1px solid rgba(148,163,184,.18);
+    border-radius: 12px;
+    font-size: 14px;
+  }
+  .crewacc-tr:not(.crewacc-th) > :not(.crewacc-actions) {
+    display: grid;
+    grid-template-columns: minmax(72px, .65fr) 1fr;
+    gap: 8px;
+    align-items: baseline;
+  }
+  .crewacc-tr:not(.crewacc-th) > :not(.crewacc-actions)::before {
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+  }
+  .crewacc-tr:not(.crewacc-th) > :nth-child(1)::before { content: "Pilot"; }
+  .crewacc-tr:not(.crewacc-th) > :nth-child(2)::before { content: "Name"; }
+  .crewacc-tr:not(.crewacc-th) > :nth-child(3)::before { content: "Access"; }
+  .crewacc-actions { justify-content: stretch; padding-top: 4px; }
+  .crewacc-actions > * { flex: 1 1 120px; }
+  .crewacc-pw { min-width: 0; width: 100%; font-size: 16px; }
+}
