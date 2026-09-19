@@ -67,8 +67,11 @@ export default function RosterImportPanel({ onImported, onCancel }) {
     if (!preview) return;
     setImporting(true);
     try {
-      await importRosterMany(preview.entries);
-      setMsg({ ok: true, text: `Imported ${preview.pilots.length} pilot(s), ${preview.entries.length} daily entries.` });
+      const result = await importRosterMany(preview.entries);
+      const cleared = preview.entries.filter((e) => e.clearExisting).length;
+      setMsg({ ok: true, text: result?.queued
+        ? `Saved on this device; waiting to sync ${preview.entries.length} cells, including ${cleared} cleared assignments.`
+        : `Imported ${preview.pilots.length} pilot(s), ${preview.entries.length} daily cells (${cleared} cleared assignments).` });
       setPreview(null);
       await onImported?.();
     } catch (err) {
@@ -84,7 +87,7 @@ export default function RosterImportPanel({ onImported, onCancel }) {
         <div>
           <h2 style={{ margin: 0, fontSize: "16px" }}>Import Duty Schedule from Excel</h2>
           <p style={{ margin: "4px 0 0", color: "#94a3b8", fontSize: "12.5px" }}>
-            Loads one sheet from the company's roster workbook (e.g. "RR 2026"). Re-importing updates matching pilot+date cells — it never removes days that aren't in the file.
+            Loads one sheet from the company's roster workbook (e.g. "RR 2026"). Blank cells clear existing assignments for the pilots and dates in this sheet. Days outside the sheet are unchanged.
           </p>
         </div>
         <div style={{ display: "flex", gap: "8px" }}>
@@ -115,6 +118,7 @@ export default function RosterImportPanel({ onImported, onCancel }) {
           <h2>Import preview — {preview.pilots.length} pilot(s), {preview.entries.length} daily entries</h2>
           <p style={{ margin: "0 0 12px", color: "#94a3b8", fontSize: "12.5px" }}>
             Date range: {preview.dateRange.from} → {preview.dateRange.to}
+            {" · "}{preview.entries.filter((e) => e.clearExisting).length} blank cells will clear existing assignments.
           </p>
           <div className="roster-preview-list">
             {preview.pilots.map((p) => (

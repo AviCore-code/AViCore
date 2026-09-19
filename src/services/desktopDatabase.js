@@ -387,6 +387,10 @@ export async function importRosterMany(entries) {
     const date = e.date;
     if (!pilotCode || !date) continue;
     const idx = all.findIndex((r) => r.pilot_code === pilotCode && r.date === date);
+    if (e.clearExisting) {
+      if (idx >= 0) all.splice(idx, 1);
+      continue;
+    }
     const row = { pilot_code: pilotCode, pilot_name: e.pilotName ?? e.pilot_name ?? "", base: e.base ?? "", date, code: e.code ?? "" };
     if (idx >= 0) all[idx] = row; else all.push(row);
   }

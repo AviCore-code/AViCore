@@ -14,17 +14,33 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Hoisted mock — must mirror real Supabase chaining interface.
-const { fromMock, upsertMock, insertMock } = vi.hoisted(() => {
+const { fromMock, upsertMock, insertMock, companiesMock } = vi.hoisted(() => {
   const upsertMock = vi.fn();
   const insertMock = vi.fn();
-  const fromMock = vi.fn();
-  return { fromMock, upsertMock, insertMock };
+  // companiesMock: chain for from("companies").select().eq().maybeSingle()
+  const maybeSingle = vi.fn().mockResolvedValue({ data: { id: "test-company-uuid" }, error: null });
+  const eq = vi.fn().mockReturnValue({ maybeSingle });
+  const select = vi.fn().mockReturnValue({ eq });
+  const companiesMock = { select };
+  const fromMock = vi.fn((table) => {
+    if (table === "companies") return companiesMock;
+    return { upsert: upsertMock, insert: insertMock };
+  });
+  return { fromMock, upsertMock, insertMock, companiesMock };
 });
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
-    auth: { onAuthStateChange: vi.fn() },
+    auth: {
+      onAuthStateChange: vi.fn(),
+      // companyContext.js calls getSession to detect if user is authenticated;
+      // in tests we return no session so it falls through to companySlug lookup.
+      getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+    },
     from: fromMock,
+    // companyContext.js falls back to companies table lookup when no session;
+    // stub it to return a fixed company id so rawAddDutyEntry can proceed.
+    rpc: vi.fn(),
   }),
 }));
 
@@ -32,6 +48,7 @@ async function loadWebDatabase() {
   vi.resetModules();
   vi.stubEnv("VITE_SUPABASE_URL", "https://example.supabase.co");
   vi.stubEnv("VITE_SUPABASE_ANON_KEY", "public-anon-key");
+  vi.stubEnv("VITE_COMPANY_SLUG", "test-company");
   return import("./webDatabase.js");
 }
 
@@ -46,7 +63,7 @@ describe("addDutyEntry — typed-in upsert (no duplicate)", () => {
   it("calls upsert (not insert) when adding a single typed-in duty entry", async () => {
     // Arrange: supabase.from().upsert() resolves successfully
     upsertMock.mockResolvedValue({ data: null, error: null });
-    fromMock.mockReturnValue({ upsert: upsertMock });
+    fromMock.mockImplementation((table) => table === "companies" ? companiesMock : { upsert: upsertMock, insert: insertMock });
 
     const { addDutyEntry } = await loadWebDatabase();
 
@@ -75,7 +92,7 @@ describe("addDutyEntry — typed-in upsert (no duplicate)", () => {
 
   it("upsert uses pilot_code+date+duty_type as the conflict resolution key", async () => {
     upsertMock.mockResolvedValue({ data: null, error: null });
-    fromMock.mockReturnValue({ upsert: upsertMock });
+    fromMock.mockImplementation((table) => table === "companies" ? companiesMock : { upsert: upsertMock, insert: insertMock });
 
     const { addDutyEntry } = await loadWebDatabase();
 
@@ -95,7 +112,7 @@ describe("addDutyEntry — typed-in upsert (no duplicate)", () => {
 
   it("overwrites the existing row — upsert with ignoreDuplicates:false", async () => {
     upsertMock.mockResolvedValue({ data: null, error: null });
-    fromMock.mockReturnValue({ upsert: upsertMock });
+    fromMock.mockImplementation((table) => table === "companies" ? companiesMock : { upsert: upsertMock, insert: insertMock });
 
     const { addDutyEntry } = await loadWebDatabase();
 
@@ -114,7 +131,7 @@ describe("addDutyEntry — typed-in upsert (no duplicate)", () => {
 
   it("propagates a supabase upsert error as a thrown Error", async () => {
     upsertMock.mockResolvedValue({ data: null, error: { message: "duplicate key value" } });
-    fromMock.mockReturnValue({ upsert: upsertMock });
+    fromMock.mockImplementation((table) => table === "companies" ? companiesMock : { upsert: upsertMock, insert: insertMock });
 
     const { addDutyEntry } = await loadWebDatabase();
 
@@ -124,7 +141,7 @@ describe("addDutyEntry — typed-in upsert (no duplicate)", () => {
   });
 
   it("still requires pilot_code and date — throws before calling supabase when missing", async () => {
-    fromMock.mockReturnValue({ upsert: upsertMock });
+    fromMock.mockImplementation((table) => table === "companies" ? companiesMock : { upsert: upsertMock, insert: insertMock });
 
     const { addDutyEntry } = await loadWebDatabase();
 

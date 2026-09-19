@@ -33,12 +33,12 @@ const FORMAT_VERSION = 1;
 // restore into duplicate rows, so each one is the column the app's own writes
 // already treat as the row's identity.
 export const BACKUP_TABLES = [
-  { table: "Admin_app_settings", conflict: "key", label: "Settings" },
+  { table: "Admin_app_settings", conflict: "company_id,key", label: "Settings" },
   { table: "Admin_pilot_experience", conflict: "licence_key", label: "Pilot experience" },
   { table: "Admin_pilot_training", conflict: "code_key", label: "Training records" },
   { table: "Admin_pilot_duty_entries", conflict: "uuid", label: "Daily duty entries" },
-  { table: "Admin_pilot_roster", conflict: null, label: "Roster" },
-  { table: "Admin_pilot_weekly_plan", conflict: null, label: "Weekly plan" },
+  { table: "Admin_pilot_roster", conflict: "uuid", label: "Roster" },
+  { table: "Admin_pilot_weekly_plan", conflict: "uuid", label: "Weekly plan" },
   // Login history is included for completeness but is NOT restored: it is an
   // audit trail of things that happened, and writing old events back would
   // fabricate logins at times they did not occur.

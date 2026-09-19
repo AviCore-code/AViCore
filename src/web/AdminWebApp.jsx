@@ -296,7 +296,8 @@ export default function AdminWebApp() {
 
   const sidebarGroups = [{
     label: "Main",
-    items: ADMIN_SECTIONS.map((section) => ({
+    items: [
+      ...ADMIN_SECTIONS.map((section) => ({
       key: section.key,
       label: section.label,
       icon: section.icon,
@@ -304,7 +305,10 @@ export default function AdminWebApp() {
       onClick: () => setTab(
         section.key === activeSection.key ? tab : defaultScreenForSection(section.key),
       ),
-    })),
+      })),
+      { key: "refresh", label: "Refresh", icon: "⟳", onClick: () => window.location.reload() },
+      { key: "signout", label: "Sign Out", icon: "⏻", danger: true, onClick: handleSignOut },
+    ],
   }];
 
   return (
@@ -316,10 +320,6 @@ export default function AdminWebApp() {
           brand={{ icon: "✦", title: "AviCore Enterprise", subtitle: `ADMIN · v${APP_VERSION}` }}
           sync={{ status: syncStatus.status, label: SYNC_LABEL[syncStatus.status] || syncStatus.status }}
           groups={sidebarGroups}
-          footItems={[
-            { key: "refresh", label: "Refresh", icon: "⟳", onClick: () => window.location.reload() },
-            { key: "signout", label: "Sign Out", icon: "⏻", danger: true, onClick: handleSignOut },
-          ]}
         />
         <div className="web-main">
           <header className="web-header">

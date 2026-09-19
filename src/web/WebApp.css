@@ -201,10 +201,10 @@ html, body, #root { height: 100%; margin: 0; background: var(--acw-bg); color-sc
    there is not), so the behaviour holds either way - see .web-login-card. */
 .web-login {
   position: relative; overflow-x: hidden; overflow-y: auto;
-  /* Card sits LEFT of centre on a wide screen, as in the reference - it keeps the
+  /* Card sits at the right edge on a wide screen - it keeps the
      photo's subject visible beside it instead of covering it. On a phone the card
      is full width anyway, so this has no effect there. */
-  display: flex; align-items: safe center; justify-content: flex-start; min-height: 100vh; min-height: 100dvh;
+  display: flex; align-items: safe center; justify-content: flex-end; min-height: 100vh; min-height: 100dvh;
   background:
     radial-gradient(900px 500px at 20% 0%, rgba(124, 58, 237, .18), transparent 55%),
     radial-gradient(900px 500px at 90% 100%, rgba(34, 211, 238, .14), transparent 55%),
@@ -239,7 +239,7 @@ html, body, #root { height: 100%; margin: 0; background: var(--acw-bg); color-sc
    Nothing here is a fixed pixel size, which is what makes it follow the window. */
 .web-login::before {
   content: ""; position: absolute; inset: 0;
-  background-image: var(--login-bg, url("./login-bg.jpg"));
+  background-image: var(--login-bg, url("../../public-web/avicore-crew-login-background.png"));
   background-size: cover; background-position: center 30%; background-repeat: no-repeat;
   opacity: 1; pointer-events: none;
 }
@@ -260,7 +260,7 @@ html, body, #root { height: 100%; margin: 0; background: var(--acw-bg); color-sc
 .web-login-card {
   /* See .web-login: centres the card when the window is tall enough, and keeps
      it fully reachable (scrollable, not clipped) when it is not. */
-  margin: auto;
+  margin: auto 0 auto auto;
   /* Frosted panel over the photo, matching the reference: a lighter hairline
      border and a real blur, so the card reads as glass rather than a flat box.
      410px (was 380) because the reference is wider and the two-line brand block
