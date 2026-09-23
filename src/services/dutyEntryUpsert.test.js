@@ -129,6 +129,20 @@ describe("addDutyEntry — typed-in upsert (no duplicate)", () => {
     expect(upsertOptions?.ignoreDuplicates).not.toBe(true);
   });
 
+  it("batch import upserts the same logical records instead of inserting duplicates", async () => {
+    upsertMock.mockResolvedValue({ data: null, error: null });
+    fromMock.mockImplementation((table) => table === "companies" ? companiesMock : { upsert: upsertMock, insert: insertMock });
+
+    const { addDutyEntriesMany } = await loadWebDatabase();
+    await addDutyEntriesMany("PDE", [{ date: "2026-09-19", dutyType: "flight", flightHours: 3 }]);
+
+    expect(insertMock).not.toHaveBeenCalled();
+    expect(upsertMock).toHaveBeenCalledTimes(1);
+    expect(upsertMock.mock.calls[0][1]).toMatchObject({
+      onConflict: "pilot_code,date,duty_type",
+    });
+  });
+
   it("propagates a supabase upsert error as a thrown Error", async () => {
     upsertMock.mockResolvedValue({ data: null, error: { message: "duplicate key value" } });
     fromMock.mockImplementation((table) => table === "companies" ? companiesMock : { upsert: upsertMock, insert: insertMock });

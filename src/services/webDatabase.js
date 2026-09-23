@@ -561,7 +561,10 @@ export async function addDutyEntriesMany(code, entries) {
     deleted_at: null
   }));
   if (!rows.length) return { ok: true, count: 0 };
-  const { error } = await sb.from("Admin_pilot_duty_entries").insert(rows);
+  const { error } = await sb.from("Admin_pilot_duty_entries").upsert(rows, {
+    onConflict: "pilot_code,date,duty_type",
+    ignoreDuplicates: false,
+  });
   if (error) throw new Error("import duty entries: " + error.message);
   return { ok: true, count: rows.length };
 }

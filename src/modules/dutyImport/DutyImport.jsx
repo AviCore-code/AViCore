@@ -3,6 +3,10 @@ import { parseFdtExcelFileToEntries } from "../../services/fdtImport.js";
 import { addDutyEntriesMany, removeDutyEntriesBySourceFile, listImportedFdtFiles } from "../../services/desktopDatabase.js";
 import "./DutyImport.css";
 
+export function visibleImportedFiles(files = []) {
+  return files.filter((file) => !file.manual);
+}
+
 export default function DutyImport() {
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -22,34 +26,13 @@ export default function DutyImport() {
     return () => window.removeEventListener("keydown", onKey);
   }, [fullScreen]);
 
-  // Grouped by pilot code so a pilot's files sit together - the only way to
-  // SEE a duplicate is to have both rows adjacent.
   const sortedFiles = useMemo(
-    () => [...(files || [])].sort(
+    () => visibleImportedFiles(files).sort(
       (a, b) => String(a.code || "").localeCompare(String(b.code || "")) ||
                 String(a.filename || "").localeCompare(String(b.filename || ""))
     ),
     [files]
   );
-
-  // Pilots with more than one imported file.
-  //
-  // This matters because replace-on-import is keyed by FILENAME
-  // (removeDutyEntriesBySourceFile), not by pilot: re-uploading
-  // "PDE_FDT.xlsx" replaces only the rows from that exact name. Upload the
-  // same pilot's data as "PDE_FDT(1).xlsx" and BOTH sets stay live, so every
-  // duty period is counted twice and DT/FT read higher than the pilot's own
-  // FDT file - with nothing on screen to say why.
-  const dupCodes = useMemo(() => {
-    const seen = new Map();
-    for (const f of files || []) {
-      const c = String(f.code || "").toUpperCase();
-      seen.set(c, (seen.get(c) || 0) + 1);
-    }
-    return new Set([...seen].filter(([, n]) => n > 1).map(([c]) => c));
-  }, [files]);
-
-  const isDup = (f) => dupCodes.has(String(f?.code || "").toUpperCase());
 
   async function refreshFiles() {
     setFiles(await listImportedFdtFiles());
@@ -87,13 +70,7 @@ export default function DutyImport() {
   }
 
   async function handleRemove(file) {
-    // Hand-typed entries get a stronger warning: an imported file can always be
-    // uploaded again, but a duty somebody typed in has no copy anywhere.
-    const msg = file.manual
-      ? `Delete every duty entry for ${file.code} that did NOT come from a file?\n\n` +
-        `These were typed in by hand (${file.flightCount} flight, ${file.nonFlightCount} non-flight). ` +
-        `There is no file to re-import them from — this cannot be undone.`
-      : `Delete all data imported from "${file.filename}" (pilot ${file.code})?`;
+    const msg = `Delete all data imported from "${file.filename}" (pilot ${file.code})?`;
     if (!confirm(msg)) return;
     await removeDutyEntriesBySourceFile(file.code, file.filename);
     await refreshFiles();
@@ -152,27 +129,18 @@ export default function DutyImport() {
       <div className="dutyimport-files">
         <h2>
           Files in the system
-          {files.length > 0 && <span className="dutyimport-count">{files.length} file(s)</span>}
+          {sortedFiles.length > 0 && <span className="dutyimport-count">{sortedFiles.length} file(s)</span>}
         </h2>
-        {dupCodes.size > 0 && (
-          <div className="dutyimport-empty" style={{ borderColor: "rgba(251,191,36,.45)", color: "#fbbf24", marginBottom: 10 }}>
-            <b>{[...dupCodes].join(", ")}</b> {dupCodes.size === 1 ? "has" : "have"} more than one file
-            imported. Duty hours from every file are counted together, so a pilot listed twice reads
-            higher than their FDT file. Remove the older file, then re-import.
-          </div>
-        )}
-        {files.length === 0 && <div className="dutyimport-empty">No files imported yet.</div>}
-        {files.length > 0 && (
+        {sortedFiles.length === 0 && <div className="dutyimport-empty">No files imported yet.</div>}
+        {sortedFiles.length > 0 && (
           <div className="dutyimport-log dutyimport-filelist">
             {sortedFiles.map((f, i) => (
-              <div key={i} className={`dutyimport-row${isDup(f) ? " dup" : ""}`}>
+              <div key={i} className="dutyimport-row">
                 <span className="dutyimport-code">{f.code}</span>
                 <span className="dutyimport-detail">
                   {f.filename} — Flight {f.flightCount} · Non-Flight {f.nonFlightCount}
                   {f.aircraftType ? ` · Type: ${f.aircraftType}` : " · Type: (not specified)"}
                 </span>
-                {f.manual && <span className="dutyimport-dupflag">TYPED IN</span>}
-                {isDup(f) && <span className="dutyimport-dupflag">DUPLICATE</span>}
                 <button onClick={() => handleRemove(f)}>Remove</button>
               </div>
             ))}
