@@ -131,18 +131,21 @@ describe("addDutyEntry — typed-in upsert (no duplicate)", () => {
     expect(upsertOptions?.ignoreDuplicates).not.toBe(true);
   });
 
-  it("batch import upserts the same logical records instead of inserting duplicates", async () => {
-    upsertMock.mockResolvedValue({ data: null, error: null });
-    fromMock.mockImplementation((table) => table === "companies" ? companiesMock : { upsert: upsertMock, insert: insertMock });
+  it("batch import uses plain INSERT (not upsert) — old rows already soft-deleted by removeDutyEntriesBySourceFile", async () => {
+    // addDutyEntriesMany() calls removeDutyEntriesBySourceFile() first (when
+    // sourceFile is present), then inserts the fresh batch in one call.
+    // Plain insert avoids the ~730 round-trips that upsert-with-fallback caused
+    // for a 365-row FDT file (~3 minutes per import).
+    insertMock.mockResolvedValue({ data: null, error: null });
+    fromMock.mockImplementation((table) => table === "companies" ? companiesMock : { upsert: upsertMock, insert: insertMock, update: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ eq: vi.fn().mockReturnValue({ is: vi.fn().mockReturnValue({ select: vi.fn().mockResolvedValue({ data: [], error: null }) }) }) }) }) }) });
 
     const { addDutyEntriesMany } = await loadWebDatabase();
     await addDutyEntriesMany("PDE", [{ date: "2026-09-19", dutyType: "flight", flightHours: 3 }]);
 
-    expect(insertMock).not.toHaveBeenCalled();
-    expect(upsertMock).toHaveBeenCalledTimes(1);
-    expect(upsertMock.mock.calls[0][1]).toMatchObject({
-      onConflict: "pilot_code,date,duty_type",
-    });
+    // Must call insert (batch, 1 call) — NOT upsert-with-fallback
+    expect(insertMock).toHaveBeenCalledTimes(1);
+    // upsert is NOT called for FDT batch import (only for typed-in single entries)
+    expect(upsertMock).not.toHaveBeenCalled();
   });
 
   it("propagates a supabase upsert error as a thrown Error", async () => {

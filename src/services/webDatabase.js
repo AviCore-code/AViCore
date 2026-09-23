@@ -593,11 +593,13 @@ export async function addDutyEntriesMany(code, entries) {
     deleted_at: null
   }));
   if (!rows.length) return { ok: true, count: 0 };
-  try {
-    await upsertDutyRowsWithLegacyConstraintFallback(sb, rows);
-  } catch (error) {
-    throw new Error("import duty entries: " + error.message);
-  }
+  // FDT import: removeDutyEntriesBySourceFile() already soft-deleted the old
+  // rows for this filename above — just INSERT the fresh batch in one call.
+  // Using upsert-with-fallback here caused ~730 round-trips for a 365-row FDT
+  // file (one UPDATE + one INSERT per row) and made import take ~3 minutes.
+  // Plain insert is safe because the old rows are gone (deleted_at IS NOT NULL).
+  const { error } = await sb.from("Admin_pilot_duty_entries").insert(rows);
+  if (error) throw new Error("import duty entries: " + error.message);
   return { ok: true, count: rows.length };
 }
 
