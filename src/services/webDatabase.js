@@ -284,6 +284,38 @@ export async function fetchPilotRoster() {
   return data || [];
 }
 
+async function upsertDutyRowsWithLegacyConstraintFallback(sb, rows, options = {}) {
+  const list = Array.isArray(rows) ? rows : [rows];
+  const { error } = await sb.from("Admin_pilot_duty_entries").upsert(rows, {
+    onConflict: "pilot_code,date,duty_type",
+    ignoreDuplicates: false,
+    ...options,
+  });
+  if (!error) return;
+  if (!/no unique or exclusion constraint matching the ON CONFLICT specification/i.test(String(error.message || ""))) {
+    throw error;
+  }
+
+  // Production briefly had only a partial unique index (WHERE deleted_at IS
+  // NULL). Postgres cannot infer that index from PostgREST's on_conflict query,
+  // so update the active logical row first and insert only when none exists.
+  for (const row of list) {
+    const { uuid: _uuid, created_at: _createdAt, ...changes } = row;
+    const { data, error: updateError } = await sb
+      .from("Admin_pilot_duty_entries")
+      .update(changes)
+      .eq("pilot_code", row.pilot_code)
+      .eq("date", row.date)
+      .eq("duty_type", row.duty_type)
+      .is("deleted_at", null)
+      .select("uuid");
+    if (updateError) throw updateError;
+    if ((data || []).length) continue;
+    const { error: insertError } = await sb.from("Admin_pilot_duty_entries").insert(row);
+    if (insertError) throw insertError;
+  }
+}
+
 async function rawAddDutyEntry(entry) {
   const sb = requireSupabase();
   const companyId = await currentCompanyId();
@@ -297,8 +329,8 @@ async function rawAddDutyEntry(entry) {
   // the existing row instead of inserting a duplicate.
   // Conflict key: unique constraint Admin_pilot_duty_entries_pilot_date_type_key
   // (pilot_code, date, duty_type) — see migration 20260919_typed_in_upsert.sql.
-  const { error } = await sb.from("Admin_pilot_duty_entries").upsert(
-    {
+  try {
+    await upsertDutyRowsWithLegacyConstraintFallback(sb, {
       uuid,
       company_id: companyId,
       device_id: getDeviceId(),
@@ -309,10 +341,10 @@ async function rawAddDutyEntry(entry) {
       created_at: now,
       modified_at: now,
       deleted_at: null,
-    },
-    { onConflict: "pilot_code,date,duty_type" }
-  );
-  if (error) throw new Error("add duty entry: " + error.message);
+    });
+  } catch (error) {
+    throw new Error("add duty entry: " + error.message);
+  }
   return { ok: true, id: uuid };
 }
 
@@ -561,11 +593,11 @@ export async function addDutyEntriesMany(code, entries) {
     deleted_at: null
   }));
   if (!rows.length) return { ok: true, count: 0 };
-  const { error } = await sb.from("Admin_pilot_duty_entries").upsert(rows, {
-    onConflict: "pilot_code,date,duty_type",
-    ignoreDuplicates: false,
-  });
-  if (error) throw new Error("import duty entries: " + error.message);
+  try {
+    await upsertDutyRowsWithLegacyConstraintFallback(sb, rows);
+  } catch (error) {
+    throw new Error("import duty entries: " + error.message);
+  }
   return { ok: true, count: rows.length };
 }
 

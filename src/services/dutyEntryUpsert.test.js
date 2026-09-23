@@ -14,9 +14,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Hoisted mock — must mirror real Supabase chaining interface.
-const { fromMock, upsertMock, insertMock, companiesMock } = vi.hoisted(() => {
+const { fromMock, upsertMock, insertMock, updateMock, companiesMock } = vi.hoisted(() => {
   const upsertMock = vi.fn();
   const insertMock = vi.fn();
+  const updateMock = vi.fn();
   // companiesMock: chain for from("companies").select().eq().maybeSingle()
   const maybeSingle = vi.fn().mockResolvedValue({ data: { id: "test-company-uuid" }, error: null });
   const eq = vi.fn().mockReturnValue({ maybeSingle });
@@ -24,9 +25,9 @@ const { fromMock, upsertMock, insertMock, companiesMock } = vi.hoisted(() => {
   const companiesMock = { select };
   const fromMock = vi.fn((table) => {
     if (table === "companies") return companiesMock;
-    return { upsert: upsertMock, insert: insertMock };
+    return { upsert: upsertMock, insert: insertMock, update: updateMock };
   });
-  return { fromMock, upsertMock, insertMock, companiesMock };
+  return { fromMock, upsertMock, insertMock, updateMock, companiesMock };
 });
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -57,6 +58,7 @@ describe("addDutyEntry — typed-in upsert (no duplicate)", () => {
     fromMock.mockReset();
     upsertMock.mockReset();
     insertMock.mockReset();
+    updateMock.mockReset();
     vi.unstubAllEnvs();
   });
 
@@ -152,6 +154,33 @@ describe("addDutyEntry — typed-in upsert (no duplicate)", () => {
     await expect(
       addDutyEntry({ pilotCode: "PDE", date: "2026-09-19", dutyType: "flight" })
     ).rejects.toThrow();
+  });
+
+  it("falls back to update-then-insert when Production lacks the conflict constraint", async () => {
+    upsertMock.mockResolvedValue({
+      data: null,
+      error: { message: "there is no unique or exclusion constraint matching the ON CONFLICT specification" },
+    });
+    const selectAfterUpdate = vi.fn().mockResolvedValue({ data: [{ uuid: "existing-row" }], error: null });
+    const activeOnly = vi.fn().mockReturnValue({ select: selectAfterUpdate });
+    const eqDutyType = vi.fn().mockReturnValue({ is: activeOnly });
+    const eqDate = vi.fn().mockReturnValue({ eq: eqDutyType });
+    const eqPilot = vi.fn().mockReturnValue({ eq: eqDate });
+    updateMock.mockReturnValue({ eq: eqPilot });
+    fromMock.mockImplementation((table) => table === "companies"
+      ? companiesMock
+      : { upsert: upsertMock, insert: insertMock, update: updateMock });
+
+    const { addDutyEntry } = await loadWebDatabase();
+    await addDutyEntry({
+      pilotCode: "WJU",
+      date: "2026-09-23",
+      dutyType: "non_flight",
+      activity: "Meeting",
+    });
+
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(insertMock).not.toHaveBeenCalled();
   });
 
   it("still requires pilot_code and date — throws before calling supabase when missing", async () => {
