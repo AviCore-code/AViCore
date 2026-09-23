@@ -578,7 +578,8 @@ export async function addDutyEntriesMany(code, entries) {
   const pilotCode = normalize(code);
   const sourceFile = (entries || []).find((e) => e.sourceFile)?.sourceFile || null;
   // Replace-by-source-file: soft-delete any existing rows from the same
-  // imported file first (same semantics as the local addDutyEntriesMany).
+  // imported file first (same semantics as the original addDutyEntriesMany).
+  // No UNIQUE CONSTRAINT on this table — plain INSERT is safe after the delete.
   if (sourceFile) await removeDutyEntriesBySourceFile(code, sourceFile);
   const rows = (entries || []).map((e) => ({
     uuid: makeId(),
@@ -593,11 +594,8 @@ export async function addDutyEntriesMany(code, entries) {
     deleted_at: null
   }));
   if (!rows.length) return { ok: true, count: 0 };
-  // FDT import: removeDutyEntriesBySourceFile() already soft-deleted the old
-  // rows for this filename above — just INSERT the fresh batch in one call.
-  // Using upsert-with-fallback here caused ~730 round-trips for a 365-row FDT
-  // file (one UPDATE + one INSERT per row) and made import take ~3 minutes.
-  // Plain insert is safe because the old rows are gone (deleted_at IS NOT NULL).
+  // Plain INSERT — no upsert fallback loop needed (no UNIQUE CONSTRAINT).
+  // upsert-with-fallback caused ~730 round-trips for a 365-row file (~3 min).
   const { error } = await sb.from("Admin_pilot_duty_entries").insert(rows);
   if (error) throw new Error("import duty entries: " + error.message);
   return { ok: true, count: rows.length };
