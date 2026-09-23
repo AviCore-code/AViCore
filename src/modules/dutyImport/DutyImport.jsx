@@ -14,6 +14,9 @@ export default function DutyImport() {
   const [files, setFiles] = useState([]);
   const [aircraftType, setAircraftType] = useState("");
   const [fullScreen, setFullScreen] = useState(false);
+  const [currentFile, setCurrentFile] = useState("");
+  const [doneCount, setDoneCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => { refreshFiles(); }, []);
 
@@ -41,8 +44,12 @@ export default function DutyImport() {
   async function handleFiles(fileList) {
     const fileArr = Array.from(fileList);
     setUploading(true);
+    setDoneCount(0);
+    setTotalCount(fileArr.length);
+    setCurrentFile("");
     const newNotices = [];
     for (const file of fileArr) {
+      setCurrentFile(file.name);
       try {
         const { code, entries } = await parseFdtExcelFileToEntries(file);
         // The source Excel has no aircraft-type column (only tail number),
@@ -63,10 +70,14 @@ export default function DutyImport() {
       } catch (err) {
         newNotices.push({ filename: file.name, error: err.message, ok: false });
       }
+      setDoneCount((d) => d + 1);
     }
     setNotices((prev) => [...newNotices, ...prev]);
     await refreshFiles();
     setUploading(false);
+    setCurrentFile("");
+    setDoneCount(0);
+    setTotalCount(0);
   }
 
   async function handleRemove(file) {
@@ -98,7 +109,23 @@ export default function DutyImport() {
         onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files.length && !uploading) handleFiles(e.dataTransfer.files); }}
         onClick={() => !uploading && document.getElementById("dutyimport-file-input").click()}
       >
-        <div className="dutyimport-title">{uploading ? "Reading file..." : "Drop _FDT.xlsx files here, or click to select (multiple allowed)"}</div>
+        <div className="dutyimport-title">
+          {uploading ? (
+            <div className="dutyimport-reading">
+              <div className="dutyimport-heli-track">
+                <span className="dutyimport-heli">🚁</span>
+              </div>
+              <div className="dutyimport-reading-label">
+                กำลังอ่าน: <span className="dutyimport-filename">{currentFile}</span>
+              </div>
+              <div className="dutyimport-progress">
+                โหลดเสร็จแล้ว {doneCount} / {totalCount} ไฟล์
+              </div>
+            </div>
+          ) : (
+            "Drop _FDT.xlsx files here, or click to select (multiple allowed)"
+          )}
+        </div>
         <div className="dutyimport-sub">Filenames must start with the pilot's 3-letter code, e.g. CSU_FDT.xlsx</div>
         <input
           id="dutyimport-file-input" type="file" accept=".xlsx" multiple hidden disabled={uploading}
