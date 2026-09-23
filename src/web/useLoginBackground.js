@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getSetting } from "../services/webDatabase.js";
 import { BACKGROUND_PRESETS } from "../components/backgroundThemes/presets.jsx";
-import defaultLoginBg from "../../public-web/avicore-crew-login-background.png";
+import defaultLoginBg from "../../public-web/avicore-crew-login-background.jpg";
 
 // Show each app's current branded artwork immediately, then apply any
 // administrator-selected custom image or photo preset. Read failures keep

@@ -130,10 +130,34 @@ export default defineConfig(({ mode }) => {
     publicDir,
     build: {
       outDir,
+      chunkSizeWarningLimit: 600,
       rollupOptions: {
         input: (isMobile || isWeb || isAdmin)
           ? { index: path.resolve(__dirname, sourceHtml) }
-          : path.resolve(__dirname, 'index.html')
+          : path.resolve(__dirname, 'index.html'),
+        output: {
+          manualChunks(id) {
+            // Heavy PDF libs — loaded lazily, keep them in their own chunk
+            // so the initial JS payload doesn't carry them.
+            if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
+              return 'pdf-libs';
+            }
+            // xlsx (SheetJS) — loaded lazily via dynamic import in fdtImport.js.
+            // Splitting it keeps ~800 KB out of index.js and lets the browser
+            // cache it across deploys (xlsx version rarely changes).
+            if (id.includes('node_modules/xlsx')) {
+              return 'xlsx-vendor';
+            }
+            // React core — stable, cache-friendly, rarely changes.
+            if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
+              return 'react-vendor';
+            }
+            // Supabase client — large but stable between deploys.
+            if (id.includes('node_modules/@supabase')) {
+              return 'supabase-vendor';
+            }
+          }
+        }
       }
     }
   };

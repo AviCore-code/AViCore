@@ -19,7 +19,7 @@ import LoginShell from "./LoginShell.jsx";
 import { ADMIN_ALLOWED_EMAILS } from "../config/adminAllowlist.js";
 import AppSidebar from "./AppSidebar.jsx";
 import { ADMIN_SECTIONS, ADMIN_SCREEN_KEYS, defaultScreenForSection, sectionForScreen } from "./adminNavigation.js";
-import adminLoginBg from "./admin-login-bg.png";
+import adminLoginBg from "./admin-login-bg.jpg";
 import "./WebApp.css";
 import "./AdminWebApp.css";
 import "./AppSidebar.css";

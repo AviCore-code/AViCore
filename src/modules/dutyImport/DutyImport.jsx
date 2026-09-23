@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { parseFdtExcelFileToEntries } from "../../services/fdtImport.js";
+import { parseAllFdtFiles } from "../../services/fdtImport.js";
 import { addDutyEntriesMany, removeDutyEntriesBySourceFile, listImportedFdtFiles } from "../../services/desktopDatabase.js";
 import "./DutyImport.css";
 
@@ -48,10 +48,23 @@ export default function DutyImport() {
     setTotalCount(fileArr.length);
     setCurrentFile("");
     const newNotices = [];
-    for (const file of fileArr) {
-      setCurrentFile(file.name);
+
+    // Phase 1: parse ALL files in parallel (xlsx decompression + row scan)
+    // — this is the expensive CPU work; running concurrently cuts total time
+    //   from O(N) sequential to roughly O(max_one_file).
+    setCurrentFile("กำลังอ่านไฟล์ทั้งหมด…");
+    const parsed = await parseAllFdtFiles(fileArr);
+
+    // Phase 2: write to DB one at a time (safe, sequential)
+    for (const result of parsed) {
+      setCurrentFile(result.filename);
+      if (result.error) {
+        newNotices.push({ filename: result.filename, error: result.error, ok: false });
+        setDoneCount((d) => d + 1);
+        continue;
+      }
       try {
-        const { code, entries } = await parseFdtExcelFileToEntries(file);
+        const { code, entries } = result;
         // The source Excel has no aircraft-type column (only tail number),
         // so every flight entry in this upload is tagged with whatever type
         // was entered above - correct as long as one _FDT.xlsx file covers
@@ -60,15 +73,15 @@ export default function DutyImport() {
         const tagged = aircraftType.trim()
           ? entries.map((e) => (e.dutyType === "flight" ? { ...e, aircraftType: aircraftType.trim() } : e))
           : entries;
-        const result = await addDutyEntriesMany(code, tagged);
+        const dbResult = await addDutyEntriesMany(code, tagged);
         const flightCount = entries.filter((e) => e.dutyType === "flight").length;
         const nonFlightCount = entries.length - flightCount;
         newNotices.push({
-          filename: file.name, code, flightCount, nonFlightCount,
-          replaced: result?.replaced > 0, ok: true
+          filename: result.filename, code, flightCount, nonFlightCount,
+          replaced: dbResult?.replaced > 0, ok: true
         });
       } catch (err) {
-        newNotices.push({ filename: file.name, error: err.message, ok: false });
+        newNotices.push({ filename: result.filename, error: err.message, ok: false });
       }
       setDoneCount((d) => d + 1);
     }

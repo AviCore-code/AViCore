@@ -1,4 +1,17 @@
-import * as XLSX from "xlsx";
+// xlsx is a heavy library (~800 KB uncompressed). We load it lazily so it
+// doesn't inflate the initial JS bundle that every page load pays for.
+// The _xlsxModule promise caches the dynamic import after the first call so
+// the second file in a batch doesn't pay import overhead again.
+let _xlsxModule = null;
+async function getXLSX() {
+  if (!_xlsxModule) _xlsxModule = import("xlsx").then((m) => m.default ?? m);
+  return _xlsxModule;
+}
+// XLSX is resolved once at module level for the sync helper functions below.
+// When called from parseFdtExcelToEntries (pure-sync), the caller must have
+// already awaited getXLSX() and passed the resolved module in — OR we fall
+// back to a cached reference stored in _resolvedXLSX so the helpers work.
+let _resolvedXLSX = null;
 
 // Reads the real UOA "<code>_FDT.xlsx" layout (verified against files in
 // C:\FDT PILOT\*_FDT.xlsx) and converts each row into the SAME flat entry
@@ -21,7 +34,7 @@ import * as XLSX from "xlsx";
 // increase between two dated PES snapshots of the same pilot.
 const NON_FLIGHT_TYPES = ["Day Standby", "Night Standby", "Ground Training", "Meeting", "Travel", "Office", "Ground Run", "Other"];
 
-function cellVal(ws, r, c) { const ref = XLSX.utils.encode_cell({ r, c }); const cell = ws[ref]; return cell ? cell.v : null; }
+function cellVal(ws, r, c) { const X = _resolvedXLSX; const ref = X.utils.encode_cell({ r, c }); const cell = ws[ref]; return cell ? cell.v : null; }
 function cellHourOfDay(ws, r, c) { const v = cellVal(ws, r, c); return typeof v === "number" ? Math.round(v * 24 * 100) / 100 : null; }
 function cellNum(ws, r, c) { const v = cellVal(ws, r, c); if (typeof v === "number") return v; const n = parseFloat(v); return isNaN(n) ? null : n; }
 function cellText(ws, r, c) { const v = cellVal(ws, r, c); return v == null ? "" : String(v).trim(); }
@@ -54,7 +67,7 @@ function readLogbookByDate(workbook) {
   const logWs = workbook.Sheets["Logbook"];
   const logByDate = {};
   if (!logWs || !logWs["!ref"]) return logByDate;
-  const lr = XLSX.utils.decode_range(logWs["!ref"]);
+  const lr = _resolvedXLSX.utils.decode_range(logWs["!ref"]);
   for (let r = 4; r <= lr.e.r; r++) {
     const dRaw = cellVal(logWs, r, 0);
     if (typeof dRaw !== "number") continue;
@@ -112,7 +125,7 @@ export function parseFdtExcelToEntries(filename, workbook) {
   const code = filename.slice(0, 3).toUpperCase();
   const ws = workbook.Sheets["DT"];
   if (!ws || !ws["!ref"]) throw new Error(`Sheet "DT" not found in file ${filename}`);
-  const range = XLSX.utils.decode_range(ws["!ref"]);
+  const range = _resolvedXLSX.utils.decode_range(ws["!ref"]);
   const logByDate = readLogbookByDate(workbook);
 
   const entries = [];
@@ -187,7 +200,38 @@ export function parseFdtExcelToEntries(filename, workbook) {
 }
 
 export async function parseFdtExcelFileToEntries(file) {
+  const XLSX = await getXLSX();
+  _resolvedXLSX = XLSX;
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array" });
   return parseFdtExcelToEntries(file.name, wb);
+}
+
+/**
+ * Parse multiple FDT files in parallel (each file on its own Promise).
+ * Returns an array of results in the SAME ORDER as the input files.
+ * Each result is either:
+ *   { filename, code, entries }  — success
+ *   { filename, error }          — parse failed (continues to next file)
+ *
+ * xlsx is lazy-loaded once and reused for every file in the batch, so
+ * only the first file pays the ~20 ms dynamic-import overhead.
+ */
+export async function parseAllFdtFiles(files) {
+  // Warm up xlsx once before kicking off parallel parse
+  const XLSX = await getXLSX();
+  _resolvedXLSX = XLSX;
+
+  return Promise.all(
+    Array.from(files).map(async (file) => {
+      try {
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: "array" });
+        const { code, entries } = parseFdtExcelToEntries(file.name, wb);
+        return { filename: file.name, code, entries };
+      } catch (err) {
+        return { filename: file.name, error: err.message ?? String(err) };
+      }
+    })
+  );
 }
