@@ -17,7 +17,7 @@ import { staffTrainingRepository } from "./repository.js";
 import "./staffTraining.css";
 import { buildStaffPlanningRows, filterStaffPlanningRows } from "./model.js";
 import { validateStaffDocument, staffDocumentToDataUrl } from "./documents.js";
-import { mergeStaffTrainingImport } from "./excelImport.js";
+import { mergeStaffTrainingImport, parseStaffTrainingExcelFile } from "./excelImport.js";
 
 const TABS = [
   ["matrix", "All Staff Training Status"],

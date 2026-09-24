@@ -1,4 +1,5 @@
 import React from "react";
+import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { AllStaffTraining, STAFF_TRAINING_KEYS } from "./index.js";
@@ -67,6 +68,11 @@ describe("AllStaffTraining", () => {
     expect(planning).toContain('class="staff-table-wrap"><table');
     expect(planning).not.toContain('<table class="staff-table-wrap"');
     expect(planning).toContain("Ada Example");
+  });
+
+  it("wires the Excel file parser used by the import action", () => {
+    const source = readFileSync(new URL("./StaffTraining.jsx", import.meta.url), "utf8");
+    expect(source).toMatch(/import\s*\{[^}]*\bparseStaffTrainingExcelFile\b[^}]*\}\s*from\s*["']\.\/excelImport\.js["']/s);
   });
 
   it("renders the FOO, Helpers, and GOO Excel import workflow", () => {
