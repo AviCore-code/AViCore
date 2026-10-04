@@ -7,7 +7,8 @@ import "./MyLogbook.css";
 import { todayIso } from "../../utils/dateKeys.js";
 import {
   rangeForMonths, clampMonths, logbookFileName, RANGE_PRESETS,
-  MAX_EXPORT_MONTHS, DEFAULT_EXPORT_MONTHS
+  MAX_EXPORT_MONTHS, DEFAULT_EXPORT_MONTHS, resolveLogbookExportRange,
+  isLogbookPresetActive
 } from "./logbookRange.js";
 
 const ROLE_COLS = ["PIC", "PICUS", "SIC", "TRI", "TRE"];
@@ -74,6 +75,9 @@ export default function MyLogbook() {
   // last pressed, so "3M" then "Print" gives a 3-month extract - the buttons
   // say which, so the file can't quietly be a different span than intended.
   const [exportMonths, setExportMonths] = useState(DEFAULT_EXPORT_MONTHS);
+  // Preserve the established 12-month export default. Editing either visible
+  // date switches this to custom mode and makes the exact dates authoritative.
+  const [rangeMode, setRangeMode] = useState("months");
   // true  = whole calendar months (1 Jan - 31 Mar), the audit/renewal form
   // false = counted back from today (30 Jan - 29 Apr)
   const [wholeMonths, setWholeMonths] = useState(true);
@@ -253,27 +257,26 @@ export default function MyLogbook() {
 
   const pilot = pilots.find((p) => p.code === pilotCode);
 
-  // Print and Export produce a WHOLE-MONTH range, not whatever happens to be on
-  // screen. Capt. Weera: "print หรือ export รวมทั้ง 12 เดือน ใน ไฟล์ ที่ print
-  // หรือ export", later extended with 3M and 6M.
-  //
-  // The on-screen range stays a browsing convenience (open on the last 28 days,
-  // narrow it to check one tour), but the FILE is the record - and a logbook
-  // extract that happened to cover whatever was last on screen is a footgun: it
-  // looks complete and isn't. So both actions set the range to the selected
-  // number of whole months first, wait for React to render that, then print.
-  //
-  // The range is put back afterwards so the screen doesn't silently change under
-  // the reader - print/export shouldn't be a navigation action.
-  // One place that changes the range, so the preset buttons, the months box and
-  // the End-of-month tick can never leave the screen showing one span while
-  // Print/Export produce another.
+  // Month presets intentionally update both the visible rows and the export
+  // range. Editing either date switches back to custom mode, where Print and
+  // Export use the exact From/To values shown on screen.
   function applyMonths(n, whole) {
     const r = rangeForMonths(n, whole);
+    setRangeMode("months");
     setExportMonths(n);
     setWholeMonths(whole);
     setFromDate(r.from);
     setToDate(r.to);
+  }
+
+  function applyCustomFromDate(value) {
+    setRangeMode("custom");
+    setFromDate(value);
+  }
+
+  function applyCustomToDate(value) {
+    setRangeMode("custom");
+    setToDate(value);
   }
 
   // Offered in the Print button's tooltip only.
@@ -284,37 +287,46 @@ export default function MyLogbook() {
   // a 12-month logbook is a ~35-megapixel job and the wait was not worth it
   // ("เอาแบบเดิม พิมพ์ชื่อ เอง ของเดิมไวดี"). So this is a suggestion, not a
   // setting - the typed name is the user's.
+  const exportRange = useMemo(
+    () => resolveLogbookExportRange({
+      mode: rangeMode,
+      fromDate,
+      toDate,
+      exportMonths,
+      wholeMonths
+    }),
+    [rangeMode, fromDate, toDate, exportMonths, wholeMonths]
+  );
+
   const suggestedFileName = useMemo(
-    () => logbookFileName(pilotCode, exportMonths, wholeMonths, rangeForMonths(exportMonths, wholeMonths)),
-    [pilotCode, exportMonths, wholeMonths]
+    () => logbookFileName(pilotCode, exportMonths, wholeMonths, exportRange, rangeMode),
+    [pilotCode, exportMonths, wholeMonths, exportRange, rangeMode]
   );
 
   // Spells out the exact dates the file will cover. The buttons only have room
   // for "12M", which does not say whether that ends today or at a month end -
   // and the two produce different documents.
-  const rangeHint = (() => {
-    const r = rangeForMonths(exportMonths, wholeMonths);
-    return `${r.from} to ${r.to} — ${exportMonths} month${exportMonths === 1 ? "" : "s"}, `
-      + `${wholeMonths ? "whole calendar months" : "counted back from today"}. `
-      + `Uses this span whatever range is shown on screen.`;
-  })();
+  const exportRangeLabel = rangeMode === "custom" ? "Selected dates" : `${exportMonths}M`;
+  const rangeHint = rangeMode === "custom"
+    ? `${exportRange.from} to ${exportRange.to} — exact selected dates.`
+    : `${exportRange.from} to ${exportRange.to} — ${exportMonths} month${exportMonths === 1 ? "" : "s"}, `
+      + `${wholeMonths ? "whole calendar months" : "counted back from today"}.`;
 
-  async function withWholeMonthRange(run) {
+  async function withExportRange(run) {
     const prev = { from: fromDate, to: toDate };
-    const wide = rangeForMonths(exportMonths, wholeMonths);
-    const alreadyWide = prev.from === wide.from && prev.to === wide.to;
+    const alreadySelected = prev.from === exportRange.from && prev.to === exportRange.to;
 
-    if (!alreadyWide) {
-      setFromDate(wide.from);
-      setToDate(wide.to);
+    if (!alreadySelected) {
+      setFromDate(exportRange.from);
+      setToDate(exportRange.to);
       // Two frames: one for React to commit the new rows, one for layout to
       // settle before the print dialog snapshots the page.
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
     }
     try {
-      await run(wide);
+      await run(exportRange);
     } finally {
-      if (!alreadyWide) {
+      if (!alreadySelected) {
         setFromDate(prev.from);
         setToDate(prev.to);
       }
@@ -330,20 +342,7 @@ export default function MyLogbook() {
   // naming is handled by "Download PDF" beside it, which builds a real file.
   function handlePrint() {
     if (isDemoSession()) { alert("Demo account — printing is disabled."); return; }
-    withWholeMonthRange(async () => { window.print(); });
-  }
-
-
-  // Plain browser print. The page's own print stylesheet does the layout, which
-  // is what makes this the version to hand to a regulator.
-  //
-  // It does NOT control the Save-as-PDF filename - Chrome keeps the name it
-  // derived when the page loaded, and three attempts to override it all failed.
-  // Rather than keep bending Print out of shape for a filename it cannot set,
-  // naming is handled by "Download PDF" beside it, which builds a real file.
-  function handlePrint() {
-    if (isDemoSession()) { alert("Demo account — printing is disabled."); return; }
-    withWholeMonthRange(async () => { window.print(); });
+    withExportRange(async () => { window.print(); });
   }
 
   // PC build only. Electron has a real Save dialog and renders the page to a
@@ -362,8 +361,10 @@ export default function MyLogbook() {
     setExporting(true);
     setMsg("");
     try {
-      await withWholeMonthRange(async (wide) => {
-        const result = await exportLogbookPdf(logbookFileName(pilotCode, exportMonths, wholeMonths, wide));
+      await withExportRange(async (selectedRange) => {
+        const result = await exportLogbookPdf(
+          logbookFileName(pilotCode, exportMonths, wholeMonths, selectedRange, rangeMode)
+        );
         if (result?.ok && result.filePath) setMsg(`Saved: ${result.filePath}`);
         else if (result && !result.ok && result.error) setMsg("Export failed: " + result.error);
       });
@@ -382,19 +383,19 @@ export default function MyLogbook() {
           <div>
             <h1>Pilot Logbook</h1>
             <p>
-              Flight logbook — browse any date range on screen; Print and Export produce{" "}
-              {exportMonths} month{exportMonths === 1 ? "" : "s"}{" "}
-              ({wholeMonths ? "whole calendar months" : "counted back from today"})
+              Flight logbook — Print and Export use {rangeMode === "custom"
+                ? `the selected dates (${fromDate} to ${toDate})`
+                : `${exportMonths} month${exportMonths === 1 ? "" : "s"} (${wholeMonths ? "whole calendar months" : "counted back from today"})`}.
             </p>
           </div>
           <div className="logbook-actions">
             <button className="primary" onClick={handlePrint} title={`${rangeHint}\n\nSuggested filename: ${suggestedFileName}`}>
-              Print / Save PDF ({exportMonths}M)
+              Print / Save PDF ({exportRangeLabel})
             </button>
             {/* PC only: Electron's Save dialog fills the filename in for you. */}
             {typeof window !== "undefined" && window.aviCoreAPI && (
               <button onClick={handleExportPc} disabled={exporting} title={rangeHint}>
-                {exporting ? "Exporting…" : `Export PDF (${exportMonths}M)`}
+                {exporting ? "Exporting…" : `Export PDF (${exportRangeLabel})`}
               </button>
             )}
             <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
@@ -416,16 +417,26 @@ export default function MyLogbook() {
             )}
           </label>
 
-          <label className="logbook-field"><span>From date</span><DateField value={fromDate} onChange={setFromDate} /></label>
-          <label className="logbook-field"><span>To date</span><DateField value={toDate} onChange={setToDate} /></label>
-          <label className="logbook-field">
-            <span>Quick range (sets Print / Export too)</span>
+          <label className="logbook-field"><span>From date</span><DateField value={fromDate} onChange={applyCustomFromDate} /></label>
+          <label className="logbook-field"><span>To date</span><DateField value={toDate} onChange={applyCustomToDate} /></label>
+          <div className="logbook-field" role="group" aria-labelledby="logbook-export-range-label">
+            <span id="logbook-export-range-label">Export range</span>
             <div className="logbook-presets">
+              <button
+                type="button"
+                className={rangeMode === "custom" ? "active" : undefined}
+                aria-pressed={rangeMode === "custom"}
+                onClick={() => setRangeMode("custom")}
+                title="Print and Export use the exact From and To dates."
+              >
+                Selected dates
+              </button>
               {RANGE_PRESETS.map((p) => (
                 <button
                   key={p.months}
                   type="button"
-                  className={exportMonths === p.months ? "active" : undefined}
+                  className={isLogbookPresetActive(rangeMode, p.months, exportMonths) ? "active" : undefined}
+                  aria-pressed={isLogbookPresetActive(rangeMode, p.months, exportMonths)}
                   onClick={() => applyMonths(p.months, wholeMonths)}
                   title={`The last ${p.months} months. Print and Export will use this span.`}
                 >
@@ -433,7 +444,7 @@ export default function MyLogbook() {
                 </button>
               ))}
             </div>
-          </label>
+          </div>
 
           <label className="logbook-field">
             <span>Or type months (1–{MAX_EXPORT_MONTHS})</span>
