@@ -68,6 +68,22 @@ export function rangeForMonths(n, wholeMonths, todayDate = new Date()) {
     : lastMonthsToToday(n, todayDate);
 }
 
+export function resolveLogbookExportRange({
+  mode,
+  fromDate,
+  toDate,
+  exportMonths,
+  wholeMonths,
+  todayDate = new Date()
+}) {
+  if (mode === "custom") return { from: fromDate, to: toDate };
+  return rangeForMonths(exportMonths, wholeMonths, todayDate);
+}
+
+export function isLogbookPresetActive(mode, presetMonths, exportMonths) {
+  return mode === "months" && presetMonths === exportMonths;
+}
+
 // Clamped rather than validated on submit: 36 months is the agreed ceiling, and
 // a silently-accepted 120 would produce a document that looks official and
 // covers a span nobody asked for.
@@ -93,10 +109,13 @@ export function clampMonths(v) {
 // The mode is not spelled out in the name because the date already implies it
 // (a month end vs a mid-month date), and the document's own header states the
 // exact span.
-export function logbookFileName(pilotCode, months, wholeMonths, range) {
+export function logbookFileName(pilotCode, months, wholeMonths, range, mode = "months") {
   // Sanitise the CODE only, then fall back - doing it the other way round
   // upper-cased the fallback into "LOGBOOK".
   const code = String(pilotCode || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "") || "Logbook";
+  if (mode === "custom" && range?.from && range?.to) {
+    return `${code}_${range.from}_to_${range.to}_Logbook.pdf`;
+  }
   const n = clampMonths(months);
   const end = range?.to || "";
   return end ? `${code}_${n}M_to_${end}.pdf` : `${code}_${n}M.pdf`;
