@@ -1,4 +1,4 @@
-# Pilot LINE due date alerts
+# Pilot LINE Training + FTL alerts
 
 Implementation is local until deployed and configured. This is a separate job from email;
 email delivery and its deduplication settings are unchanged.
@@ -49,8 +49,16 @@ No immediate real due-date digest was sent during setup. First scheduled run is
 
 ## Behavior and limits
 
-- Uses the shared training thresholds, disabled items and custom courses; includes training
-  currency/count warnings alongside dated documents and courses. No FTL data is included.
+- Uses the shared training thresholds and disabled items; includes training currency/count
+  warnings alongside dated documents and courses.
+- Adds FTL rolling-limit warnings for Flight Time 7D/28D/365D and Duty Time 7D/14D/28D,
+  using the same configurable limits and calculations as AviCore's FDT status screens.
+  Currency minimums and recovery-rest advisories remain outside this LINE digest.
+- FTL details go only to the explicitly configured `LINE_PILOT_GROUP_ID`. Existing
+  discovered-group/private fan-out remains Training Due only, so operational FTL status
+  is not disclosed to chats merely observed by the webhook.
+- Rolling windows are anchored to the Bangkok calendar day even though the Edge runtime
+  and cron execute in UTC.
 - One summary per Bangkok day when warnings exist, with overdue items first. Existing alerts
   recur daily until resolved. No message when there are no warnings.
 - Groups see pilot code/name, course/document name, due date and days remaining from the same
