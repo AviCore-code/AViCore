@@ -2,6 +2,7 @@ import { showDataErrorBanner } from "./dataErrorBanner.js";
 import { Capacitor } from "@capacitor/core";
 import { DEMO_PILOT_CODES } from "../config/demoUsers.js";
 import { downloadElementAsPdf, resolvePdfExportTarget } from "./downloadPdf.js";
+import { normalizeAlertEmailConfig } from "./emailAlertConfig.js";
 
 const DEMO_SET = new Set((DEMO_PILOT_CODES || []).map((c) => String(c).toUpperCase()));
 
@@ -561,11 +562,28 @@ export async function getLicenseStatus() {
 
 export async function getEmailConfig() {
   if (window.aviCoreAPI) return window.aviCoreAPI.getEmailConfig();
+  if (isWeb()) {
+    const saved = await getSetting("alert_email_config");
+    return {
+      enabled: !!saved?.enabled,
+      toAddress: String(saved?.toAddress || ""),
+      serverManaged: true,
+      smtpHost: "",
+      smtpPort: 587,
+      smtpSecure: false,
+      smtpUser: "",
+      hasPassword: true,
+      fromAddress: ""
+    };
+  }
   return { enabled: false, smtpHost: "", smtpPort: 587, smtpSecure: false, smtpUser: "", hasPassword: false, fromAddress: "", toAddress: "" };
 }
 
 export async function setEmailConfig(cfg) {
   if (window.aviCoreAPI) return window.aviCoreAPI.setEmailConfig(cfg);
+  if (isWeb()) {
+    return saveSetting("alert_email_config", normalizeAlertEmailConfig(cfg));
+  }
   throw new Error("Email setup is unavailable in browser preview");
 }
 

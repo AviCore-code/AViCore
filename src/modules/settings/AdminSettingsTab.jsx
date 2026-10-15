@@ -613,6 +613,39 @@ export default function AdminSettingsTab() {
         {themeMsg && <div className={`settings-msg ${themeMsg.ok ? "ok" : "error"}`}>{themeMsg.text}</div>}
       </div>
 
+      {isWeb() && (
+      <div className="settings-card settings-card-wide">
+        <div className="module-header settings-subheader">
+          <div>
+            <h2>Daily Training Due &amp; FTL Email Alerts</h2>
+            <p>Supabase checks Training Due and FTL warnings every day at 05:00 Bangkok time. New warnings are emailed once; resolved warnings can notify again if they later return.</p>
+          </div>
+        </div>
+
+        <label className="settings-toggle">
+          <input type="checkbox" checked={emailCfg.enabled} onChange={(e) => setEmailCfg({ ...emailCfg, enabled: e.target.checked })} />
+          <span>Enable daily Training Due and FTL email notifications</span>
+        </label>
+
+        <label className="settings-field">
+          <span>Notification Recipients (comma-separated, up to 10)</span>
+          <input value={emailCfg.toAddress} onChange={(e) => setEmailCfg({ ...emailCfg, toAddress: e.target.value })} placeholder="dispatch@uoathai.com, ops@uoathai.com" />
+        </label>
+        {emailCfg.toAddress.split(",").filter((a) => a.trim()).length > 10 && (
+          <div className="settings-msg error">Too many recipients ({emailCfg.toAddress.split(",").filter((a) => a.trim()).length}) - max 10 allowed.</div>
+        )}
+
+        <div className="settings-note">
+          Email delivery is server-managed. SMTP/API credentials are stored only in Supabase secrets and are never shown or saved in the browser.
+        </div>
+
+        <div className="settings-actions">
+          <button className="primary" onClick={handleSaveEmail} disabled={savingEmail || emailCfg.toAddress.split(",").filter((a) => a.trim()).length > 10 || (emailCfg.enabled && !emailCfg.toAddress.trim())}>{savingEmail ? "Saving..." : "Save Email Settings"}</button>
+        </div>
+        {emailMsg && <div className={`settings-msg ${emailMsg.ok ? "ok" : "error"}`}>{emailMsg.text}</div>}
+      </div>
+      )}
+
       {!isWeb() && (
       <div className="settings-card">
         <div className="module-header settings-subheader">
@@ -664,7 +697,7 @@ export default function AdminSettingsTab() {
         </label>
 
         <div className="settings-actions">
-          <button className="primary" onClick={handleSaveEmail} disabled={savingEmail || emailCfg.toAddress.split(",").filter((a) => a.trim()).length > 10}>{savingEmail ? "Saving..." : "Save Email Settings"}</button>
+          <button className="primary" onClick={handleSaveEmail} disabled={savingEmail || emailCfg.toAddress.split(",").filter((a) => a.trim()).length > 10 || (emailCfg.enabled && !emailCfg.toAddress.trim())}>{savingEmail ? "Saving..." : "Save Email Settings"}</button>
           <button onClick={handleSendTestEmail} disabled={testingEmail || !emailCfg.hasPassword && !emailPass}>{testingEmail ? "Sending..." : "Send Test Email"}</button>
         </div>
         {emailMsg && <div className={`settings-msg ${emailMsg.ok ? "ok" : "error"}`}>{emailMsg.text}</div>}
@@ -815,7 +848,7 @@ export default function AdminSettingsTab() {
         <p className="admin-about-note">
           Supplementary console to the PC application <b>AviCore Enterprise</b>. Everything edited
           here is written to the central database and is live on every device immediately.
-          Excel/PDF import and email alerts remain PC-only.
+          Excel/PDF import remains PC-only. Daily Training Due and FTL email alerts are managed by the server from Admin Settings.
         </p>
         <p className="admin-about-note">
           © Copyright 2026 Capt. Weera Juntaklud · email: freeman201@yahoo.com · tel. 081-8406275
