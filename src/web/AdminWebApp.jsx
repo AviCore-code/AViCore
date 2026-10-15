@@ -10,6 +10,7 @@ import Training from "../modules/trainingDue/Training.jsx";
 import Settings from "../modules/settings/Settings.jsx";
 import PilotRoster from "../modules/pilotRoster/PilotRoster.jsx";
 import MyLogbook from "../modules/myLogbook/MyLogbook.jsx";
+import PilotExperienceSummary from "../modules/myExperience/PilotExperienceSummary.jsx";
 import FatigueMonitor from "../modules/fatigue/FatigueMonitor.jsx";
 import FdtStatistics from "../modules/statistics/FdtStatistics.jsx";
 import CrewLoginMonitor from "./CrewLoginMonitor.jsx";
@@ -60,6 +61,7 @@ const TABS = [
   // isSinglePilotDevice() is false, which is every build except Crew web - so
   // admin gets the selector for free and the two can never drift apart.
   { key: "logbook", label: "Logbook", icon: "📖", Component: MyLogbook },
+  { key: "experience", label: "Pilot Experience Summary", icon: "🪪", Component: PilotExperienceSummary },
   { key: "settings", label: "Settings", icon: "⚙️", Component: Settings },
   { key: "access", label: "Crew Access", icon: "🔑", Component: CrewAccess },
   { key: "utility", label: "Utility", icon: "🛠️", Component: CrewLoginMonitor }

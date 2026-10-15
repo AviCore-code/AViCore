@@ -13,7 +13,10 @@ const AIRCRAFT_GROUPS = [
 const HELI_GROUPS = ["rotarySingle", "rotaryMulti"];
 const FIXED_GROUPS = ["fixedSingle", "fixedMulti"];
 
-export default function MyExperience() {
+export default function MyExperience({
+  title = "My Experience",
+  description = "Your cumulative flight hours (read-only — editable only by Admin under Pilot Experience). The Current total also includes Daily Duty records flown after the Update date."
+}) {
   const [pilots, setPilots] = useState([]);
   const [pilotCode, setPilotCode] = useState("");
   const [record, setRecord] = useState(null);
@@ -46,7 +49,14 @@ export default function MyExperience() {
   useEffect(() => {
     const pilot = pilots.find((p) => p.code === pilotCode);
     if (!pilot) { setRecord(null); setCombined(null); setCombinedRows({}); setSpecialty([]); setEffectiveUpdate(""); return; }
+    let cancelled = false;
+    setRecord(null);
+    setCombined(null);
+    setCombinedRows({});
+    setSpecialty([]);
+    setEffectiveUpdate("");
     Promise.all([loadExperience(pilot.licence), listDutyEntriesByPilot(pilotCode)]).then(([rec, entries]) => {
+      if (cancelled) return;
       setRecord(rec);
       const c = combineExperience(rec, entries);
       setCombined(c);
@@ -59,6 +69,7 @@ export default function MyExperience() {
       }
       setCombinedRows(byGroup);
     });
+    return () => { cancelled = true; };
   }, [pilotCode, pilots]);
 
   const profile = record?.profile;
@@ -70,8 +81,8 @@ export default function MyExperience() {
     <div className={`myexp-page${fullScreen ? " page-fullscreen" : ""}`}>
       <div className="module-header no-print">
         <div>
-          <h1>My Experience</h1>
-          <p>Your cumulative flight hours (read-only — editable only by Admin under Pilot Experience). The Current total also includes Daily Duty records flown after the Update date.</p>
+          <h1>{title}</h1>
+          <p>{description}</p>
         </div>
         <div className="myexp-header-actions">
           <div className="myexp-controls">

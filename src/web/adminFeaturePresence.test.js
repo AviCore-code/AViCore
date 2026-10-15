@@ -26,6 +26,20 @@ describe("Admin feature navigation regression", () => {
     expect(database).toContain('saveSetting("alert_email_config"');
   });
 
+  it("keeps Pilot Experience Summary beside Logbook with the same pilot selector", () => {
+    const navigation = read("./adminNavigation.js");
+    const admin = read("./AdminWebApp.jsx");
+    const workspace = read("../modules/flightCrews/FlightCrews.jsx");
+    const experience = read("../modules/myExperience/MyExperience.jsx");
+    expect(navigation).toContain('{ key: "logbook", label: "Logbook", icon: "📖" },\n      { key: "experience", label: "Pilot Experience Summary", icon: "🪪" }');
+    expect(admin).toContain('import PilotExperienceSummary from "../modules/myExperience/PilotExperienceSummary.jsx"');
+    expect(admin).toContain('{ key: "experience", label: "Pilot Experience Summary", icon: "🪪", Component: PilotExperienceSummary }');
+    expect(workspace).toContain('import PilotExperienceSummary from "../myExperience/PilotExperienceSummary.jsx"');
+    expect(workspace).toContain('{ key: "logbook", label: "Logbook", icon: "📔", Component: MyLogbook },\n  { key: "experience", label: "Pilot Experience Summary", icon: "🪪", Component: PilotExperienceSummary }');
+    expect(experience).toContain('<select value={pilotCode} onChange={(e) => setPilotCode(e.target.value)}>');
+    expect(experience).toContain('{pilots.map((p) => <option key={p.code} value={p.code}>{p.code} — {p.name}</option>)}');
+  });
+
   it("renders five main destinations with a second-level screen tab bar", () => {
     const source = read("./AdminWebApp.jsx");
     const css = read("./AdminWebApp.css");

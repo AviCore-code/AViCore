@@ -27,17 +27,19 @@ describe("Admin two-level navigation", () => {
       "statistics",
       "training",
       "logbook",
+      "experience",
       "settings",
       "access",
       "utility",
     ]));
-    expect(new Set(screens).size).toBe(10);
-    expect(screens).toHaveLength(10);
+    expect(new Set(screens).size).toBe(11);
+    expect(screens).toHaveLength(11);
     expect(ADMIN_SCREEN_KEYS).toEqual(screens);
   });
 
   it("maps remembered screens to their main section and defaults safely", () => {
     expect(sectionForScreen("pilotRoster")?.key).toBe("operations");
+    expect(sectionForScreen("experience")?.key).toBe("operations");
     expect(sectionForScreen("training")?.key).toBe("compliance");
     expect(sectionForScreen("statistics")?.key).toBe("reports");
     expect(sectionForScreen("utility")?.key).toBe("administration");
