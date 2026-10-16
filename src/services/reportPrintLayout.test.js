@@ -43,12 +43,15 @@ describe("single-page report layouts", () => {
     expect(source).toContain(".pe-print-areatable{");
   });
 
-  it("exports the read-only Pilot Experience Summary as a named one-page PDF instead of opening print preview", () => {
+  it("offers browser preview and named export for the read-only one-page Pilot Experience Summary", () => {
     const jsx = compact(read("../modules/myExperience/MyExperience.jsx"));
 
     expect(jsx).toContain('import{exportLogbookPdf');
-    expect(jsx).toContain('exportLogbookPdf(`PilotExperienceSummary_${profile?.code||pilotCode||"pilot"}.pdf`)');
-    expect(jsx).toContain('ExportPDF(1page)');
+    expect(jsx).toContain('exportLogbookPdf(`PilotExperienceSummary_${profile?.code||pilotCode||"pilot"}.pdf`,previewWindow?{previewWindow}:{}');
+    expect(jsx).toContain('ViewPDF');
+    expect(jsx).toContain('ExportPDF');
+    expect(jsx).toContain('window.open("","_blank")');
+    expect(jsx).toContain('{previewWindow}');
     expect(jsx).not.toContain('onClick={()=>{if(isDemoSession()){alert("Demoaccount—printingisdisabled.");return;}window.print();}}');
   });
 
@@ -59,6 +62,6 @@ describe("single-page report layouts", () => {
 
     expect(resolveAt).toBeGreaterThan(-1);
     expect(resolveAt).toBeLessThan(bridgeAt);
-    expect(source).toContain("if(fitToPage)returndownloadElementAsPdf(element,suggestedName,{landscape:true,fitToPage:true})");
+    expect(source).toContain("if(fitToPage)returndownloadElementAsPdf(element,suggestedName,{...options,landscape:true,fitToPage:true})");
   });
 });

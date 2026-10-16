@@ -271,14 +271,14 @@ export async function updateDutyEntry(code, id, entry) {
   return { ok: true };
 }
 
-export async function exportLogbookPdf(suggestedName) {
+export async function exportLogbookPdf(suggestedName, options = {}) {
   if (isDemoSession()) return { ok: false, error: "Demo account — export is disabled." };
 
   // One-page reports must use the in-page raster path on every platform. The
   // Electron bridge prints the whole BrowserWindow and cannot target this DOM
   // node or guarantee fit-to-page, which caused blank/clipped extra sheets.
   const { element, fitToPage } = resolvePdfExportTarget();
-  if (fitToPage) return downloadElementAsPdf(element, suggestedName, { landscape: true, fitToPage: true });
+  if (fitToPage) return downloadElementAsPdf(element, suggestedName, { ...options, landscape: true, fitToPage: true });
 
   if (window.aviCoreAPI) return window.aviCoreAPI.exportLogbookPdf(suggestedName);
   if (isMobile()) return (await mobileDb()).exportLogbookPdf(suggestedName);

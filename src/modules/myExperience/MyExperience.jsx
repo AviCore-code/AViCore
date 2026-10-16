@@ -77,18 +77,33 @@ export default function MyExperience({
   const totalHelicopter = sumCombinedTotal(HELI_GROUPS.flatMap((k) => combinedRows[k] || []));
   const totalFixed = sumCombinedTotal(FIXED_GROUPS.flatMap((k) => combinedRows[k] || []));
 
-  async function handleExportPdf() {
+  async function handlePdf(action) {
     if (isDemoSession()) {
       alert("Demo account — PDF export is disabled.");
       return;
     }
+    let previewWindow = null;
+    if (action === "view") {
+      previewWindow = window.open("", "_blank");
+      if (!previewWindow) {
+        setMsg("Preview blocked. Allow pop-ups for AviCore and try again.");
+        return;
+      }
+      previewWindow.opener = null;
+      previewWindow.document.title = "Pilot Experience Summary";
+      previewWindow.document.body.textContent = "Preparing PDF…";
+    }
     setExporting(true);
-    setMsg("Preparing one-page PDF…");
+    setMsg(action === "view" ? "Preparing PDF preview…" : "Preparing one-page PDF…");
     try {
-      const result = await exportLogbookPdf(`PilotExperienceSummary_${profile?.code || pilotCode || "pilot"}.pdf`);
+      const result = await exportLogbookPdf(
+        `PilotExperienceSummary_${profile?.code || pilotCode || "pilot"}.pdf`,
+        previewWindow ? { previewWindow } : {}
+      );
       if (result && !result.ok) throw new Error(result.error || "PDF export failed.");
-      setMsg("PDF downloaded.");
+      setMsg(action === "view" ? "PDF preview opened." : "PDF downloaded.");
     } catch (err) {
+      if (previewWindow && !previewWindow.closed) previewWindow.close();
       setMsg(`Export failed: ${err.message}`);
     } finally {
       setExporting(false);
@@ -105,8 +120,11 @@ export default function MyExperience({
         </div>
         <div className="myexp-header-actions">
           <div className="myexp-controls">
-            <button className="primary" onClick={handleExportPdf} disabled={!record || exporting}>
-              {exporting ? "Exporting…" : "Export PDF (1 page)"}
+            <button onClick={() => handlePdf("view")} disabled={!record || exporting}>
+              View PDF
+            </button>
+            <button className="primary" onClick={() => handlePdf("export")} disabled={!record || exporting}>
+              {exporting ? "Preparing…" : "Export PDF"}
             </button>
             <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
           </div>
