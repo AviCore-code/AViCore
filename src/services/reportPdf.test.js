@@ -76,9 +76,24 @@ describe("one-page report PDF target selection", () => {
     expect(target.element.textContent).toContain("Chief Pilot / Authorised Signatory");
   });
 
+  it("selects the read-only Pilot Experience Summary and fits the entire record to one page", () => {
+    document.body.innerHTML = `
+      <nav>Admin shell</nav>
+      <section class="myexp-print-area"><h2>Pilot Experience Summary</h2><footer>Chief Pilot / Authorised Signatory</footer></section>
+    `;
+
+    const target = resolvePdfExportTarget();
+
+    expect(target.element).toBe(document.querySelector(".myexp-print-area"));
+    expect(target.fitToPage).toBe(true);
+    expect(target.element.textContent).toContain("Pilot Experience Summary");
+    expect(target.element.textContent).toContain("Chief Pilot / Authorised Signatory");
+  });
+
   it.each([
     ["trainingperson-print-area", "FIRST TRAINING ITEM", "FINAL TRAINING ITEM", "Training.pdf"],
-    ["pe-print-area", "Pilot experience summary", "Chief Pilot / Authorised Signatory", "Experience.pdf"]
+    ["pe-print-area", "Pilot experience summary", "Chief Pilot / Authorised Signatory", "Experience.pdf"],
+    ["myexp-print-area", "Pilot Experience Summary", "Chief Pilot / Authorised Signatory", "ExperienceSummary.pdf"]
   ])("renders %s as exactly one landscape A4 PDF image", async (className, first, last, filename) => {
     document.body.innerHTML = `<section class="${className}"><h2>${first}</h2><div class="no-print">Delete row</div><footer>${last}</footer></section>`;
     const target = resolvePdfExportTarget();

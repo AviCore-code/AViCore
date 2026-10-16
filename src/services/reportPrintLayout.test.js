@@ -43,6 +43,15 @@ describe("single-page report layouts", () => {
     expect(source).toContain(".pe-print-areatable{");
   });
 
+  it("exports the read-only Pilot Experience Summary as a named one-page PDF instead of opening print preview", () => {
+    const jsx = compact(read("../modules/myExperience/MyExperience.jsx"));
+
+    expect(jsx).toContain('import{exportLogbookPdf');
+    expect(jsx).toContain('exportLogbookPdf(`PilotExperienceSummary_${profile?.code||pilotCode||"pilot"}.pdf`)');
+    expect(jsx).toContain('ExportPDF(1page)');
+    expect(jsx).not.toContain('onClick={()=>{if(isDemoSession()){alert("Demoaccount—printingisdisabled.");return;}window.print();}}');
+  });
+
   it("uses the generated fit-to-page path before the Electron print bridge", () => {
     const source = compact(read("./desktopDatabase.js"));
     const resolveAt = source.indexOf("resolvePdfExportTarget()");

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listExperience, loadExperience, listDutyEntriesByPilot, getSetting, getPreferredPilotCode, isSinglePilotDevice, isDemoSession } from "../../services/desktopDatabase.js";
+import { exportLogbookPdf, listExperience, loadExperience, listDutyEntriesByPilot, getSetting, getPreferredPilotCode, isSinglePilotDevice, isDemoSession } from "../../services/desktopDatabase.js";
 import { combineExperience, combineAircraftRows, combineSpecialty, sumCombinedTotal, decimalToHHMM, getEffectiveUpdateDate, formatUpdateDate } from "../../utils/experienceCombine.js";
 import { normalizeAircraftRow } from "../../utils/timeMath.js";
 import "./MyExperience.css";
@@ -26,6 +26,7 @@ export default function MyExperience({
   const [effectiveUpdate, setEffectiveUpdate] = useState("");
 
   const [msg, setMsg] = useState("");
+  const [exporting, setExporting] = useState(false);
   const [branding, setBranding] = useState(null);
   const [fullScreen, setFullScreen] = useState(false);
 
@@ -76,6 +77,24 @@ export default function MyExperience({
   const totalHelicopter = sumCombinedTotal(HELI_GROUPS.flatMap((k) => combinedRows[k] || []));
   const totalFixed = sumCombinedTotal(FIXED_GROUPS.flatMap((k) => combinedRows[k] || []));
 
+  async function handleExportPdf() {
+    if (isDemoSession()) {
+      alert("Demo account — PDF export is disabled.");
+      return;
+    }
+    setExporting(true);
+    setMsg("Preparing one-page PDF…");
+    try {
+      const result = await exportLogbookPdf(`PilotExperienceSummary_${profile?.code || pilotCode || "pilot"}.pdf`);
+      if (result && !result.ok) throw new Error(result.error || "PDF export failed.");
+      setMsg("PDF downloaded.");
+    } catch (err) {
+      setMsg(`Export failed: ${err.message}`);
+    } finally {
+      setExporting(false);
+    }
+  }
+
 
   return (
     <div className={`myexp-page${fullScreen ? " page-fullscreen" : ""}`}>
@@ -86,20 +105,8 @@ export default function MyExperience({
         </div>
         <div className="myexp-header-actions">
           <div className="myexp-controls">
-            {/* Print only. An "Export PDF" button was removed here.
-                It rendered the sheet through html2canvas, which lays out text
-                itself instead of using the browser's engine - with this app's
-                default font it measured runs narrower than it drew them, so
-                characters piled up and the spaces and colons between them were
-                squeezed out ("WeeraJuntaklud", "446 52" for 446:52). Forcing
-                Arial, disabling kerning/ligatures and waiting on
-                document.fonts.ready all failed to fix it.
-                Printing uses the browser's own engine: real selectable text,
-                correct spacing, and the layout Capt. Weera confirmed is right.
-                For a document that goes to a regulator that matters more than
-                having the filename filled in automatically. */}
-            <button className="primary" onClick={() => { if (isDemoSession()) { alert("Demo account — printing is disabled."); return; } window.print(); }} disabled={!record}>
-              Print / Save PDF
+            <button className="primary" onClick={handleExportPdf} disabled={!record || exporting}>
+              {exporting ? "Exporting…" : "Export PDF (1 page)"}
             </button>
             <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
           </div>
