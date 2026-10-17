@@ -650,9 +650,8 @@ export async function listImportedFdtFiles() {
   // three pilots and every later import looked as though it had not happened.
   let data;
   try {
-    data = await fetchAllRows(() => sb.from("Admin_pilot_duty_entries")
+    data = await fetchAllRows(() => sb.from("pilot_duty_entries")
       .select("pilot_code, entry_json")
-      .is("deleted_at", null)
       .order("pilot_code", { ascending: true }));
   } catch (error) {
     throw new Error("list imported files: " + error.message);
@@ -686,7 +685,7 @@ async function rawListRoster(query) {
   // unpaged read would return the first 1000 and the planner would treat every
   // unseen day as "not a duty day", silently refusing to book training.
   const data = await fetchAllRows(() => {
-    let q = sb.from("Admin_pilot_roster").select("pilot_code, pilot_name, base, date, code").is("deleted_at", null);
+    let q = sb.from("pilot_roster_data").select("pilot_code, pilot_name, base, date, code");
     if (from) q = q.gte("date", from);
     if (to) q = q.lte("date", to);
     return q.order("date", { ascending: true });
@@ -1002,10 +1001,9 @@ async function rawListDutyEntriesByPilot(pilotCode) {
     let data;
     try {
       data = await fetchAllRows(() => sb
-        .from("Admin_pilot_duty_entries")
+        .from("pilot_duty_entries")
         .select("uuid, pilot_code, date, duty_type, entry_json")
         .eq("pilot_code", pilotCode)
-        .is("deleted_at", null)
         .order("date", { ascending: false }));
     } catch (error) {
       throw new Error("list duty entries: " + error.message);
