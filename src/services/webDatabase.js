@@ -19,8 +19,10 @@ import { downloadElementAsPdf, resolvePdfExportTarget } from "./downloadPdf.js";
 // cache could be layered in the same way mobileDatabase.js layers on top of
 // mobileSqlite.js, without touching the four shared page components.
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { SUPABASE_CONFIG } from "../config/supabaseConfig.js";
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || SUPABASE_CONFIG.url;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || SUPABASE_CONFIG.anonKey;
 const COMPANY_SLUG = String(import.meta.env.VITE_COMPANY_SLUG || "").trim();
 
 let supabase = null;
@@ -276,9 +278,8 @@ export async function getPairingHoursLeft() {
 export async function fetchPilotRoster() {
   const sb = requireSupabase();
   const { data, error } = await sb
-    .from("Admin_pilot_experience")
+    .from("pilot_roster")
     .select("code, name")
-    .is("deleted_at", null)
     .order("name", { ascending: true });
   if (error) throw new Error("fetch pilot roster: " + error.message);
   return data || [];
