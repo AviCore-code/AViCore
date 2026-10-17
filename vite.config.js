@@ -44,6 +44,22 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      // Filter out crew background from admin build
+      {
+        name: 'filter-crew-assets',
+        apply: 'build',
+        enforce: 'post',
+        generateBundle(options, bundle) {
+          if (isAdmin) {
+            // Remove crew login background from admin build
+            Object.keys(bundle).forEach(key => {
+              if (key.includes('avicore-crew-login-background')) {
+                delete bundle[key];
+              }
+            });
+          }
+        }
+      },
       // Capacitor (mobile) and static web hosts (web) both expect the
       // built entry file to be literally <outDir>/index.html. Vite's HTML
       // plugin names the emitted file after the SOURCE file
