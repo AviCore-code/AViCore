@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getPreferredPilotCode, getMyTraining, getSetting, isDemoSession, listExperience, openFile } from "../services/desktopDatabase.js";
-import { computeTrainingRow, monitoredTrainingItems, withTrainingThresholdDefaults, withTrainingDisabledDefaults } from "../utils/trainingDue.js";
+import { computeTrainingRow, monitoredTrainingItems, isDormantTraining,withTrainingThresholdDefaults, withTrainingDisabledDefaults } from "../utils/trainingDue.js";
 import { STATUS_LABEL } from "../utils/statusCompute.js";
 import { TrainingItemCell } from "../modules/trainingDue/TrainingAllStatus.jsx";
 import DocumentViewer from "../modules/trainingDue/DocumentViewer.jsx";
@@ -158,7 +158,7 @@ export default function MyTrainingStatus() {
               <span className={`mystatus-badge ${computed.status}`}>{LABEL[computed.status]}</span>
             </div>
             <div className="trainingdue-grid">
-              {monitoredTrainingItems(disabledItems).map((item) => (
+              {monitoredTrainingItems(disabledItems).filter((item) => !isDormantTraining(computed.perItem[item.key])).map((item) => (
                 <div key={item.key} style={{ display: "flex", flexDirection: "column" }}>
                   <TrainingItemCell item={item} result={computed.perItem[item.key]} />
                   {docs[item.key] && (

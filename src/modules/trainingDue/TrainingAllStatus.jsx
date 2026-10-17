@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { computeTrainingRow, formatDueDate, monitoredTrainingItems } from "../../utils/trainingDue.js";
+import { computeTrainingRow, formatDueDate, monitoredTrainingItems, isDormantTraining } from "../../utils/trainingDue.js";
 import { STATUS_LABEL } from "../../utils/statusCompute.js";
 import { getSetting, exportLogbookPdf } from "../../services/desktopDatabase.js";
 import "../myStatus/MyStatus.css";
@@ -110,7 +110,8 @@ export default function TrainingAllStatus({ pilots, thresholds, disabledItems, l
 
 function TrainingRow({ row, disabledItems, expanded, onToggle }) {
   const { code, name, computed } = row;
-  const items = Object.values(computed.perItem);
+  // Dormant items (expired over a year ago) are hidden, so not counted either.
+  const items = Object.values(computed.perItem).filter((v) => !isDormantTraining(v));
   const excCount = items.filter((v) => v.status === "exc").length;
   const warnCount = items.filter((v) => v.status === "warn").length;
   const unknownCount = items.filter((v) => v.status === "unknown").length;
@@ -128,7 +129,7 @@ function TrainingRow({ row, disabledItems, expanded, onToggle }) {
       {expanded && (
         <div className="trainingdue-detail">
           <div className="trainingdue-grid">
-            {monitoredTrainingItems(disabledItems).map((item) => (
+            {monitoredTrainingItems(disabledItems).filter((item) => !isDormantTraining(computed.perItem[item.key])).map((item) => (
               <TrainingItemCell key={item.key} item={item} result={computed.perItem[item.key]} />
             ))}
           </div>

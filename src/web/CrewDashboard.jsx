@@ -10,7 +10,7 @@ import { pilotWeeklyFatigue, TOTAL_INDEX_MAX } from "../utils/fatigueMonitor.js"
 import { FATIGUE_CRITERIA_KEY } from "../utils/fatigueCriteria.js";
 import {
   TRAINING_ITEMS, classifyTrainingValue,
-  withTrainingThresholdDefaults, withTrainingDisabledDefaults, monitoredTrainingItems
+  withTrainingThresholdDefaults, withTrainingDisabledDefaults, monitoredTrainingItems, isDormantTraining
 } from "../utils/trainingDue.js";
 import { WEEKLY_SECTIONS, displayTime } from "../modules/pilotRoster/weeklyPlanSections.js";
 import { summariseYear, yearsWithRecords, decimalToHm } from "../utils/yearSummary.js";
@@ -196,7 +196,7 @@ export default function CrewDashboard() {
     return TRAINING_ITEMS
       .filter((item) => monitored.has(item.key) && item.type !== "count")
       .map((item) => ({ item, result: classifyTrainingValue(item, training.record[item.key], training.thresholds[item.key], now) }))
-      .filter(({ result }) => result.daysRemaining != null && result.daysRemaining <= 90)
+      .filter(({ result }) => !isDormantTraining(result) && result.daysRemaining != null && result.daysRemaining <= 90)
       .sort((a, b) => a.result.daysRemaining - b.result.daysRemaining)
       .slice(0, 4);
   }, [training]);

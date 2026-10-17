@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import DocumentViewer from "./DocumentViewer.jsx";
 import { openFile, getSetting, exportLogbookPdf } from "../../services/desktopDatabase.js";
-import { computeTrainingRow, monitoredTrainingItems } from "../../utils/trainingDue.js";
+import { computeTrainingRow, monitoredTrainingItems, isDormantTraining } from "../../utils/trainingDue.js";
 import { STATUS_LABEL } from "../../utils/statusCompute.js";
 import { TrainingItemCell } from "./TrainingAllStatus.jsx";
 import "../myStatus/MyStatus.css";
@@ -116,7 +116,7 @@ export default function TrainingPersonStatus({ pilots, thresholds, disabledItems
               <span className={`mystatus-badge ${computed.status}`}>{LABEL[computed.status]}</span>
             </div>
             <div className="trainingdue-grid">
-              {monitoredTrainingItems(disabledItems).map((item) => (
+              {monitoredTrainingItems(disabledItems).filter((item) => !isDormantTraining(computed.perItem[item.key])).map((item) => (
                 <div key={item.key} style={{ display: "flex", flexDirection: "column" }}>
                   <TrainingItemCell item={item} result={computed.perItem[item.key]} />
                   {docs[item.key] && (

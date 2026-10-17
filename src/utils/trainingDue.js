@@ -148,6 +148,19 @@ export function settingsVisibleTrainingItems() {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+// An item expired more than this many days ago is "dormant" (Capt. Weera:
+// เกิน due มามากกว่า 365 วัน ไม่ต้องแสดงเป็นสีแดง ให้ hide ไปเลย). A
+// qualification lapsed for over a year is one the pilot no longer holds (an
+// old CA Sim rating, an instructor recency), not a renewal that slipped -
+// showing it red forever just buries the items that genuinely need action.
+// Dormant items are hidden from the Training Monitor views and never count
+// toward the overall badge or Dashboard recommendations.
+export const DORMANT_AFTER_DAYS = 365;
+
+export function isDormantTraining(result) {
+  return Boolean(result?.dormant);
+}
+
 // value: ISO date string / Date, "For life" (lifetime marker), a number (for
 // the iApp180 count item), or null/"" (never recorded in the source data).
 // thresholdDays: caution window in days for date items, or the minimum
@@ -178,7 +191,8 @@ export function classifyTrainingValue(item, value, thresholdDays, today = new Da
   // overdue item, so it checks the real daysRemaining, not this capped
   // status.
   if (item.maxSeverity === "warn" && status === "exc") status = "warn";
-  return { status, daysRemaining, dueDate: due };
+  const dormant = daysRemaining < -DORMANT_AFTER_DAYS;
+  return { status, daysRemaining, dueDate: due, dormant };
 }
 
 // Overall status for a pilot's whole record - worst item wins (exc > warn >
@@ -193,7 +207,7 @@ export function classifyTrainingValue(item, value, thresholdDays, today = new Da
 export function overallTrainingStatus(perItem, monitoredKeys) {
   const keys = monitoredKeys ? new Set(monitoredKeys) : null;
   const statuses = Object.entries(perItem)
-    .filter(([key]) => !keys || keys.has(key))
+    .filter(([key, r]) => (!keys || keys.has(key)) && !isDormantTraining(r))
     .map(([, r]) => r.status);
   if (statuses.includes("exc")) return "exc";
   if (statuses.includes("warn")) return "warn";
@@ -234,6 +248,7 @@ export function buildTrainingRecommendations(pilot, thresholds, disabledItems, t
   for (const item of TRAINING_ITEMS) {
     if (disabled.has(item.key)) continue;
     const r = computed.perItem[item.key];
+    if (isDormantTraining(r)) continue;
     if (r.status !== "warn" && r.status !== "exc") continue;
     const isExc = r.status === "exc";
     // Wording keys off the REAL overdue-ness (daysRemaining < 0), not the
