@@ -195,17 +195,14 @@ export default function AdminWebApp() {
 
   if (!isConfigured()) {
     return (
-      // Plain .web-login, not LoginShell: Supabase is not configured here, so
-      // the chosen background could not be fetched. CSS falls back to the
-      // bundled photo.
-      <div className="web-login">
+      <LoginShell className="admin-login" defaultBackground={adminLoginBg}>
         <div className="web-login-card">
           <h1>AviCore Enterprise</h1>
           <div className="web-login-status error">
             This admin web build isn't configured yet — it's missing its Supabase connection details.
           </div>
         </div>
-      </div>
+      </LoginShell>
     );
   }
 
