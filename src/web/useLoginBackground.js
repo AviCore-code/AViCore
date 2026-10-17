@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { getSetting } from "../services/webDatabase.js";
 import { BACKGROUND_PRESETS } from "../components/backgroundThemes/presets.jsx";
-import defaultLoginBg from "../../public-web/avicore-crew-login-background.jpg";
 
 // Show each app's current branded artwork immediately, then apply any
 // administrator-selected custom image or photo preset. Read failures keep
 // the bundled artwork so sign-in never depends on the settings request.
-export default function useLoginBackground(fallback = defaultLoginBg) {
+export default function useLoginBackground(fallback) {
   const [image, setImage] = useState(fallback);
 
   useEffect(() => {
@@ -32,7 +31,7 @@ export default function useLoginBackground(fallback = defaultLoginBg) {
 }
 
 // Pulled out of the hook so it can be unit-tested without React or a network.
-export function resolveLoginBackground(saved, fallback = defaultLoginBg) {
+export function resolveLoginBackground(saved, fallback) {
   if (!saved) return fallback;
 
   if (saved.mode === "custom" && saved.customImage) return saved.customImage;
