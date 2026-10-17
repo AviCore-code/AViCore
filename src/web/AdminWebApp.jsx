@@ -196,8 +196,14 @@ export default function AdminWebApp() {
   if (!isConfigured()) {
     return (
       <LoginShell className="admin-login" defaultBackground={adminLoginBg}>
-        <div className="web-login-card">
-          <h1>AviCore Enterprise</h1>
+        <span className="web-version-badge">v{APP_VERSION}</span>
+        <div className="web-login-card admin-login-card">
+          <div className="admin-login-accent" aria-hidden="true" />
+          <div className="admin-login-kicker">
+            <span>SECURE OPERATIONS CONSOLE</span>
+            <b>ADMIN</b>
+          </div>
+          <h1>Configuration Required</h1>
           <div className="web-login-status error">
             This admin web build isn't configured yet — it's missing its Supabase connection details.
           </div>
