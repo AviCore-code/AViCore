@@ -118,6 +118,11 @@ describe("withinDays", () => {
     expect(withinDays(localIso(28), 28)).toBe(false);
   });
 
+  it("uses an explicit operating-day anchor instead of the server timezone date", () => {
+    expect(withinDays("2026-09-01", 7, "2026-09-07")).toBe(true);
+    expect(withinDays("2026-08-31", 7, "2026-09-07")).toBe(false);
+  });
+
   it("normalises a full ISO timestamp to its own local day", () => {
     const recent = new Date();
     recent.setDate(recent.getDate() - 3);
@@ -135,6 +140,16 @@ describe("withinDays", () => {
 });
 
 describe("computeStats", () => {
+  it("anchors every rolling FTL window to an explicit Bangkok calendar day", () => {
+    const entries = [
+      { dutyType: "flight", date: "2026-09-01", schDep: "08:00", stop: "10:00", totalFlightTime: "2:00" },
+      { dutyType: "flight", date: "2026-08-31", schDep: "08:00", stop: "09:00", totalFlightTime: "1:00" }
+    ];
+    const stats = computeStats(entries, L, "2026-09-07");
+    expect(stats.ft7d).toBeCloseTo(2, 5);
+    expect(stats.dt7d).toBeCloseTo(3.5, 5);
+  });
+
   it("sums flight time and duty time within the 7-day window only", () => {
     const today = new Date();
     const iso = (d) => d.toISOString().slice(0, 10);
