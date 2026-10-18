@@ -653,7 +653,7 @@ export async function removeDutyEntriesBySourceFile(code, sourceFile) {
   // PostgREST - it just matches zero rows. So rows the delete policy does not
   // cover (e.g. a company_id that is NULL or another tenant's, from an import
   // made before multi-tenant) were skipped silently while the read policy
-  // still showed them, and they went on counting towards FT/DT. Re-count
+  // could still show them, and they would go on counting towards FT/DT. Re-count
   // what is still live and say so instead of reporting success.
   let left = sb.from("Admin_pilot_duty_entries")
     .select("uuid", { count: "exact", head: true })
@@ -667,9 +667,9 @@ export async function removeDutyEntriesBySourceFile(code, sourceFile) {
   if (count) {
     throw new Error(
       `${count} entr${count === 1 ? "y" : "ies"} for ${pilotCode} could not be deleted ` +
-      `(${removed} removed). The database refused the delete for these rows - ` +
-      "usually their company_id does not match this company. Run " +
-      "shared/sql/fix-duty-entries-company-id.sql in Supabase -> SQL Editor, then delete again."
+      `(${removed} removed). The database security policy refused the delete ` +
+      "for these rows. Run shared/sql/fix-duty-entries-company-id.sql in " +
+      "Supabase -> SQL Editor to see which rows and why."
     );
   }
   return { ok: true, removed };
