@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { computeTrainingRow, formatDueDate, monitoredTrainingItems } from "../../utils/trainingDue.js";
+import { computeTrainingRow, formatDueDate, monitoredTrainingItems, trainingIssueCounts } from "../../utils/trainingDue.js";
 import { STATUS_LABEL } from "../../utils/statusCompute.js";
 import { getSetting, exportLogbookPdf } from "../../services/desktopDatabase.js";
 import "../myStatus/MyStatus.css";
@@ -110,10 +110,7 @@ export default function TrainingAllStatus({ pilots, thresholds, disabledItems, l
 
 function TrainingRow({ row, disabledItems, expanded, onToggle }) {
   const { code, name, computed } = row;
-  const items = Object.values(computed.perItem);
-  const excCount = items.filter((v) => v.status === "exc").length;
-  const warnCount = items.filter((v) => v.status === "warn").length;
-  const unknownCount = items.filter((v) => v.status === "unknown").length;
+  const { exc: excCount, warn: warnCount, unknown: unknownCount } = trainingIssueCounts(computed, disabledItems);
 
   return (
     <div className={`trainingdue-rowgroup${expanded ? " open" : ""}`}>
