@@ -11,15 +11,13 @@ export async function deliveryRetryKey(scope) {
 }
 
 // Preserve complete Unicode characters; LINE limits text to 5,000 UTF-16 units.
-export function digestMessages(recommendations, day, options = {}) {
+export function digestMessages(recommendations, day) {
   if (!recommendations.length) return [];
-  const title = options.title || "AviCore — Training Due Date & FTL Limits";
-  const header = `${title}\n${day} · ${recommendations.length} รายการ\n`;
+  const header = `AviCore — Pilot Due Date\n${day} · ${recommendations.length} รายการ\n`;
   const chunks = [];
   let text = header;
   for (const rec of recommendations) {
-    const category = rec.category === "ftl" ? "FTL" : "TRAINING";
-    const line = `\n${rec.overdue ? "🔴 " : ""}[${category}][${rec.status === "exc" ? "เกินเกณฑ์" : "แจ้งเตือน"}] ${rec.text}${rec.overdue ? " — ยังไม่ได้แก้ไขเกิน 7 วัน" : ""}\n`;
+    const line = `\n${rec.overdue ? "🔴 " : ""}[${rec.status === "exc" ? "เกินเกณฑ์" : "แจ้งเตือน"}] ${rec.text}${rec.overdue ? " — ยังไม่ได้แก้ไขเกิน 7 วัน" : ""}\n`;
     for (const char of line) {
       if (text.length + char.length > 4500) { chunks.push(text); text = header; }
       text += char;
@@ -31,55 +29,6 @@ export function digestMessages(recommendations, day, options = {}) {
     batches.push(chunks.slice(i, i + 5).map(text => ({ type: "text", text })));
   }
   return batches;
-}
-
-/**
- * @param {any} existing
- * @param {{ recommendations: any[], day: string, groups?: string[], users?: string[] }} input
- * @returns {any}
- */
-export function ensureSecondaryDelivery(existing, { recommendations, day, groups = [], users = [] }) {
-  if (existing) return existing;
-  const batches = digestMessages(recommendations, day, { title: "AviCore — Training Due Date" });
-  const destinations = [
-    ...groups.map((id) => ({ kind: "group", id, sent: batches.map(() => false) })),
-    ...users.map((id) => ({ kind: "private", id, sent: batches.map(() => false) })),
-  ];
-  return { batches, destinations };
-}
-
-/**
- * @param {any} existing
- * @param {{ companyId: string, groupId: string, day: string, primaryRecommendations: any[], secondaryRecommendations: any[], groups?: string[], users?: string[] }} input
- * @returns {Promise<any>}
- */
-export async function ensureDeliverySnapshot(existing, input) {
-  const secondary = ensureSecondaryDelivery(existing?.secondary, {
-    recommendations: input.secondaryRecommendations,
-    day: input.day,
-    groups: input.groups,
-    users: input.users,
-  });
-  for (const destination of secondary.destinations) {
-    if (!destination.batches) {
-      destination.batches = await Promise.all(secondary.batches.map(async (_, index) => ({
-        retryKey: await deliveryRetryKey(`${input.companyId}|${destination.kind}|${destination.id}|${input.day}|${index}`),
-        sent: Boolean(destination.sent?.[index]),
-      })));
-      delete destination.sent;
-    }
-  }
-  if (existing) {
-    existing.secondary = secondary;
-    return existing;
-  }
-  const batches = await Promise.all(digestMessages(input.primaryRecommendations, input.day)
-    .map(async (messages, index) => ({
-      messages,
-      retryKey: await deliveryRetryKey(`${input.companyId}|${input.groupId}|${input.day}|${index}`),
-      sent: false,
-    })));
-  return { day: input.day, groupId: input.groupId, complete: false, batches, secondary };
 }
 
 export async function pushBatch({ token, groupId, retryKey, messages, fetcher = fetch }) {

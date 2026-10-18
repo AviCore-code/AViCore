@@ -1,90 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  bangkokDay,
-  digestMessages,
-  pushBatch,
-  deliveryRetryKey,
-  ensureSecondaryDelivery,
-  ensureDeliverySnapshot
-} from "./digest.js";
+import { bangkokDay, digestMessages, pushBatch, deliveryRetryKey } from "./digest.js";
 
 describe("LINE due date delivery", () => {
   it("uses Bangkok's calendar date across UTC midnight", () => {
     expect(bangkokDay(new Date("2026-09-06T18:00:00Z"))).toBe("2026-09-07");
   });
   it("does not send an empty digest", () => expect(digestMessages([], "2026-09-06")).toEqual([]));
-  it("labels training and FTL warnings in the same LINE digest", () => {
-    const messages = digestMessages([
-      { category: "training", status: "warn", text: "CP1 — CRM due in 30 days" },
-      { category: "ftl", status: "exc", text: "CP2 — Flight Time 7D at 35:00 / 34:00" }
-    ], "2026-09-06").flat();
-    const text = messages.map((message) => message.text).join("\n");
-    expect(text).toContain("Training Due Date & FTL Limits");
-    expect(text).toContain("[TRAINING][แจ้งเตือน] CP1 — CRM due in 30 days");
-    expect(text).toContain("[FTL][เกินเกณฑ์] CP2 — Flight Time 7D at 35:00 / 34:00");
-  });
-  it("uses a Training-only title for secondary recipients", () => {
-    const batches = digestMessages([
-      { category: "training", status: "warn", text: "CP1 — CRM due in 30 days" }
-    ], "2026-09-06", { title: "AviCore — Training Due Date" });
-    expect(batches[0][0].text).toContain("AviCore — Training Due Date\n");
-    expect(batches[0][0].text).not.toContain("FTL Limits");
-  });
-  it("freezes secondary payloads and recipients across a same-day retry", () => {
-    const first = ensureSecondaryDelivery(null, {
-      recommendations: [{ category: "training", status: "warn", text: "first snapshot" }],
-      day: "2026-09-06",
-      groups: ["C111"],
-      users: ["U111"]
-    });
-    const retried = ensureSecondaryDelivery(first, {
-      recommendations: [{ category: "training", status: "warn", text: "changed live data" }],
-      day: "2026-09-06",
-      groups: ["C222"],
-      users: ["U222"]
-    });
-    expect(retried).toBe(first);
-    expect(JSON.stringify(retried)).toContain("first snapshot");
-    expect(JSON.stringify(retried)).not.toContain("changed live data");
-    expect(retried.destinations.map((item) => item.id)).toEqual(["C111", "U111"]);
-  });
-  it("freezes the complete primary and secondary snapshot before any delivery", async () => {
-    const first = await ensureDeliverySnapshot(null, {
-      companyId: "company",
-      groupId: "Cprimary",
-      day: "2026-09-06",
-      primaryRecommendations: [{ category: "ftl", status: "warn", text: "primary first" }],
-      secondaryRecommendations: [{ category: "training", status: "warn", text: "secondary first" }],
-      groups: ["C111"],
-      users: ["U111"]
-    });
-    const retried = await ensureDeliverySnapshot(first, {
-      companyId: "company",
-      groupId: "Cprimary",
-      day: "2026-09-06",
-      primaryRecommendations: [{ category: "ftl", status: "warn", text: "primary changed" }],
-      secondaryRecommendations: [{ category: "training", status: "warn", text: "secondary changed" }],
-      groups: ["C222"],
-      users: ["U222"]
-    });
-    expect(retried).toBe(first);
-    const frozen = JSON.stringify(retried);
-    expect(frozen).toContain("primary first");
-    expect(frozen).toContain("secondary first");
-    expect(frozen).not.toContain("changed");
-    expect(retried.secondary.destinations.map((item) => item.id)).toEqual(["C111", "U111"]);
-    for (const batch of retried.batches) {
-      expect(batch.retryKey).toMatch(/^[0-9a-f-]{36}$/);
-      expect(batch.sent).toBe(false);
-    }
-    for (const destination of retried.secondary.destinations) {
-      expect(destination.batches).toHaveLength(retried.secondary.batches.length);
-      for (const batch of destination.batches) {
-        expect(batch.retryKey).toMatch(/^[0-9a-f-]{36}$/);
-        expect(batch.sent).toBe(false);
-      }
-    }
-  });
   it("keeps all content within LINE's text and batch limits", () => {
     const content = "ก😀".repeat(20000);
     const batches = digestMessages([{ status: "warn", text: content }], "2026-09-06");
