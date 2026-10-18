@@ -96,7 +96,13 @@ export default function DutyImport() {
   async function handleRemove(file) {
     const msg = `Delete all data imported from "${file.filename}" (pilot ${file.code})?`;
     if (!confirm(msg)) return;
-    await removeDutyEntriesBySourceFile(file.code, file.filename);
+    try {
+      const res = await removeDutyEntriesBySourceFile(file.code, file.filename);
+      const removed = res?.removed;
+      setNotices((prev) => [{ filename: file.filename, code: file.code, ok: true, deleted: true, removed }, ...prev]);
+    } catch (err) {
+      setNotices((prev) => [{ filename: file.filename, error: err.message, ok: false }, ...prev]);
+    }
     await refreshFiles();
   }
 
@@ -154,8 +160,12 @@ export default function DutyImport() {
                 <>
                   <span className="dutyimport-code">{n.code}</span>
                   <span className="dutyimport-detail">
-                    {n.filename} — Flight {n.flightCount} · Non-Flight {n.nonFlightCount}
-                    {n.replaced ? " · replaced this file's previous data" : ""}
+                    {n.deleted
+                      ? `${n.filename} — deleted ${n.removed ?? 0} entries`
+                      : <>
+                          {n.filename} — Flight {n.flightCount} · Non-Flight {n.nonFlightCount}
+                          {n.replaced ? " · replaced this file's previous data" : ""}
+                        </>}
                   </span>
                 </>
               ) : (

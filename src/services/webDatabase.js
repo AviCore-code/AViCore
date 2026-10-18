@@ -648,6 +648,30 @@ export async function removeDutyEntriesBySourceFile(code, sourceFile) {
     removed += n;
     if (!n) break;              // nothing left matching
   }
+
+  // An UPDATE that row-level security filters out is not an error in
+  // PostgREST - it just matches zero rows. So rows the delete policy does not
+  // cover (e.g. a company_id that is NULL or another tenant's, from an import
+  // made before multi-tenant) were skipped silently while the read policy
+  // still showed them, and they went on counting towards FT/DT. Re-count
+  // what is still live and say so instead of reporting success.
+  let left = sb.from("Admin_pilot_duty_entries")
+    .select("uuid", { count: "exact", head: true })
+    .eq("pilot_code", pilotCode)
+    .is("deleted_at", null);
+  left = manual
+    ? left.is("entry_json->>sourceFile", null)
+    : left.eq("entry_json->>sourceFile", sourceFile);
+  const { count, error: countError } = await left;
+  if (countError) throw new Error("remove duty by file: " + countError.message);
+  if (count) {
+    throw new Error(
+      `${count} entr${count === 1 ? "y" : "ies"} for ${pilotCode} could not be deleted ` +
+      `(${removed} removed). The database refused the delete for these rows - ` +
+      "usually their company_id does not match this company. Run " +
+      "shared/sql/fix-duty-entries-company-id.sql in Supabase -> SQL Editor, then delete again."
+    );
+  }
   return { ok: true, removed };
 }
 
