@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "uoa-ftl-monitor"
-  }
+    "flight time": "uoa-ftl-monitor"
+  },
+  "targets": {},
+  "etags": {}
 }

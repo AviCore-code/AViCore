@@ -19,10 +19,8 @@ import { downloadElementAsPdf, resolvePdfExportTarget } from "./downloadPdf.js";
 // cache could be layered in the same way mobileDatabase.js layers on top of
 // mobileSqlite.js, without touching the four shared page components.
 
-import { SUPABASE_CONFIG } from "../config/supabaseConfig.js";
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || SUPABASE_CONFIG.url;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || SUPABASE_CONFIG.anonKey;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const COMPANY_SLUG = String(import.meta.env.VITE_COMPANY_SLUG || "").trim();
 
 let supabase = null;
@@ -278,11 +276,21 @@ export async function getPairingHoursLeft() {
 export async function fetchPilotRoster() {
   const sb = requireSupabase();
   const { data, error } = await sb
-    .from("pilot_roster")
+    .from("Admin_pilot_experience")
     .select("code, name")
+    .is("deleted_at", null)
     .order("name", { ascending: true });
   if (error) throw new Error("fetch pilot roster: " + error.message);
-  return data || [];
+  // One entry per pilot code. The login picker showed every name twice, which
+  // means the table returns the same pilot more than once (duplicate rows for
+  // the same code); the picker only needs each pilot once.
+  const seen = new Set();
+  return (data || []).filter((p) => {
+    const key = String(p.code || "").trim().toUpperCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 async function upsertDutyRowsWithLegacyConstraintFallback(sb, rows, options = {}) {
@@ -650,8 +658,9 @@ export async function listImportedFdtFiles() {
   // three pilots and every later import looked as though it had not happened.
   let data;
   try {
-    data = await fetchAllRows(() => sb.from("pilot_duty_entries")
+    data = await fetchAllRows(() => sb.from("Admin_pilot_duty_entries")
       .select("pilot_code, entry_json")
+      .is("deleted_at", null)
       .order("pilot_code", { ascending: true }));
   } catch (error) {
     throw new Error("list imported files: " + error.message);
@@ -685,7 +694,7 @@ async function rawListRoster(query) {
   // unpaged read would return the first 1000 and the planner would treat every
   // unseen day as "not a duty day", silently refusing to book training.
   const data = await fetchAllRows(() => {
-    let q = sb.from("pilot_roster_data").select("pilot_code, pilot_name, base, date, code");
+    let q = sb.from("Admin_pilot_roster").select("pilot_code, pilot_name, base, date, code").is("deleted_at", null);
     if (from) q = q.gte("date", from);
     if (to) q = q.lte("date", to);
     return q.order("date", { ascending: true });
@@ -1001,9 +1010,10 @@ async function rawListDutyEntriesByPilot(pilotCode) {
     let data;
     try {
       data = await fetchAllRows(() => sb
-        .from("pilot_duty_entries")
+        .from("Admin_pilot_duty_entries")
         .select("uuid, pilot_code, date, duty_type, entry_json")
         .eq("pilot_code", pilotCode)
+        .is("deleted_at", null)
         .order("date", { ascending: false }));
     } catch (error) {
       throw new Error("list duty entries: " + error.message);

@@ -245,7 +245,7 @@ export default function WebPilotLogin({ onPaired }) {
   }
 
   return (
-    <LoginShell defaultBackground={null}>
+    <LoginShell>
       <span className="web-version-badge">v{__APP_VERSION__}</span>
 
       <div className="web-login-card">

@@ -189,6 +189,7 @@ function TrainingRow({ row, expanded, onToggle }) {
 
 function TrainingItemCell({ item, result }) {
   const { status, daysRemaining, dueDate, count, lifetime } = result;
+  if (status === "unknown") return null; // hide "No data" items (code below kept)
 
   let valueText;
   if (status === "unknown") valueText = "No data";

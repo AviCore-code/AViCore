@@ -84,13 +84,13 @@ export default function TrainingAllStatus({ pilots, thresholds, disabledItems, l
             </div>
           )}
           <div className="trainingall-print-title">All Training Status — Fleet Summary</div>
-          <div className="trainingdue-table">
+          <div className={`trainingdue-table${HIDE_NO_DATA_ITEMS ? " hide-nodata" : ""}`}>
             <div className="trainingdue-row trainingdue-head">
               <span>Pilot</span>
               <span>Status</span>
               <span>Expired</span>
               <span>Due Soon</span>
-              <span>No Data</span>
+              {!HIDE_NO_DATA_ITEMS && <span>No Data</span>}
             </div>
             {visibleRows.map((r) => (
               <TrainingRow
@@ -122,7 +122,7 @@ function TrainingRow({ row, disabledItems, expanded, onToggle }) {
         <span><span className={`mystatus-badge ${computed.status}`}>{LABEL[computed.status]}</span></span>
         <span className={`trainingdue-count${excCount ? " exc" : ""}`}>{excCount}</span>
         <span className={`trainingdue-count${warnCount ? " warn" : ""}`}>{warnCount}</span>
-        <span className="trainingdue-count">{unknownCount}</span>
+        {!HIDE_NO_DATA_ITEMS && <span className="trainingdue-count">{unknownCount}</span>}
       </button>
 
       {expanded && (
@@ -138,8 +138,14 @@ function TrainingRow({ row, disabledItems, expanded, onToggle }) {
   );
 }
 
+// Capt. Weera: hide the training items that have "No data" in the Training
+// Monitor (Admin + Crew). The "No data" text below is kept on purpose - set
+// this to false to bring the empty cells back.
+export const HIDE_NO_DATA_ITEMS = true;
+
 export function TrainingItemCell({ item, result }) {
   const { status, daysRemaining, dueDate, count, lifetime } = result;
+  if (HIDE_NO_DATA_ITEMS && status === "unknown") return null;
 
   // Wording keys off the REAL overdue-ness (daysRemaining < 0), not the
   // (possibly maxSeverity-capped) status - Night Currency stays "warn" even
