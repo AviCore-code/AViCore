@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.2";
 import { withTrainingThresholdDefaults, withTrainingDisabledDefaults, buildTrainingRecommendations } from "../../../../src/utils/trainingDue.js";
 import { withFtlDefaults } from "../../../../src/utils/ftlLimits.js";
-import { bangkokDay, birthdayPilots, digestMessages, pushBatch, ensureDeliverySnapshot } from "./digest.js";
+import { bangkokDay, digestMessages, pushBatch, ensureDeliverySnapshot } from "./digest.js";
 import {
   buildLineFtlRecommendations,
   recommendationsForAudience,
@@ -74,7 +74,7 @@ Deno.serve(async req => {
     const experience: any[] = [];
     const duty: any[] = [];
     for (let offset = 0; ; offset += 1000) {
-      const { data: rows, error } = await sb.from("Admin_pilot_experience").select("uuid,code,name,licence,record_json")
+      const { data: rows, error } = await sb.from("Admin_pilot_experience").select("uuid,code,name,licence")
         .eq("company_id", companyId!).is("deleted_at", null)
         .order("code").order("uuid").range(offset, offset + 999);
       if (error) throw error;
@@ -89,7 +89,6 @@ Deno.serve(async req => {
       duty.push(...(rows || []));
       if (!rows || rows.length < 1000) break;
     }
-    const birthdays = birthdayPilots(experience, day);
     const ftlRecs = buildLineFtlRecommendations({ experience, duty, limits, asOfDay: day });
     const recs = [...trainingRecs, ...ftlRecs];
     // Keep first-seen dates so an unresolved warning is clearly marked after
@@ -109,8 +108,7 @@ Deno.serve(async req => {
         warnings: recs.length,
         trainingWarnings: recs.filter((rec: any) => rec.category === "training").length,
         ftlWarnings: recs.filter((rec: any) => rec.category === "ftl").length,
-        birthdays: birthdays.length,
-        batches: digestMessages(recs, day, { birthdays }).length });
+        batches: digestMessages(recs, day).length });
     }
     // Preserve the existing Training Due fan-out, but keep operational FTL data
     // restricted to the explicitly configured pilot group. Secondary payloads,
@@ -149,7 +147,6 @@ Deno.serve(async req => {
       companyId: companyId!,
       groupId,
       day,
-      birthdays,
       primaryRecommendations: recs,
       secondaryRecommendations: recommendationsForAudience(recs, "secondary"),
       groups: discoveredGroups,

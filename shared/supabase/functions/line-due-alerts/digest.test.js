@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   bangkokDay,
-  birthdayPilots,
   digestMessages,
   pushBatch,
   deliveryRetryKey,
@@ -14,85 +13,6 @@ describe("LINE due date delivery", () => {
     expect(bangkokDay(new Date("2026-09-06T18:00:00Z"))).toBe("2026-09-07");
   });
   it("does not send an empty digest", () => expect(digestMessages([], "2026-09-06")).toEqual([]));
-  it("selects pilots whose HBD day and month match the Bangkok day", () => {
-    const rows = [
-      { code: "WJU", name: "Weera Juntaklud", record_json: { profile: { hbd: "18-Oct-73" } } },
-      { code: "KCH", name: "Kitsaphon Chom-In", record_json: { profile: { hbd: "18-Oct-1980" } } },
-      { code: "PCH", name: "Prapan Chan-Udom", record_json: { profile: { hbd: "19-Oct-70" } } },
-      { code: "BAD", name: "Invalid Date", record_json: { profile: { hbd: "31-Feb-80" } } },
-    ];
-
-    expect(birthdayPilots(rows, "2026-10-18")).toEqual([
-      { code: "KCH", name: "Kitsaphon Chom-In" },
-      { code: "WJU", name: "Weera Juntaklud" },
-    ]);
-  });
-  it("accepts Feb 29 birthdays independently of the stored birth year", () => {
-    const rows = [
-      { code: "LEAP", name: "Leap Pilot", record_json: { profile: { hbd: "29-Feb-00" } } },
-    ];
-
-    expect(birthdayPilots(rows, "2028-02-29")).toEqual([
-      { code: "LEAP", name: "Leap Pilot" },
-    ]);
-  });
-  it("sends a birthday greeting even when there are no due-date warnings", () => {
-    const batches = digestMessages([], "2026-10-18", {
-      birthdays: [{ code: "WJU", name: "Weera Juntaklud" }]
-    });
-    const text = batches.flat().map((message) => message.text).join("\n");
-
-    expect(text).toContain("สุขสันต์วันเกิด");
-    expect(text).toContain("WJU — Weera Juntaklud");
-    expect(text).toContain("ปลอดภัยในทุกเที่ยวบิน");
-  });
-  it("splits a birthday-only greeting into Unicode-safe LINE batches", () => {
-    const birthdays = Array.from({ length: 100 }, (_, index) => ({
-      code: `CP${String(index).padStart(3, "0")}`,
-      name: `นักบิน😀${index}`.repeat(40),
-    }));
-    const batches = digestMessages([], "2026-10-18", { birthdays });
-
-    expect(batches.length).toBeGreaterThan(1);
-    for (const batch of batches) {
-      expect(batch.length).toBeLessThanOrEqual(5);
-      for (const message of batch) {
-        expect(message.text.length).toBeLessThanOrEqual(4500);
-        expect(message.text.isWellFormed()).toBe(true);
-      }
-    }
-    const text = batches.flat().map((message) => message.text).join("");
-    expect(text).toContain("CP000 — นักบิน😀0");
-    expect(text).toContain("CP099 — นักบิน😀99");
-    expect(text).toContain("ปลอดภัยในทุกเที่ยวบิน");
-  });
-  it("splits combined birthday and warning output within LINE limits", () => {
-    const birthdays = Array.from({ length: 40 }, (_, index) => ({
-      code: `CP${String(index).padStart(3, "0")}`,
-      name: `Birthday😀${index}`.repeat(35),
-    }));
-    const warning = "ก😀".repeat(8000);
-    const batches = digestMessages([
-      { category: "training", status: "warn", text: warning },
-    ], "2026-10-18", { birthdays });
-
-    for (const batch of batches) {
-      expect(batch.length).toBeLessThanOrEqual(5);
-      for (const message of batch) {
-        expect(message.text.length).toBeLessThanOrEqual(4500);
-        expect(message.text.isWellFormed()).toBe(true);
-      }
-    }
-    const messages = batches.flat();
-    const text = messages.map((message) => message.text).join("\n");
-    const warningText = messages
-      .filter((message) => message.text.startsWith("AviCore"))
-      .map((message) => message.text.split("รายการ\n")[1])
-      .join("");
-    expect(text).toContain("สุขสันต์วันเกิด");
-    expect(text).toContain("CP039 — Birthday😀39");
-    expect(warningText).toContain(warning);
-  });
   it("labels training and FTL warnings in the same LINE digest", () => {
     const messages = digestMessages([
       { category: "training", status: "warn", text: "CP1 — CRM due in 30 days" },
@@ -133,7 +53,6 @@ describe("LINE due date delivery", () => {
       companyId: "company",
       groupId: "Cprimary",
       day: "2026-09-06",
-      birthdays: [{ code: "CP1", name: "Birthday First" }],
       primaryRecommendations: [{ category: "ftl", status: "warn", text: "primary first" }],
       secondaryRecommendations: [{ category: "training", status: "warn", text: "secondary first" }],
       groups: ["C111"],
@@ -143,7 +62,6 @@ describe("LINE due date delivery", () => {
       companyId: "company",
       groupId: "Cprimary",
       day: "2026-09-06",
-      birthdays: [{ code: "CP2", name: "Birthday Changed" }],
       primaryRecommendations: [{ category: "ftl", status: "warn", text: "primary changed" }],
       secondaryRecommendations: [{ category: "training", status: "warn", text: "secondary changed" }],
       groups: ["C222"],
@@ -153,8 +71,6 @@ describe("LINE due date delivery", () => {
     const frozen = JSON.stringify(retried);
     expect(frozen).toContain("primary first");
     expect(frozen).toContain("secondary first");
-    expect(frozen).toContain("Birthday First");
-    expect(frozen).not.toContain("Birthday Changed");
     expect(frozen).not.toContain("changed");
     expect(retried.secondary.destinations.map((item) => item.id)).toEqual(["C111", "U111"]);
     for (const batch of retried.batches) {
