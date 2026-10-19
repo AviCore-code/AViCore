@@ -1,0 +1,26 @@
+name: Deploy AviCore Bot to Supabase
+
+on:
+  push:
+    branches:
+      - lab/admin-experience-view-export-pdf
+    paths:
+      - 'shared/supabase/functions/line-group-webhook/**'
+      - 'shared/supabase/functions/_shared/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+      
+      - name: Deploy Edge Function
+        run: |
+          cd shared/supabase
+          supabase functions deploy line-group-webhook
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ofyboehfubpdicpapyop
