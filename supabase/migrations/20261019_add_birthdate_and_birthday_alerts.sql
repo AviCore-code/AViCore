@@ -5,7 +5,7 @@ ALTER TABLE public."Admin_pilot_roster" ADD COLUMN IF NOT EXISTS birth_date DATE
 -- Birthday greetings table: track which pilots were greeted today
 CREATE TABLE IF NOT EXISTS public.admin_birthday_greetings (
   id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-  company_id TEXT NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
+  company_id UUID NOT NULL REFERENCES public.companies(id) ON DELETE CASCADE,
   pilot_code TEXT NOT NULL,
   pilot_name TEXT,
   greeting_date DATE NOT NULL,
