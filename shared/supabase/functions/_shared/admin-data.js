@@ -178,7 +178,7 @@ export async function replyAdminData(event, {groupId, read, now = new Date()}) {
   if (event.source?.type === "user") return "ข้อมูลจาก AviCore Admin ใช้ได้เฉพาะกลุ่มนักบินที่บริษัทกำหนดครับ";
   if (event.source?.type !== "group" || !groupId || event.source.groupId !== groupId) return null;
   if (intent.kind === "help") {
-    return "AviCore Bot อ่านข้อมูลปฏิบัติการจาก AviCore Admin ได้ดังนี้ครับ\n• ตารางบิน/ตารางเวร\n• แผนรายสัปดาห์\n• สถานะ Training และ Currency\n• ประสบการณ์และชั่วโมงบิน\n• Duty/FTL ย้อนหลัง\n• รายชื่อนักบิน\n\nระบุรหัสนักบินเมื่อถามข้อมูลรายบุคคล เช่น “AviCore Bot training PDE” ครับ";
+    return "AviCore Bot อ่านข้อมูลปฏิบัติการจาก AviCore Admin ได้ดังนี้ครับ\n• ตารางบิน/ตารางเวร\n• แผนรายสัปดาห์\n• สถานะ Training และ Currency\n• ประสบการณ์และชั่วโมงบิน\n• Duty/FTL ย้อนหลัง\n• รายชื่อนักบิน\n• ใครมี training/recency หมดอายุ\n\nระบุรหัสนักบินเมื่อถามข้อมูลรายบุคคล เช่น “AviCore Bot training PDE” ครับ";
   }
   if (["duty", "training", "experience"].includes(intent.kind) && !intent.pilotCode) {
     return "กรุณาระบุรหัสนักบิน เช่น “AviCore Bot ข้อมูล training PDE” ครับ";
