@@ -25,8 +25,9 @@ Deno.serve(req => handleWebhook(req, {
   token: Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN"),
   auditEvent:auditLineEvent,
   knowledgeReply:async event=>{
-    const {data:company}=await sb.from("companies").select("id").eq("slug",Deno.env.get("COMPANY_SLUG")||"uoa").single();
-    const {data:botConfig}=company ? await sb.from("Admin_app_settings").select("value_json").eq("company_id",company.id).eq("key","line_bot_config").is("deleted_at",null).maybeSingle() : {data:null};
+    const {data:company,error:compErr}=await sb.from("companies").select("id").eq("slug",Deno.env.get("COMPANY_SLUG")||"uoa").single();
+    if(compErr||!company){console.error("[webhook] company lookup failed",compErr); return null;}
+    const {data:botConfig}=await sb.from("Admin_app_settings").select("value_json").eq("company_id",company.id).eq("key","line_bot_config").is("deleted_at",null).maybeSingle();
     const cfg=botConfig?.value_json||{};
     if(cfg.replyEnabled===false) return false;
     if(["group","room"].includes(event?.source?.type) && cfg.groupConversationEnabled===false) return false;
@@ -37,8 +38,6 @@ Deno.serve(req => handleWebhook(req, {
     });
     if(adminReply)return adminReply;
     return replyKnowledge(event,{groupId:Deno.env.get("LINE_PILOT_GROUP_ID"),search:async query=>{
-    const {data:company,error}=await sb.from("companies").select("id").eq("slug",Deno.env.get("COMPANY_SLUG")||"uoa").single();
-    if(error)throw error;
     let actualQuery=query;
     if(/^more\s+all$/i.test(String(query).trim())){
       const {data:history}=await sb.from("admin_line_user_events").select("raw_event").eq("company_id",company.id).eq("line_user_id",event?.source?.userId||"").eq("event_type","message").order("occurred_at",{ascending:false}).limit(20);

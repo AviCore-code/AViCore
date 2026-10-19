@@ -8,7 +8,16 @@ const ADMIN_INTENTS = [
   ["pilots", /(รายชื่อนักบิน|pilot\s*list|นักบินทั้งหมด)/i],
 ];
 
-const BLOCKED_FIELD = /(email|phone|mobile|address|birth|passport|national|photo|image|document|file|attachment|token|secret|password|device|user.?id|uuid|raw|note|remark)/i;
+const BLOCKED_FIELD = /(email|phone|mobile|address|birth|passport|national|photo|image|document|file|attachment|token|secret|password|device|user.?id|uuid|raw|note|remark|emergency|employee|blood|contact|personalDetails)/i;
+
+const ALLOWLIST = {
+  roster: new Set(["pilot_code", "pilot_name", "base", "date", "code"]),
+  weeklyPlan: new Set(["date", "section", "slot", "pilot_code", "level"]),
+  training: new Set(["code", "name", "licence", "checklist_type", "completion_date", "expiry_date", "status", "nightCurrency"]),
+  experience: new Set(["licence", "code", "name", "category", "total_hours", "update_date"]),
+  duty: new Set(["date", "pilot_code", "duty_type", "start_time", "end_time", "total_hours"]),
+  pilots: new Set(["pilot_code", "pilot_name", "base", "rank", "type_rating"]),
+};
 const CODE_STOPWORDS = new Set(["AI", "ALL", "BOT", "DUTY", "FTL", "LINE", "MORE", "PLAN"]);
 
 function cleanCommand(value) {
@@ -40,20 +49,37 @@ export function classifyAdminQuery(value) {
   };
 }
 
-function safeScalars(value, prefix = "", depth = 0, out = []) {
-  if (!value || typeof value !== "object" || depth > 2 || out.length >= 14) return out;
-  for (const [key, item] of Object.entries(value)) {
-    if (out.length >= 14 || BLOCKED_FIELD.test(key)) continue;
-    const label = prefix ? `${prefix}.${key}` : key;
-    if (item == null || item === "") continue;
-    if (typeof item === "string" || typeof item === "number" || typeof item === "boolean") {
-      const text = String(item);
-      if (text.length <= 120 && !/^data:|^https?:\/\//i.test(text)) out.push(`${label}: ${text}`);
-    } else if (!Array.isArray(item)) {
-      safeScalars(item, label, depth + 1, out);
+function formatField(key, value, intent) {
+  if (!value || value === "") return null;
+  if (BLOCKED_FIELD.test(key)) return null;
+  const allowedFields = ALLOWLIST[intent?.kind];
+  if (allowedFields && !allowedFields.has(key)) return null;
+  const text = String(value);
+  if (text.length > 120 || /^data:|^https?:\/\//i.test(text)) return null;
+  return text;
+}
+
+function extractSafeFields(row, intent) {
+  const fields = [];
+  if (!row || typeof row !== "object") return fields;
+  const allowedFields = ALLOWLIST[intent?.kind];
+  
+  // Extract from flat row fields
+  for (const key of allowedFields || []) {
+    const value = formatField(key, row[key], intent);
+    if (value) fields.push(value);
+  }
+  
+  // Extract from nested record_json if present
+  if (row.record_json && typeof row.record_json === "object") {
+    for (const key of allowedFields || []) {
+      if (fields.some(f => f.includes(row.record_json[key]))) continue; // avoid duplicates
+      const value = formatField(key, row.record_json[key], intent);
+      if (value) fields.push(value);
     }
   }
-  return out;
+  
+  return fields.slice(0, 6);
 }
 
 function formatRows(intent, rows) {
@@ -68,20 +94,28 @@ function formatRows(intent, rows) {
     const unique = new Map(rows.map(row => [row.pilot_code, row]));
     return [...unique.values()].slice(0, 40).map(row => `${row.pilot_code} · ${row.pilot_name || row.name || "-"}${row.base ? ` · ${row.base}` : ""}`).join("\n");
   }
+  if (intent.kind === "training") {
+    return rows.slice(0, 15).map(row => {
+      const fields = extractSafeFields(row, intent);
+      return fields.length ? fields.join(" · ") : `${row.code || "?"} · ${row.name || "?"}`;
+    }).join("\n");
+  }
+  if (intent.kind === "experience") {
+    return rows.slice(0, 15).map(row => {
+      const fields = extractSafeFields(row, intent);
+      return fields.length ? fields.join(" · ") : `${row.licence || "?"} · ${row.code || "?"} · ${row.name || "?"}`;
+    }).join("\n");
+  }
   if (intent.kind === "duty") {
     return rows.slice(0, 20).map(row => {
-      const fields = safeScalars(row.entry_json).slice(0, 6);
+      const fields = extractSafeFields(row, intent);
       return `${row.date} · ${row.pilot_code} · ${row.duty_type || "-"}${fields.length ? `\n${fields.join(" · ")}` : ""}`;
     }).join("\n\n");
   }
-  return rows.slice(0, 10).map(row => {
-    const fields = safeScalars(row.record_json);
-    const heading = `${row.code || row.licence || row.pilot_code || "-"} · ${row.name || "-"}`;
-    return `${heading}${fields.length ? `\n${fields.join(" · ")}` : ""}`;
-  }).join("\n\n");
 }
 
-export function createSupabaseAdminReader(sb, companyId) {
+export async function createSupabaseAdminReader(sb, companyId) {
+  if (!sb || !companyId) throw new Error("Missing Supabase client or company ID");
   return async intent => {
     const today = bangkokDate(intent.now || new Date());
     const target = new Date(`${today}T00:00:00+07:00`);
@@ -96,22 +130,20 @@ export function createSupabaseAdminReader(sb, companyId) {
       query = sb.from("Admin_pilot_weekly_plan").select("date,section,slot,pilot_code,level")
         .eq("company_id", companyId).gte("date", date).lte("date", bangkokDate(end)).is("deleted_at", null).order("date").limit(100);
     } else if (intent.kind === "training") {
-      query = sb.from("Admin_pilot_training").select("code,name,record_json")
+      query = sb.from("Admin_pilot_training").select("code,name,checklist_type,completion_date,expiry_date,status,record_json")
         .eq("company_id", companyId).is("deleted_at", null).order("code").limit(intent.pilotCode ? 5 : 30);
+      if (intent.pilotCode) query = query.eq("code", intent.pilotCode);
     } else if (intent.kind === "experience") {
-      query = sb.from("Admin_pilot_experience").select("licence,code,name,update_date,record_json")
+      query = sb.from("Admin_pilot_experience").select("licence,code,name,category,total_hours,update_date,record_json")
         .eq("company_id", companyId).is("deleted_at", null).order("code").limit(intent.pilotCode ? 5 : 30);
+      if (intent.pilotCode) query = query.eq("code", intent.pilotCode);
     } else if (intent.kind === "duty") {
       const start = new Date(`${date}T00:00:00+07:00`); start.setUTCDate(start.getUTCDate() - 27);
-      query = sb.from("Admin_pilot_duty_entries").select("pilot_code,date,duty_type,entry_json")
+      query = sb.from("Admin_pilot_duty_entries").select("pilot_code,date,duty_type,start_time,end_time,total_hours,entry_json")
         .eq("company_id", companyId).gte("date", bangkokDate(start)).lte("date", date).is("deleted_at", null).order("date", {ascending:false}).limit(50);
     } else {
       query = sb.from("Admin_pilot_roster").select("pilot_code,pilot_name,base")
         .eq("company_id", companyId).is("deleted_at", null).order("pilot_code").limit(1000);
-    }
-    if (intent.pilotCode && intent.kind !== "pilots") {
-      const column = ["training", "experience"].includes(intent.kind) ? "code" : "pilot_code";
-      query = query.eq(column, intent.pilotCode);
     }
     const {data, error} = await query;
     if (error) throw error;
@@ -131,7 +163,12 @@ export async function replyAdminData(event, {groupId, read, now = new Date()}) {
   if (["duty", "training", "experience"].includes(intent.kind) && !intent.pilotCode) {
     return "กรุณาระบุรหัสนักบิน เช่น “AviCore Bot ข้อมูล training PDE” ครับ";
   }
-  const rows = await read({...intent, now});
-  const response = `ข้อมูลล่าสุดจาก AviCore Admin\n${formatRows(intent, rows)}\n\nข้อมูลนี้ใช้เพื่อการปฏิบัติงานภายในบริษัท โปรดตรวจสอบใน Admin ก่อนนำไปใช้ครับ`;
-  return Array.from(response).slice(0, 4900).join("");
+  try {
+    const rows = await read({...intent, now});
+    const response = `ข้อมูลล่าสุดจาก AviCore Admin\n${formatRows(intent, rows)}\n\nข้อมูลนี้ใช้เพื่อการปฏิบัติงานภายในบริษัท โปรดตรวจสอบใน Admin ก่อนนำไปใช้ครับ`;
+    return Array.from(response).slice(0, 4900).join("");
+  } catch (err) {
+    console.error("[admin-data] query failed", err);
+    return "ขณะนี้อ่านข้อมูล Admin ไม่ได้ กรุณาลองใหม่ครับ";
+  }
 }
