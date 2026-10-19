@@ -42,13 +42,15 @@ export function scoreIntentMatches(query) {
     for (const alias of aliases) {
       if (text.includes(alias.toLowerCase())) matches++;
     }
-    scores[intent] = matches > 0 ? matches / aliases.length : 0;
+    // Use: (matches / number of words in query) for better short-query scoring
+    // So "training" (1 word, 1 match) scores 1.0, not 0.08
+    scores[intent] = matches > 0 ? Math.min(matches / words.length, 1) : 0;
   }
   
   return Object.entries(scores)
     .filter(([, score]) => score > 0)
     .sort((a, b) => b[1] - a[1])
-    .map(([intent, score]) => ({ intent, confidence: Math.min(score, 1) }));
+    .map(([intent, score]) => ({ intent, confidence: score }));
 }
 
 // Generate clarification prompt for ambiguous queries
@@ -110,10 +112,11 @@ export function isVagueQuery(query) {
   const text = String(query || "").trim();
   const words = text.split(/\s+/).length;
   
-  // Very short (1-2 words) with no clear intent keyword
+  // Very short (1-2 words) AND no clear intent keyword
   if (words <= 2) {
     const scores = scoreIntentMatches(query);
-    if (!scores.length || scores[0].confidence < 0.3) return true;
+    // If no matches at all, or very low confidence, consider it vague
+    if (!scores.length || scores[0].confidence < 0.5) return true;
   }
   
   return false;
