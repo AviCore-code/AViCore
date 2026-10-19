@@ -1,6 +1,7 @@
 import { handleWebhook } from "./replies.js";
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2.110.2";
 import {replyKnowledge,searchKnowledge} from "../_shared/knowledge.js";
+import {createSupabaseAdminReader,replyAdminData} from "../_shared/admin-data.js";
 const sb=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,{auth:{persistSession:false}});
 const model=new Supabase.ai.Session('gte-small');
 async function auditLineEvent(event:any, ctx:{fetcher:typeof fetch,token?:string,now:Date}) {
@@ -30,6 +31,11 @@ Deno.serve(req => handleWebhook(req, {
     if(cfg.replyEnabled===false) return false;
     if(["group","room"].includes(event?.source?.type) && cfg.groupConversationEnabled===false) return false;
     if(cfg.knowledgeEnabled===false) return null;
+    const adminReply=await replyAdminData(event,{
+      groupId:Deno.env.get("LINE_PILOT_GROUP_ID"),
+      read:createSupabaseAdminReader(sb,company.id),
+    });
+    if(adminReply)return adminReply;
     return replyKnowledge(event,{groupId:Deno.env.get("LINE_PILOT_GROUP_ID"),search:async query=>{
     const {data:company,error}=await sb.from("companies").select("id").eq("slug",Deno.env.get("COMPANY_SLUG")||"uoa").single();
     if(error)throw error;

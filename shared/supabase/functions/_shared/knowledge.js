@@ -154,6 +154,7 @@ export async function replyKnowledge(event,{groupId,search}) {
  const fullRequest=/^more\s+all$/i.test(String(command).trim());
  const translated=await geminiTranslate(command);
  if(translated)return translated;
+ if(event.source?.type==="user") {
   try{const result=await search(command);if(!result.query.searchText){const general=await geminiGeneral(command);if(general)return general;}return `${fullRequest?"__FULL__":""}${fullRequest?formatKnowledgeResult(result):(directNumericAnswer(result)+(directNumericAnswer(result)?"\\n\\n":"")+(((await aiAnswer(result))||formatKnowledgeResult(result))))}`;}
   catch{return `ขณะนี้ค้นเอกสารไม่ได้ กรุณาลองใหม่ครับ\n\n${KNOWLEDGE_NOTE}`;}
  }

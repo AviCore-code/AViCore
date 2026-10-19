@@ -23,11 +23,11 @@ function envValue(name) {
  * Call JARVIS-Hermes bridge (ChatGPT/Claude).
  */
 async function callBridge(model, messages, systemPrompt) {
-  const bridgeUrl = envValue("AVICORE_BRIDGE_URL") || "http://127.0.0.1:8643";
-  const bridgeToken = envValue("AVICORE_BRIDGE_TOKEN") || "";
+  const bridgeUrl = envValue("AVICORE_AI_PROXY_URL");
+  const bridgeToken = envValue("AVICORE_AI_PROXY_TOKEN");
 
-  if (!bridgeToken) {
-    console.warn("[ai-providers] AVICORE_BRIDGE_TOKEN not set");
+  if (!bridgeUrl || !bridgeToken) {
+    console.warn("[ai-providers] AviCore AI proxy is not configured");
     return null;
   }
 
@@ -42,10 +42,13 @@ async function callBridge(model, messages, systemPrompt) {
 
   try {
     const response = await fetch(
-      `${bridgeUrl.replace(/\/$/, "")}/${bridgeToken}/v1/chat/completions`,
+      `${bridgeUrl.replace(/\/$/, "")}/v1/chat/completions`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Authorization": `Bearer ${bridgeToken}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(30000),
       }
