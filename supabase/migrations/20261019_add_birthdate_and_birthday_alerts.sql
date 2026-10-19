@@ -24,8 +24,7 @@ CREATE POLICY "service_role_birthday_insert"
   ON public.admin_birthday_greetings
   FOR INSERT
   TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL)
-  ON CONFLICT DO NOTHING;
+  WITH CHECK (auth.uid() IS NOT NULL);
 
 COMMENT ON TABLE public.admin_birthday_greetings IS 'Track daily birthday greetings sent via LINE';
 COMMENT ON COLUMN public."Admin_pilot_roster".birth_date IS 'Pilot date of birth (YYYY-MM-DD) for birthday greetings';
