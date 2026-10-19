@@ -42,11 +42,28 @@ export function classifyAdminQuery(value) {
   const command = cleanCommand(value);
   const match = ADMIN_INTENTS.find(([, pattern]) => pattern.test(command));
   if (!match) return null;
+  
+  // Calculate confidence:
+  // - Primary: intent pattern matched (assumed high confidence if ADMIN_INTENTS matched)
+  // - Reduce if: pilot code is needed but missing, query is very short & vague
+  
+  const words = command.split(/\s+/).filter(Boolean);
+  let confidence = 0.9; // Start high (intent matched)
+  
+  // Reduce if very short and ambiguous (single word without clear intent)
+  if (words.length === 1) confidence = 0.4;
+  
+  // Reduce confidence if pilot code is needed but missing
+  if (["duty", "training", "experience"].includes(match[0]) && !pilotCodeFrom(command)) {
+    confidence *= 0.7; // reduces 0.9 to 0.63
+  }
+  
   return {
     kind: match[0],
     pilotCode: pilotCodeFrom(command),
     dayOffset: /(พรุ่งนี้|tomorrow)/i.test(command) ? 1 : 0,
     command,
+    confidence: Math.round(confidence * 100) / 100, // 0-1.0
   };
 }
 
@@ -177,6 +194,12 @@ export async function replyAdminData(event, {groupId, read, now = new Date()}) {
   if (!intent) return null;
   if (event.source?.type === "user") return "ข้อมูลจาก AviCore Admin ใช้ได้เฉพาะกลุ่มนักบินที่บริษัทกำหนดครับ";
   if (event.source?.type !== "group" || !groupId || event.source.groupId !== groupId) return null;
+  
+  // If confidence is too low, ask for clarification
+  if (intent.confidence < 0.6) {
+    return `ผมไม่แน่ใจว่าคุณต้องการข้อมูลเรื่องอะไร 😊\n\nขอบ context หนึ่งได้ไหม เช่น:\n• ตารางบิน วันนี้\n• training PDE\n• ประสบการณ์ JDO\n• ใครหมดอายุ\n• แผนรายสัปดาห์\n• รายชื่อนักบิน\n\nหรือบอก "ช่วยเหลือ" เพื่อดูตัวเลือกเพิ่มเติมครับ`;
+  }
+  
   if (intent.kind === "help") {
     return "AviCore Bot อ่านข้อมูลปฏิบัติการจาก AviCore Admin ได้ดังนี้ครับ\n• ตารางบิน/ตารางเวร\n• แผนรายสัปดาห์\n• สถานะ Training และ Currency\n• ประสบการณ์และชั่วโมงบิน\n• Duty/FTL ย้อนหลัง\n• รายชื่อนักบิน\n• ใครมี training/recency หมดอายุ\n\nระบุรหัสนักบินเมื่อถามข้อมูลรายบุคคล เช่น “AviCore Bot training PDE” ครับ";
   }
