@@ -1,7 +1,7 @@
 import { handleWebhook } from "./replies.js";
 import {createClient} from "https://esm.sh/@supabase/supabase-js@2.110.2";
 import {replyKnowledge,searchKnowledge} from "../_shared/knowledge.js";
-import {createSupabaseAdminReader,replyAdminData} from "../_shared/admin-data.js";
+import {createSupabaseAdminReader,replyAdminData,isHybridQuery} from "../_shared/admin-data.js";
 const sb=createClient(Deno.env.get("SUPABASE_URL")!,Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,{auth:{persistSession:false}});
 const model=new Supabase.ai.Session('gte-small');
 async function auditLineEvent(event:any, ctx:{fetcher:typeof fetch,token?:string,now:Date}) {
@@ -32,10 +32,29 @@ Deno.serve(req => handleWebhook(req, {
     if(cfg.replyEnabled===false) return false;
     if(["group","room"].includes(event?.source?.type) && cfg.groupConversationEnabled===false) return false;
     if(cfg.knowledgeEnabled===false) return null;
+    const userQuery=event?.message?.text||"";
     const adminReply=await replyAdminData(event,{
       groupId:Deno.env.get("LINE_PILOT_GROUP_ID"),
       read:createSupabaseAdminReader(sb,company.id),
     });
+    
+    // For hybrid queries (overdue/due/recency), append knowledge explanation
+    if(adminReply && isHybridQuery(userQuery)) {
+      const knowledgeReply=await replyKnowledge(event,{groupId:Deno.env.get("LINE_PILOT_GROUP_ID"),search:async (query:string)=>{
+        let actualQuery=query;
+        if(/^more\s+all$/i.test(String(query).trim())){
+          const {data:history}=await sb.from("admin_line_user_events").select("raw_event").eq("company_id",company.id).eq("line_user_id",event?.source?.userId||"").eq("event_type","message").order("occurred_at",{ascending:false}).limit(20);
+          const previous=(history||[]).map((r:any)=>r.raw_event?.message?.text).find((t:any)=>t&&!/^more\s+all$/i.test(String(t).trim()));
+          actualQuery=previous||query;
+        }
+        return searchKnowledge(sb,model,company.id,actualQuery);
+      }});
+      // Combine: admin data + knowledge explanation
+      if(knowledgeReply && knowledgeReply!==adminReply) {
+        return `${adminReply}\n\n📚 ข้อมูลเพิ่มเติมจากคู่มือ:\n${knowledgeReply}`;
+      }
+    }
+    
     if(adminReply)return adminReply;
     return replyKnowledge(event,{groupId:Deno.env.get("LINE_PILOT_GROUP_ID"),search:async query=>{
     let actualQuery=query;

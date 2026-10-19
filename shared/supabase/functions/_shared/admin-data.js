@@ -192,3 +192,10 @@ export async function replyAdminData(event, {groupId, read, now = new Date()}) {
     return "ขณะนี้อ่านข้อมูล Admin ไม่ได้ กรุณาลองใหม่ครับ";
   }
 }
+
+// Detect if query needs both admin data AND knowledge explanation
+export function isHybridQuery(query) {
+  const text = String(query || "").toLowerCase();
+  // Queries about "overdue", "due", "recency" + asking "who" → need both admin list + explanation
+  return /overdue|due|recency|หมดอายุ|ครบกำหนด|ล้าหลัง/i.test(text);
+}
