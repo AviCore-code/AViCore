@@ -120,13 +120,14 @@ export async function searchKnowledge(sb,model,companyId,value) {
  }
  return {query,results,mode};
 }
-async function geminiAnswer(result) {
+async function aiAnswer(result) {
  if(!externalAiEnabled())return null;
- const key=envValue("GEMINI_API_KEY");
- if(!key||!result.results?.length)return null;
+ if(!result.results?.length)return null;
+ const {aiProviderReply}=await import("./ai-providers.js");
  const sources=result.results.slice(0,5).map((r,i)=>`อ้างอิง ${i+1}: ${r.code} — ${r.title}; Revision ${r.revision}; หน้า ${r.page_no}\n${clipReadable(cleanExcerpt(r.excerpt),1800)}`).join("\n\n");
- const prompt=`คุณคือ AviCore Bot สำหรับงานปฏิบัติการบิน ตอบภาษาไทยให้กระชับและแม่นยำ\nคำถาม: ${result.query.original}\n\nข้อมูลจาก Company Database (IQSMS):\n${sources}\n\nกติกาสำคัญ: บรรทัดแรกต้องเป็นคำตอบตรง ๆ พร้อมตัวเลขและหน่วยที่ถาม เช่น “Minimum Offshore Take-off Visibility = 400 เมตร” หรือ “Maximum Crosswind = 20 knots” ห้ามเริ่มด้วยคำว่า ผลค้นเอกสาร และห้ามอ้างอิงก่อนคำตอบ จากนั้นค่อยอธิบายเงื่อนไข แล้วใส่อ้างอิงเอกสารและหน้า PDF ไว้ท้ายคำตอบ ตอบจากข้อมูลที่ให้เท่านั้น ห้ามเดาตัวเลขหรือสร้างข้อกำหนดใหม่ หากข้อมูลไม่พอให้บอกว่าไม่พบตัวเลขที่ยืนยันได้ และลงท้ายด้วย: ${KNOWLEDGE_NOTE}`;
- try{const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent`,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]}),signal:AbortSignal.timeout(15000)});if(!response.ok){const errText=await response.text(); console.error("[gemini] request failed",response.status,errText.slice(0,500)); return null;}const data=await response.json();return data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim()||null;}catch{return null;}
+ const prompt=`คำถาม: ${result.query.original}\n\nข้อมูลจาก Company Database (IQSMS):\n${sources}`;
+ const systemPrompt=`คุณคือ AviCore Bot สำหรับงานปฏิบัติการบิน ตอบภาษาไทยให้กระชับและแม่นยำ บรรทัดแรกต้องเป็นคำตอบตรง ๆ พร้อมตัวเลขและหน่วยที่ถาม เช่น "Minimum Offshore Take-off Visibility = 400 เมตร" ห้ามเริ่มด้วยคำว่า ผลค้นเอกสาร ห้ามอ้างอิงก่อนคำตอบ ตอบจากข้อมูลที่ให้เท่านั้น ห้ามเดาตัวเลข และลงท้ายด้วย: ${KNOWLEDGE_NOTE}`;
+ try{const res=await aiProviderReply(prompt,systemPrompt,{enableBridge:true});return res?.reply||null;}catch{return null;}
 }
 async function geminiTranslate(command) {
  if(!externalAiEnabled())return null;
@@ -153,12 +154,11 @@ export async function replyKnowledge(event,{groupId,search}) {
  const fullRequest=/^more\s+all$/i.test(String(command).trim());
  const translated=await geminiTranslate(command);
  if(translated)return translated;
- if(event.source?.type==="user") {
-  try{const result=await search(command);if(!result.query.searchText){const general=await geminiGeneral(command);if(general)return general;}return `${fullRequest?"__FULL__":""}${fullRequest?formatKnowledgeResult(result):(directNumericAnswer(result)+(directNumericAnswer(result)?"\\n\\n":"")+((await geminiAnswer(result))||formatKnowledgeResult(result)))}`;}
+  try{const result=await search(command);if(!result.query.searchText){const general=await geminiGeneral(command);if(general)return general;}return `${fullRequest?"__FULL__":""}${fullRequest?formatKnowledgeResult(result):(directNumericAnswer(result)+(directNumericAnswer(result)?"\\n\\n":"")+(((await aiAnswer(result))||formatKnowledgeResult(result))))}`;}
   catch{return `ขณะนี้ค้นเอกสารไม่ได้ กรุณาลองใหม่ครับ\n\n${KNOWLEDGE_NOTE}`;}
  }
  if(event.source?.type!=="group"||!event.source.groupId)
   return "ค้นเอกสารบริษัทได้เฉพาะในกลุ่มที่เพิ่ม AviCore Bot ไว้ครับ";
- try{const result=await search(command);if(!result.query.searchText){const general=await geminiGeneral(command);if(general)return general;}return `${fullRequest?"__FULL__":""}${fullRequest?formatKnowledgeResult(result):(directNumericAnswer(result)+(directNumericAnswer(result)?"\\n\\n":"")+((await geminiAnswer(result))||formatKnowledgeResult(result)))}`;}
+ try{const result=await search(command);if(!result.query.searchText){const general=await geminiGeneral(command);if(general)return general;}return `${fullRequest?"__FULL__":""}${fullRequest?formatKnowledgeResult(result):(directNumericAnswer(result)+(directNumericAnswer(result)?"\\n\\n":"")+(((await aiAnswer(result))||formatKnowledgeResult(result))))}`;}
  catch{return `ขณะนี้ค้นเอกสารไม่ได้ กรุณาลองใหม่ หรือเปิด IQSMS โดยตรงครับ\n\n${KNOWLEDGE_NOTE}`;}
 }
