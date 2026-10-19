@@ -11,6 +11,7 @@ const aliases = [
  ["ฝึกอบรม", "training"], ["สัมภาระ", "baggage"], ["เช็คอิน", "check in"],
  ["ผู้โดยสาร", "passenger"], ["หัวหน้านักบิน", "pilot in command captain name"], ["กัปตัน", "pilot in command captain name"], ["ชื่อหัวหน้านักบิน", "pilot in command captain name"], ["แผนการบิน", "flight plan"], ["รายงานอุบัติเหตุ", "accident reporting"],
 ];
+
 export function normalizeKnowledgeQuery(value) {
  const original=String(value||"").trim().slice(0,300);
  const code=original.match(/OPS-(?:CM|CP)-\d{2}/i)?.[0].toUpperCase()||null;
@@ -25,21 +26,18 @@ export function normalizeKnowledgeQuery(value) {
  const searchText=[...new Set([...mapped,latin,windHint].filter(Boolean))].join(" ").slice(0,300);
  return {original,searchText,documentCode:code,mapped:mapped.length>0};
 }
+
 export function knowledgeCommand(event) {
  if(event?.type!=="message"||event.message?.type!=="text"||!event.replyToken)return null;
  const text=String(event.message.text||"");
  const addressed=/^\s*@?avicore\s*bot\b/i.test(text)||event.message.mention?.mentionees?.some(m=>m.isSelf===true);
- // LINE direct messages can only arrive from users who have added the OA.
- // Allow a plain question in a direct chat; group/room messages still need
- // an explicit AviCore mention or prefix.
- // LINE may strip the visible @mention from message.text. Group membership is
- // already enforced by the webhook source, so accept text events from groups.
  if(["group","room"].includes(event.source?.type) && !addressed)return null;
  const clean=text.replace(/@?avicore\s*(bot)?/ig,"").trim();
  if(/^(ทดสอบ|test|ping|สวัสดี|ดีครับ|ดีค่ะ|hello|hi|กี่โมง|เวลา|time)\s*$/i.test(clean))return null;
  const match=clean.match(/^(?:ค้นหา|ค้น|search|find)\s*[:：]?\s*(.*)$/i);
  return match ? match[1].trim() : clean;
 }
+
 const clip=(value,max)=>{const chars=Array.from(String(value||""));return chars.length>max?chars.slice(0,max).join("")+"…":chars.join("");};
 const clipReadable=(value,max)=>{
  const text=String(value||""); if(Array.from(text).length<=max)return text;
@@ -47,24 +45,21 @@ const clipReadable=(value,max)=>{
  const cut=Math.max(part.lastIndexOf(". "),part.lastIndexOf("; "),part.lastIndexOf("\n"),part.lastIndexOf(" "));
  return (cut>Math.floor(max*0.55)?part.slice(0,cut):part).trim()+"…";
 };
+
 export function cleanExcerpt(value){
  let text=String(value||"");
  const header=text.match(/^.{0,800}?\bPage\s+\d+\s*-\s*\d+\s*/s);
  if(header&&/APPROVAL/i.test(header[0]))text=text.slice(header[0].length);
  return text.replace(/UNCONTROLLED when printed\. Visit UOA online system for latest version\./g,"")
-  // PDF extraction often inserts a newline between every visual line. Keep
-  // the excerpt as flowing sentences so LINE does not show one word per row.
   .split(/\r?\n/).map(line=>line.replace(/[ \t]+/g," ").trim()).filter(Boolean).join(" ")
   .replace(/\s{2,}/g," ").trim();
 }
+
 function directNumericAnswer(result){
  const q=String(result.query?.original||"").toLowerCase();
  if(!/(visibility|vis|rvr|มองเห็น|ทัศนวิสัย|take.?off|ขั้นต่ำ|minimum)/i.test(q))return "";
  const text=result.results.slice(0,5).map(r=>cleanExcerpt(r.excerpt)).join(" ");
  const hits=[];
- // For the specific offshore take-off question, bind the number to the word
- // "offshore". This avoids OCR fragments such as 400 + 0 becoming 4000 and
- // avoids returning the unrelated 1400 m decision range.
  if(/take[ -]?off/i.test(q)&&/offshore|ทะเล/i.test(q)){
   const offshore=/(\d{2,4})\s*(?:meters?|metres?|m)\s*offshore/gi; let om;
   while((om=offshore.exec(text))&&hits.length<2){const value=`${om[1]} เมตร`;if(!hits.includes(value))hits.push(value);}
@@ -74,19 +69,20 @@ function directNumericAnswer(result){
  let m; while((m=re.exec(text))&&hits.length<4){const value=`${m[1]} เมตร`;if(!hits.includes(value))hits.push(value);}
  return hits.length?`ตัวเลขที่พบ: ${hits.join(" · ")}`:"";
 }
+
 export function formatKnowledgeResult(result) {
  if(!result.query.searchText)return `กรุณาระบุคำค้นภาษาอังกฤษ หรือคำไทยที่รองรับ เช่น เวลาพัก เชื้อเพลิงสำรอง วัตถุอันตราย\nตัวอย่าง: AviCore ค้นหา reserve fuel\n\n${KNOWLEDGE_NOTE}`;
  const header=`ผลค้นเอกสาร: ${result.query.searchText}${result.mode==='keyword'?' (ค้นคำตรงตัว)':''}`;
- if(!result.results.length)return `ผมยังไม่แน่ใจว่าต้องการค้นหาเรื่องไหนครับ ขอรายละเอียดเพิ่มอีกนิดได้ไหม เช่น\n• ต้องการค่าขั้นต่ำ/ค่าสูงสุดของอะไร\n• เป็นอากาศยานรุ่นใด เช่น AW139\n• เกี่ยวกับ FTL เช่น 90D, 180D, take-off, landing หรือ I.APP\n• หรือส่งรหัสเอกสาร เช่น OPS-CM-01\n\nตัวอย่าง: “AW139 minimum offshore take-off visibility”\n\n${KNOWLEDGE_NOTE}`;
- const blocks=result.results.slice(0,3).map((r,i)=>{
-  const excerpt=cleanExcerpt(r.excerpt);
-  return `ข้อ ${i+1}: ${clipReadable(excerpt,120)}\nอ้างอิง: ${clip(r.code,30)} · หน้า PDF ${r.page_no}`;
- });
- const direct=directNumericAnswer(result);
- return `${direct?`${direct}\n\n`:""}${header}\n\nคำตอบจากเอกสาร:\n${blocks.join("\n\n")}\n\nแหล่งข้อมูล: IQSMS Company Database\nตรวจสอบเอกสารฉบับเต็มและ revision ล่าสุดก่อนใช้งาน\n\n${KNOWLEDGE_NOTE}`;
+ if(!result.results.length)return `ผมยังไม่แน่ใจว่าต้องการค้นหาเรื่องไหนครับ ขอรายละเอียดเพิ่มอีกนิดได้ไหม เช่น\n• ต้องการค่าขั้นต่ำ/ค่าสูงสุดของอะไร\n• เป็นอากาศยานรุ่นใด เช่น AW139\n• เกี่ยวกับ FTL เช่น 90D, 180D, take-off, landing หรือ I.APP\n• หรือส่งรหัสเอกสาร เช่น OPS-CM-01\n\nตัวอย่าง: "AW139 minimum offshore take-off visibility"\n\n${KNOWLEDGE_NOTE}`;
+ // Format: show only first result (first line) + ref, no MORE button
+ const firstResult=result.results[0];
+ const firstLine=clipReadable(cleanExcerpt(firstResult.excerpt),200);
+ return `${header}\n\n${firstLine}\n\nอ้างอิง: ${clip(firstResult.code,30)} · หน้า PDF ${firstResult.page_no}\n\nตรวจสอบเอกสารฉบับเต็มและ revision ล่าสุดก่อนใช้งาน`;
 }
+
 function envValue(name){try{return globalThis.Deno?.env?.get(name)||"";}catch{return "";}}
 function externalAiEnabled(){return /^(1|true|yes)$/i.test(envValue("AVICORE_ENABLE_EXTERNAL_AI"));}
+
 async function searchJarvisFts(query){
  const url=envValue("JARVIS_KNOWLEDGE_URL");
  const token=envValue("JARVIS_KNOWLEDGE_TOKEN");
@@ -99,6 +95,7 @@ async function searchJarvisFts(query){
   return {query,results:data.results.map((r,i)=>({code:r.code||r.document_id||"IQSMS",title:r.title||r.original_file||"IQSMS document",revision:r.revision||"local FTS",page_no:r.page_no||r.page||i+1,excerpt:r.excerpt||r.snippet||"",checked_at:r.checked_at||new Date().toISOString(),source:"jarvis_iqsms_fts"})),mode:"jarvis_fts"};
  }catch{return null;}
 }
+
 export async function searchKnowledge(sb,model,companyId,value) {
  const query=normalizeKnowledgeQuery(value);
  if(!query.searchText)return {query,results:[],mode:"hybrid"};
@@ -112,14 +109,12 @@ export async function searchKnowledge(sb,model,companyId,value) {
  const {data,error}=await sb.rpc("avicore_hybrid_knowledge",{company:companyId,search_text:query.searchText,query_embedding:embedding,document_code:query.documentCode});
  if(error)throw error;
  let results=data||[];
- // Do not present an unrelated offshore procedure for a Pitch/Roll/Heave
- // question. At least one requested technical term must occur in the excerpt
- // or title; otherwise report no verified match instead of inventing a value.
  if(/pitch|roll|heave/i.test(query.original)){
   results=results.filter(r=>/pitch|roll|heave/i.test(`${r.title||""} ${r.excerpt||""}`));
  }
  return {query,results,mode};
 }
+
 async function aiAnswer(result) {
  if(!externalAiEnabled())return null;
  if(!result.results?.length)return null;
@@ -129,6 +124,7 @@ async function aiAnswer(result) {
  const systemPrompt=`คุณคือ AviCore Bot สำหรับงานปฏิบัติการบิน ตอบภาษาไทยให้กระชับและแม่นยำ บรรทัดแรกต้องเป็นคำตอบตรง ๆ พร้อมตัวเลขและหน่วยที่ถาม เช่น "Minimum Offshore Take-off Visibility = 400 เมตร" ห้ามเริ่มด้วยคำว่า ผลค้นเอกสาร ห้ามอ้างอิงก่อนคำตอบ ตอบจากข้อมูลที่ให้เท่านั้น ห้ามเดาตัวเลข และลงท้ายด้วย: ${KNOWLEDGE_NOTE}`;
  try{const res=await aiProviderReply(prompt,systemPrompt,{enableBridge:true});return res?.reply||null;}catch{return null;}
 }
+
 async function geminiTranslate(command) {
  if(!externalAiEnabled())return null;
  const key=envValue("GEMINI_API_KEY");
@@ -142,24 +138,40 @@ async function geminiTranslate(command) {
  const prompt=`Translate the following aviation/company text into ${target}. Preserve technical terms, numbers, units, warnings, and formatting. Return only the translation, no explanation. Text:\n${source}`;
  try{const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent`,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]}),signal:AbortSignal.timeout(15000)});if(!response.ok){const errText=await response.text(); console.error("[gemini] request failed",response.status,errText.slice(0,500)); return null;}const data=await response.json();return data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim()||null;}catch{return null;}
 }
+
 async function geminiGeneral(command) {
  if(!externalAiEnabled())return null;
  const key=envValue("GEMINI_API_KEY"); if(!key)return null;
- const prompt=`คุณคือ AviCore Bot ผู้ช่วยทั่วไป ตอบภาษาไทยแบบตรงประเด็น ห้ามทักทายและห้ามขึ้นต้นด้วยคำอธิบาย หากถามเวลาพระอาทิตย์ขึ้นหรือตก ให้ตอบบรรทัดแรกเป็นเวลาทันทีในรูปแบบ “พระอาทิตย์ขึ้นที่จังหวัดสงขลา: HH:MM น.” แล้วค่อยระบุวันที่และแหล่งข้อมูล หากข้อมูลเปลี่ยนแปลงได้ให้บอกสั้น ๆ ท้ายคำตอบ คำถาม: ${String(command).slice(0,1000)}`;
+ const prompt=`คุณคือ AviCore Bot ผู้ช่วยทั่วไป ตอบภาษาไทยแบบตรงประเด็น ห้ามทักทายและห้ามขึ้นต้นด้วยคำอธิบาย หากถามเวลาพระอาทิตย์ขึ้นหรือตก ให้ตอบบรรทัดแรกเป็นเวลาทันทีในรูปแบบ "พระอาทิตย์ขึ้นที่จังหวัดสงขลา: HH:MM น." แล้วค่อยระบุวันที่และแหล่งข้อมูล หากข้อมูลเปลี่ยนแปลงได้ให้บอกสั้น ๆ ท้ายคำตอบ คำถาม: ${String(command).slice(0,1000)}`;
  try{const response=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent`,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},body:JSON.stringify({contents:[{parts:[{text:prompt}]}]}),signal:AbortSignal.timeout(15000)});if(!response.ok){const errText=await response.text(); console.error("[gemini] request failed",response.status,errText.slice(0,500)); return null;}const data=await response.json();return data?.candidates?.[0]?.content?.parts?.map(p=>p.text||"").join("").trim()||null;}catch{return null;}
 }
+
 export async function replyKnowledge(event,{groupId,search}) {
  const command=knowledgeCommand(event);
  if(command===null)return null;
- const fullRequest=/^more\s+all$/i.test(String(command).trim());
  const translated=await geminiTranslate(command);
  if(translated)return translated;
+ 
  if(event.source?.type==="user") {
-  try{const result=await search(command);if(!result.query.searchText){const general=await geminiGeneral(command);if(general)return general;}return `${fullRequest?"__FULL__":""}${fullRequest?formatKnowledgeResult(result):(directNumericAnswer(result)+(directNumericAnswer(result)?"\\n\\n":"")+(((await aiAnswer(result))||formatKnowledgeResult(result))))}`;}
-  catch{return `ขณะนี้ค้นเอกสารไม่ได้ กรุณาลองใหม่ครับ\n\n${KNOWLEDGE_NOTE}`;}
+  try{
+   const result=await search(command);
+   if(!result.query.searchText){const general=await geminiGeneral(command);if(general)return general;}
+   const numeric=directNumericAnswer(result);
+   if(numeric)return numeric;
+   const ai=await aiAnswer(result);
+   return ai||formatKnowledgeResult(result);
+  }catch{return `ขณะนี้ค้นเอกสารไม่ได้ กรุณาลองใหม่ครับ\n\n${KNOWLEDGE_NOTE}`;}
  }
+ 
  if(event.source?.type!=="group"||!event.source.groupId)
   return "ค้นเอกสารบริษัทได้เฉพาะในกลุ่มที่เพิ่ม AviCore Bot ไว้ครับ";
- try{const result=await search(command);if(!result.query.searchText){const general=await geminiGeneral(command);if(general)return general;}return `${fullRequest?"__FULL__":""}${fullRequest?formatKnowledgeResult(result):(directNumericAnswer(result)+(directNumericAnswer(result)?"\\n\\n":"")+(((await aiAnswer(result))||formatKnowledgeResult(result))))}`;}
- catch{return `ขณะนี้ค้นเอกสารไม่ได้ กรุณาลองใหม่ หรือเปิด IQSMS โดยตรงครับ\n\n${KNOWLEDGE_NOTE}`;}
+  
+ try{
+  const result=await search(command);
+  if(!result.query.searchText){const general=await geminiGeneral(command);if(general)return general;}
+  const numeric=directNumericAnswer(result);
+  if(numeric)return numeric;
+  const ai=await aiAnswer(result);
+  return ai||formatKnowledgeResult(result);
+ }catch{return `ขณะนี้ค้นเอกสารไม่ได้ กรุณาลองใหม่ หรือเปิด IQSMS โดยตรงครับ\n\n${KNOWLEDGE_NOTE}`;}
 }

@@ -20,7 +20,7 @@ it("allows a friend direct chat to search",async()=>{
 });
 it("preserves citations and footer under LINE length limit",()=>{
  const text=formatKnowledgeResult({query:{searchText:"rest"},mode:"hybrid",results:Array.from({length:3},()=>({code:"OPS-CM-01",title:"Manual",revision:"Rev 1",page_no:200,excerpt:"✈️".repeat(8000),checked_at:"2026-09-06"}))});
- expect(text.length).toBeLessThanOrEqual(5000);expect(text).toContain("หน้า PDF 200");expect(text.endsWith(KNOWLEDGE_NOTE)).toBe(true);
+ expect(text.length).toBeLessThanOrEqual(5000);expect(text).toContain("หน้า PDF 200");expect(text).toContain("ตรวจสอบเอกสารฉบับเต็มและ revision ล่าสุดก่อนใช้งาน");
 });
 it("falls back to keyword when embedding fails, preserving tenant",async()=>{
  const sb={rpc:vi.fn().mockResolvedValue({data:[]})};
