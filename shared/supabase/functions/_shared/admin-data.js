@@ -6,6 +6,7 @@ const ADMIN_INTENTS = [
   ["experience", /(experience|ประสบการณ์|ชั่วโมงบิน|flight\s*hours?)/i],
   ["duty", /(duty|ftl|เวลาปฏิบัติหน้าที่|เวลาพัก|fatigue)/i],
   ["pilots", /(รายชื่อนักบิน|pilot\s*list|นักบินทั้งหมด)/i],
+  ["overdue", /(overdue|หมดอายุ|ครบกำหนด|ล้าหลัง|night\s*recency|ฝึกครบ)/i],
 ];
 
 const BLOCKED_FIELD = /(email|phone|mobile|address|birth|passport|national|photo|image|document|file|attachment|token|secret|password|device|user.?id|uuid|raw|note|remark|emergency|employee|blood|contact|personalDetails)/i;
@@ -112,6 +113,21 @@ function formatRows(intent, rows) {
       return `${row.date} · ${row.pilot_code} · ${row.duty_type || "-"}${fields.length ? `\n${fields.join(" · ")}` : ""}`;
     }).join("\n\n");
   }
+  if (intent.kind === "overdue") {
+    const today = intent.now ? bangkokDate(intent.now) : bangkokDate(new Date());
+    const overdue = [];
+    for (const row of rows) {
+      const expiry = row.expiry_date || (row.record_json?.expiry_date);
+      if (expiry && expiry < today) {
+        const code = row.code || row.pilot_code || "?";
+        const name = row.name || row.pilot_name || "?";
+        const type = row.checklist_type || row.licence || "Training";
+        overdue.push(`⚠️ ${code} · ${name} · ${type} · หมดอายุ ${expiry}`);
+      }
+    }
+    if (!overdue.length) return "ไม่มีนักบินที่มี training/recency หมดอายุครับ";
+    return overdue.slice(0, 20).join("\n");
+  }
 }
 
 export async function createSupabaseAdminReader(sb, companyId) {
@@ -141,6 +157,10 @@ export async function createSupabaseAdminReader(sb, companyId) {
       const start = new Date(`${date}T00:00:00+07:00`); start.setUTCDate(start.getUTCDate() - 27);
       query = sb.from("Admin_pilot_duty_entries").select("pilot_code,date,duty_type,start_time,end_time,total_hours,entry_json")
         .eq("company_id", companyId).gte("date", bangkokDate(start)).lte("date", date).is("deleted_at", null).order("date", {ascending:false}).limit(50);
+    } else if (intent.kind === "overdue") {
+      // Check training expiry across all pilots
+      query = sb.from("Admin_pilot_training").select("code,pilot_code,name,pilot_name,checklist_type,expiry_date,record_json")
+        .eq("company_id", companyId).is("deleted_at", null).order("code").limit(100);
     } else {
       query = sb.from("Admin_pilot_roster").select("pilot_code,pilot_name,base")
         .eq("company_id", companyId).is("deleted_at", null).order("pilot_code").limit(1000);
