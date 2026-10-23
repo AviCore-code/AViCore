@@ -165,10 +165,15 @@ export function classifyTrainingValue(item, value, thresholdDays, today = new Da
     return { status: "ok", daysRemaining: null, lifetime: true };
   }
 
-  const due = value instanceof Date ? value : new Date(value);
+  let due;
+  const dateOnly = typeof value === "string" && /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (dateOnly) due = new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+  else due = value instanceof Date ? value : new Date(value);
   if (isNaN(due.getTime())) return { status: "unknown", daysRemaining: null };
 
-  const daysRemaining = Math.floor((due.getTime() - today.getTime()) / MS_PER_DAY);
+  const todayDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
+  const daysRemaining = Math.round((dueDay.getTime() - todayDay.getTime()) / MS_PER_DAY);
   let status = daysRemaining < 0 ? "exc" : daysRemaining <= thresholdDays ? "warn" : "ok";
   // Night Currency (maxSeverity:"warn") never escalates to red even when
   // actually overdue - overdue night currency only restricts night flying,

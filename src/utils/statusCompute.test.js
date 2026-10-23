@@ -132,6 +132,13 @@ describe("withinDays", () => {
     expect(withinDays(null, 7)).toBe(false);
     expect(withinDays("not a date", 7)).toBe(false);
   });
+
+  it("rejects dates after the supplied operational day", () => {
+    const asOf = new Date("2026-10-22T01:00:00Z");
+    expect(withinDays("2026-10-22", 7, asOf)).toBe(true);
+    expect(withinDays("2026-10-23", 7, asOf)).toBe(false);
+    expect(withinDays("2026-10-30", 7, asOf)).toBe(false);
+  });
 });
 
 describe("computeStats", () => {

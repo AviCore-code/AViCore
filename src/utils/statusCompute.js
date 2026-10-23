@@ -80,14 +80,16 @@ function localMidnight(dateStr) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-export function withinDays(dateStr, days) {
+export function withinDays(dateStr, days, asOf = new Date()) {
   const d = localMidnight(dateStr);
   if (!d) return false;
-  const cutoff = new Date();
+  const cutoff = new Date(asOf);
   cutoff.setHours(0, 0, 0, 0);
+  const end = new Date(asOf);
+  end.setHours(23, 59, 59, 999);
   // -days+1 so the window INCLUDES today: 7 days = today + the 6 before it.
   cutoff.setDate(cutoff.getDate() - days + 1);
-  return d >= cutoff;
+  return d >= cutoff && d <= end;
 }
 
 // Same rolling-window test as withinDays, but anchored on an arbitrary
@@ -135,8 +137,8 @@ function dateKeyLocal(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function computeStats(entries, limits) {
-  const sumFt = (days) => entries.filter((e) => withinDays(e.date, days)).reduce((s, e) => s + entryFlightHours(e), 0);
+export function computeStats(entries, limits, asOf = new Date()) {
+  const sumFt = (days) => entries.filter((e) => withinDays(e.date, days, asOf)).reduce((s, e) => s + entryFlightHours(e), 0);
   // Duty Time rolling sums are built from merged Duty Periods (buildDutyPeriods),
   // not raw per-entry schDep/stop sums - each period's "Actual Duty" (report
   // - 1:00 through Last Engine Stop, OPS-CM-01 7.9.2-aware for Standby that
@@ -145,10 +147,10 @@ export function computeStats(entries, limits) {
   // involved (see its own comment in dutyPeriods.js for exactly how).
   const dutyPeriods = buildDutyPeriods(entries, limits);
   const sumDt = (days) => dutyPeriods
-    .filter((p) => withinDays(dateKeyLocal(p.start), days))
+    .filter((p) => withinDays(dateKeyLocal(p.start), days, asOf))
     .reduce((s, p) => s + periodDutyCreditHours(p, limits), 0);
-  const flightEntries90 = entries.filter((e) => e.dutyType === "flight" && withinDays(e.date, 90));
-  const flightEntries180 = entries.filter((e) => e.dutyType === "flight" && withinDays(e.date, 180));
+  const flightEntries90 = entries.filter((e) => e.dutyType === "flight" && withinDays(e.date, 90, asOf));
+  const flightEntries180 = entries.filter((e) => e.dutyType === "flight" && withinDays(e.date, 180, asOf));
   const num = (v) => Number(v) || 0;
   return {
     ft7d: sumFt(7), ft28d: sumFt(28), ft90d: sumFt(90), ft365d: sumFt(365),
