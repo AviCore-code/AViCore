@@ -72,7 +72,7 @@ export default function TrainingAllStatus({ pilots, thresholds, disabledItems, l
 
       {loading && <div className="mystatus-empty">Loading...</div>}
       {!loading && visibleRows.length === 0 && (
-        <div className="mystatus-empty">No training data yet — use the "Import PDF / Excel" tab to load pilots, or "Input" to add one by hand.</div>
+        <div className="mystatus-empty">No training data yet — use the "Input / Import" tab to import the Excel or add a pilot by hand.</div>
       )}
 
       {!loading && visibleRows.length > 0 && (

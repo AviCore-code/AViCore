@@ -7,22 +7,20 @@ import { TRAINING_ITEMS, withTrainingThresholdDefaults, withTrainingDisabledDefa
 import TrainingAllStatus from "./TrainingAllStatus.jsx";
 import TrainingPersonStatus from "./TrainingPersonStatus.jsx";
 import TrainingInput from "./TrainingInput.jsx";
-import TrainingImportTab from "./TrainingImportTab.jsx";
 import StaffTraining from "../staffTraining/StaffTraining.jsx";
 import "./Training.css";
 
 const TABS = [
   { key: "all", label: "All Training Status", icon: "📋" },
   { key: "person", label: "Person Training Status", icon: "👤" },
-  { key: "input", label: "Input", icon: "✍️" },
-  { key: "import", label: "Import PDF / Excel", icon: "📥" },
+  { key: "input", label: "Input / Import", icon: "✍️" },
   ...(isAdminBuild ? [{ key: "staff", label: "All Staff Training", icon: "👥" }] : []),
 ];
 
 // Flight crew training/certificate module - one main page with four
 // sections (see TABS above). Fleet-wide data (pilots + thresholds) is
 // loaded once here and passed down, so switching tabs never needs a fresh
-// round trip; each tab that mutates data (Input, Import) takes a refresh()
+// round trip; the tab that mutates data (Input / Import) takes a refresh()
 // callback to pull the latest state back into this shared state after a
 // save/import. The Caution-threshold editor that used to be a fifth tab
 // here now lives in the main Settings page's "Training Setting" tab (see
@@ -75,8 +73,7 @@ export default function Training() {
       <div className="training-tab-body">
         {tab === "all" && <TrainingAllStatus pilots={pilots} thresholds={thresholds} disabledItems={disabledItems} loading={loading} onRefresh={refresh} />}
         {tab === "person" && <TrainingPersonStatus pilots={pilots} thresholds={thresholds} disabledItems={disabledItems} loading={loading} />}
-        {tab === "input" && <TrainingInput pilots={pilots} onSaved={refresh} />}
-        {tab === "import" && <TrainingImportTab pilots={pilots} thresholds={thresholds} onImported={refresh} />}
+        {tab === "input" && <TrainingInput pilots={pilots} thresholds={thresholds} onSaved={refresh} />}
         {tab === "staff" && <StaffTraining />}
       </div>
     </div>

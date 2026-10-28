@@ -14,7 +14,7 @@ const LABEL = { ...STATUS_LABEL, unknown: "NO DATA" };
 // All Training Status, but as its own dedicated page (useful for printing
 // or reviewing just one pilot's currency without scrolling the fleet
 // table), plus a "View Document" link per item when a certificate/photo
-// has been attached via the Import PDF/Excel tab's document-attach section.
+// has been attached from the Input / Import tab.
 export default function TrainingPersonStatus({ pilots, thresholds, disabledItems, loading }) {
   const [code, setCode] = useState("");
   const [branding, setBranding] = useState(null);
@@ -99,7 +99,7 @@ export default function TrainingPersonStatus({ pilots, thresholds, disabledItems
 
       {loading && <div className="mystatus-empty">Loading...</div>}
       {!loading && !pilot && sorted.length === 0 && (
-        <div className="mystatus-empty">No training data yet — use "Import PDF / Excel" or "Input" to add pilots.</div>
+        <div className="mystatus-empty">No training data yet — use "Input / Import" to add pilots.</div>
       )}
 
       {pilot && computed && (

@@ -1,7 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { saveTraining } from "../../services/desktopDatabase.js";
+import { saveTraining, importTrainingMany, getSetting, saveSetting, saveDocument, openFile } from "../../services/desktopDatabase.js";
+import { parseTrainingExcelFile } from "../../services/trainingImport.js";
 import { TRAINING_ITEMS, formatDueDate } from "../../utils/trainingDue.js";
+import DocumentViewer from "./DocumentViewer.jsx";
+import "./TrainingDue.css";
 import "./Training.css";
+
+// Attached documents live inside the training record on the web build, so
+// they travel with every read of it. Five megabytes is generous for a
+// scanned certificate and small enough not to make the Training pages crawl.
+const MAX_DOC_BYTES = 5 * 1024 * 1024;
+
+function extFromFile(file) {
+  const m = /\.(\w+)$/.exec(file.name || "");
+  return m ? m[1].toLowerCase() : (file.type === "application/pdf" ? "pdf" : "jpg");
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 const NEW_PILOT = "__new__";
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -122,12 +144,15 @@ function TrainingDateField({ value, onChange, invalid }) {
   );
 }
 
-// Manual single-pilot entry/edit form - the only way to add a pilot's
-// training record without an Excel import, or to correct one or two fields
-// after import without re-uploading the whole workbook. Saving preserves
-// any documents already attached to this pilot via the Import tab's
-// document-attach section (record.docs is not shown/edited here).
-export default function TrainingInput({ pilots, onSaved }) {
+// Combined "Input / Import" tab (was two tabs: "Input" and "Import PDF /
+// Excel"). One place to:
+//  - bulk-load every pilot from the Training Track Excel workbook (top bar),
+//  - add or correct one pilot by hand (form below), and
+//  - attach / view / replace the source document (PDF or photo) for each
+//    item right under that item's date field, so the date and its
+//    certificate are entered together.
+// Excel re-imports and manual saves both preserve already-attached docs.
+export default function TrainingInput({ pilots, thresholds, onSaved }) {
   const [selected, setSelected] = useState("");
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
@@ -136,6 +161,18 @@ export default function TrainingInput({ pilots, onSaved }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   const [fullScreen, setFullScreen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Excel import
+  const [importing, setImporting] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [applyThresholds, setApplyThresholds] = useState(true);
+  const [importMsg, setImportMsg] = useState(null);
+
+  // Per-item documents
+  const [docBusyKey, setDocBusyKey] = useState(null);
+  const [docMsg, setDocMsg] = useState(null);
+  const [viewing, setViewing] = useState(null);
 
   useEffect(() => {
     if (!fullScreen) return;
@@ -154,6 +191,7 @@ export default function TrainingInput({ pilots, onSaved }) {
 
   useEffect(() => {
     setMsg(null);
+    setDocMsg(null);
     setInvalidKeys(new Set());
     if (selected === NEW_PILOT) {
       setNewCode("");
@@ -163,7 +201,7 @@ export default function TrainingInput({ pilots, onSaved }) {
       setValues(valuesFromRecord(editingPilot.record));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected]);
+  }, [selected, reloadKey]);
 
   function updateField(key, val) {
     setValues((v) => ({ ...v, [key]: val }));
@@ -213,8 +251,9 @@ export default function TrainingInput({ pilots, onSaved }) {
     setMsg(null);
     try {
       await saveTraining(code, name, record);
-      setMsg({ ok: true, text: `Saved ${code}.` });
       await onSaved();
+      if (selected === NEW_PILOT) setSelected(code); // now attach documents to it right away
+      setMsg({ ok: true, text: `Saved ${code}.` });
     } catch (err) {
       setMsg({ ok: false, text: "Save failed: " + err.message });
     } finally {
@@ -222,12 +261,129 @@ export default function TrainingInput({ pilots, onSaved }) {
     }
   }
 
+  async function handleExcelFile(file) {
+    setImportMsg(null);
+    try {
+      const result = await parseTrainingExcelFile(file);
+      setPreview(result);
+      setApplyThresholds(true);
+    } catch (err) {
+      setImportMsg({ ok: false, text: "Could not read this file: " + err.message });
+    }
+  }
+
+  async function handleConfirmImport() {
+    if (!preview) return;
+    setImporting(true);
+    try {
+      const byCode = new Map(pilots.map((p) => [p.code, p]));
+      const payload = preview.pilots.map((p) => {
+        const existingDocs = byCode.get(p.code)?.record?.docs;
+        const record = existingDocs ? { ...p.record, docs: existingDocs } : p.record;
+        return { code: p.code, name: p.name, record };
+      });
+      await importTrainingMany(payload);
+      if (applyThresholds && preview.thresholds) {
+        const current = await getSetting("training_thresholds");
+        await saveSetting("training_thresholds", { ...(current || thresholds), ...preview.thresholds });
+      }
+      setImportMsg({ ok: true, text: `Imported ${preview.pilots.length} pilot(s).` });
+      setPreview(null);
+      await onSaved();
+      setReloadKey((k) => k + 1); // show the imported dates in the form for the selected pilot
+    } catch (err) {
+      setImportMsg({ ok: false, text: "Import failed: " + err.message });
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function handleAttach(itemKey, file) {
+    if (!editingPilot || !file) return;
+    const label = TRAINING_ITEMS.find((i) => i.key === itemKey)?.label || itemKey;
+    setDocBusyKey(itemKey);
+    setDocMsg(null);
+    try {
+      // In the browser build the document is kept inside the pilot's training
+      // record as base64, re-downloaded by every page that reads training.
+      if (file.size > MAX_DOC_BYTES) {
+        throw new Error(
+          `${(file.size / 1048576).toFixed(1)} MB is too large — the limit is ${MAX_DOC_BYTES / 1048576} MB. ` +
+          "Scan or export it at a lower resolution and try again."
+        );
+      }
+      const dataUrl = await fileToDataUrl(file);
+      const filename = `${editingPilot.code}_${itemKey}_${Date.now()}.${extFromFile(file)}`;
+      const path = await saveDocument(dataUrl, "TrainingDocs", filename);
+      // Saves the stored record + the new doc only; dates typed in the form
+      // but not saved yet stay in the form until "Save Pilot".
+      const record = { ...editingPilot.record, docs: { ...(editingPilot.record?.docs || {}), [itemKey]: path } };
+      await saveTraining(editingPilot.code, editingPilot.name, record);
+      await onSaved();
+      setDocMsg({ ok: true, text: `Attached ${file.name} to ${editingPilot.code} — ${label}.` });
+    } catch (err) {
+      setDocMsg({ ok: false, text: "Attach failed: " + err.message });
+    } finally {
+      setDocBusyKey(null);
+    }
+  }
+
+  async function handleView(path, title) {
+    if (window.aviCoreAPI) {
+      const result = await openFile(path);
+      if (!result.ok) alert("Could not open the file: " + (result.error || "unknown error"));
+      return;
+    }
+    setViewing({ path, title });
+  }
+
+  async function handleOpenExternally(path) {
+    const result = await openFile(path);
+    if (!result.ok) alert("Could not open the file: " + (result.error || "unknown error"));
+  }
+
+  const docs = editingPilot?.record?.docs || {};
+
   return (
-    <div className={fullScreen ? "page-fullscreen" : ""}>
+    <div className={`trainingdue-page${fullScreen ? " page-fullscreen" : ""}`}>
       <div className="training-subtab-toolbar">
-        <p className="training-subtitle">Add or correct one pilot's training record by hand — for pilots not in the Excel workbook, or to fix a single field without re-importing.</p>
-        <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
+        <p className="training-subtitle">Import every pilot from the Training Track Excel, or pick one pilot to type dates by hand and attach each certificate (PDF / photo) under its item.</p>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+          <label className={`trainingdue-import-btn${importing ? " busy" : ""}`} title='Training Track workbook (sheets "INPUT DATA" + "Pilot Training DUE Monitor")'>
+            {importing ? "Importing..." : "📥 Import Excel"}
+            <input
+              type="file" accept=".xlsx,.xlsm" hidden disabled={importing}
+              onChange={(e) => { if (e.target.files?.[0]) handleExcelFile(e.target.files[0]); e.target.value = ""; }}
+            />
+          </label>
+          <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
+        </div>
       </div>
+
+      {importMsg && <div className={`settings-msg ${importMsg.ok ? "ok" : "error"}`}>{importMsg.text}</div>}
+
+      {preview && (
+        <div className="trainingdue-preview">
+          <h2>Import preview — {preview.pilots.length} pilot(s) found</h2>
+          <div className="trainingdue-preview-list">
+            {preview.pilots.map((p) => (
+              <span className="trainingdue-chip" key={p.code}>{p.code} — {p.name || "(no name)"}</span>
+            ))}
+          </div>
+          {preview.thresholds && (
+            <label className="trainingdue-apply-thresholds">
+              <input type="checkbox" checked={applyThresholds} onChange={(e) => setApplyThresholds(e.target.checked)} />
+              <span>Also apply the "Caution" warning windows found in this file as the company-wide defaults (synced to every device)</span>
+            </label>
+          )}
+          <div className="trainingdue-preview-actions">
+            <button className="primary" onClick={handleConfirmImport} disabled={importing}>
+              {importing ? "Importing..." : `Import ${preview.pilots.length} pilot(s)`}
+            </button>
+            <button onClick={() => setPreview(null)} disabled={importing}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       <div className="training-pilot-picker">
         <select value={selected} onChange={(e) => setSelected(e.target.value)}>
@@ -263,6 +419,22 @@ export default function TrainingInput({ pilots, onSaved }) {
                     invalid={invalidKeys.has(item.key)}
                   />
                 )}
+                <div className="doc-row">
+                  {docs[item.key] && (
+                    <button type="button" onClick={() => handleView(docs[item.key], `${editingPilot.code} — ${item.label}`)}>📄 View</button>
+                  )}
+                  {editingPilot ? (
+                    <label className="doc-upload" title="Attach a PDF or photo of this certificate">
+                      {docBusyKey === item.key ? "Uploading..." : docs[item.key] ? "Replace" : "📎 Attach"}
+                      <input
+                        type="file" accept=".pdf,.jpg,.jpeg,.png" hidden disabled={docBusyKey !== null}
+                        onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) handleAttach(item.key, f); }}
+                      />
+                    </label>
+                  ) : (
+                    <span className="doc-path" style={{ color: "#64748b" }}>Save pilot first to attach</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -272,6 +444,17 @@ export default function TrainingInput({ pilots, onSaved }) {
           </div>
           {msg && <div className={`settings-msg ${msg.ok ? "ok" : "error"}`}>{msg.text}</div>}
         </>
+      )}
+
+      {docMsg && <div className={`settings-msg ${docMsg.ok ? "ok" : "error"}`}>{docMsg.text}</div>}
+
+      {viewing && (
+        <DocumentViewer
+          path={viewing.path}
+          title={viewing.title}
+          onClose={() => setViewing(null)}
+          onOpenExternally={handleOpenExternally}
+        />
       )}
     </div>
   );
