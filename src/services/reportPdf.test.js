@@ -7,6 +7,7 @@ const pdfSpy = vi.hoisted(() => ({
   addImageCalls: 0,
   addPageCalls: 0,
   savedName: "",
+  outputCalls: [],
   capturedText: "",
   cloneCss: ""
 }));
@@ -17,6 +18,7 @@ vi.mock("jspdf", () => ({
     addImage() { pdfSpy.addImageCalls += 1; }
     addPage() { pdfSpy.addPageCalls += 1; }
     save(name) { pdfSpy.savedName = name; }
+    output(type) { pdfSpy.outputCalls.push(type); return new Blob(["PDF"], { type: "application/pdf" }); }
   }
 }));
 
@@ -43,6 +45,7 @@ describe("one-page report PDF target selection", () => {
       addImageCalls: 0,
       addPageCalls: 0,
       savedName: "",
+      outputCalls: [],
       capturedText: "",
       cloneCss: ""
     });
@@ -76,9 +79,24 @@ describe("one-page report PDF target selection", () => {
     expect(target.element.textContent).toContain("Chief Pilot / Authorised Signatory");
   });
 
+  it("selects the read-only Pilot Experience Summary and fits the entire record to one page", () => {
+    document.body.innerHTML = `
+      <nav>Admin shell</nav>
+      <section class="myexp-print-area"><h2>Pilot Experience Summary</h2><footer>Chief Pilot / Authorised Signatory</footer></section>
+    `;
+
+    const target = resolvePdfExportTarget();
+
+    expect(target.element).toBe(document.querySelector(".myexp-print-area"));
+    expect(target.fitToPage).toBe(true);
+    expect(target.element.textContent).toContain("Pilot Experience Summary");
+    expect(target.element.textContent).toContain("Chief Pilot / Authorised Signatory");
+  });
+
   it.each([
     ["trainingperson-print-area", "FIRST TRAINING ITEM", "FINAL TRAINING ITEM", "Training.pdf"],
-    ["pe-print-area", "Pilot experience summary", "Chief Pilot / Authorised Signatory", "Experience.pdf"]
+    ["pe-print-area", "Pilot experience summary", "Chief Pilot / Authorised Signatory", "Experience.pdf"],
+    ["myexp-print-area", "Pilot Experience Summary", "Chief Pilot / Authorised Signatory", "ExperienceSummary.pdf"]
   ])("renders %s as exactly one landscape A4 PDF image", async (className, first, last, filename) => {
     document.body.innerHTML = `<section class="${className}"><h2>${first}</h2><div class="no-print">Delete row</div><footer>${last}</footer></section>`;
     const target = resolvePdfExportTarget();
@@ -96,5 +114,26 @@ describe("one-page report PDF target selection", () => {
     expect(pdfSpy.capturedText).toContain(first);
     expect(pdfSpy.capturedText).toContain(last);
     expect(pdfSpy.cloneCss).toContain(".top-grid,.exp-grid{ display:grid !important");
+  });
+
+  it("opens a one-page report in the browser PDF viewer when a preview window is provided", async () => {
+    document.body.innerHTML = `<section class="myexp-print-area"><h2>Pilot Experience Summary</h2></section>`;
+    const target = resolvePdfExportTarget();
+    const previewWindow = { location: { href: "" } };
+    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:experience-preview");
+
+    const result = await downloadElementAsPdf(target.element, "ExperienceSummary.pdf", {
+      landscape: true,
+      fitToPage: true,
+      previewWindow
+    });
+
+    expect(result).toEqual({ ok: true, filePath: "ExperienceSummary.pdf", preview: true });
+    expect(pdfSpy.outputCalls).toEqual(["blob"]);
+    expect(pdfSpy.addImageCalls).toBe(1);
+    expect(pdfSpy.addPageCalls).toBe(0);
+    expect(pdfSpy.savedName).toBe("");
+    expect(previewWindow.location.href).toBe("blob:experience-preview");
+    createObjectURL.mockRestore();
   });
 });

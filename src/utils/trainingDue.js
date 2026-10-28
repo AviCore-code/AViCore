@@ -209,6 +209,20 @@ export function computeTrainingRow(record, thresholds, disabledItems, today = ne
   return { perItem, status: overallTrainingStatus(perItem, monitoredKeys) };
 }
 
+// Expired / Due Soon / No data counts for a pilot's row. Counts only the
+// MONITORED items - the same set the overall badge and the expanded detail
+// grid use. Counting every item made a pilot with one expired-but-disabled
+// item read "Expired 1" next to a WARNING badge, with nothing in the detail
+// to explain it.
+export function trainingIssueCounts(computed, disabledItems) {
+  const counts = { exc: 0, warn: 0, unknown: 0 };
+  for (const item of monitoredTrainingItems(disabledItems)) {
+    const status = computed.perItem[item.key]?.status;
+    if (status in counts) counts[status]++;
+  }
+  return counts;
+}
+
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 // Same "D Mon YYYY" format Settings.jsx's About panel already uses for

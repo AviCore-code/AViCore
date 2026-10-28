@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { computeTrainingRow, formatDueDate, monitoredTrainingItems } from "../../utils/trainingDue.js";
+import { computeTrainingRow, formatDueDate, monitoredTrainingItems, trainingIssueCounts } from "../../utils/trainingDue.js";
 import { STATUS_LABEL } from "../../utils/statusCompute.js";
 import { getSetting, exportLogbookPdf } from "../../services/desktopDatabase.js";
 import "../myStatus/MyStatus.css";
@@ -84,13 +84,13 @@ export default function TrainingAllStatus({ pilots, thresholds, disabledItems, l
             </div>
           )}
           <div className="trainingall-print-title">All Training Status — Fleet Summary</div>
-          <div className="trainingdue-table">
+          <div className={`trainingdue-table${HIDE_NO_DATA_ITEMS ? " hide-nodata" : ""}`}>
             <div className="trainingdue-row trainingdue-head">
               <span>Pilot</span>
               <span>Status</span>
               <span>Expired</span>
               <span>Due Soon</span>
-              <span>No Data</span>
+              {!HIDE_NO_DATA_ITEMS && <span>No Data</span>}
             </div>
             {visibleRows.map((r) => (
               <TrainingRow
@@ -110,10 +110,7 @@ export default function TrainingAllStatus({ pilots, thresholds, disabledItems, l
 
 function TrainingRow({ row, disabledItems, expanded, onToggle }) {
   const { code, name, computed } = row;
-  const items = Object.values(computed.perItem);
-  const excCount = items.filter((v) => v.status === "exc").length;
-  const warnCount = items.filter((v) => v.status === "warn").length;
-  const unknownCount = items.filter((v) => v.status === "unknown").length;
+  const { exc: excCount, warn: warnCount, unknown: unknownCount } = trainingIssueCounts(computed, disabledItems);
 
   return (
     <div className={`trainingdue-rowgroup${expanded ? " open" : ""}`}>
@@ -122,7 +119,7 @@ function TrainingRow({ row, disabledItems, expanded, onToggle }) {
         <span><span className={`mystatus-badge ${computed.status}`}>{LABEL[computed.status]}</span></span>
         <span className={`trainingdue-count${excCount ? " exc" : ""}`}>{excCount}</span>
         <span className={`trainingdue-count${warnCount ? " warn" : ""}`}>{warnCount}</span>
-        <span className="trainingdue-count">{unknownCount}</span>
+        {!HIDE_NO_DATA_ITEMS && <span className="trainingdue-count">{unknownCount}</span>}
       </button>
 
       {expanded && (
@@ -138,8 +135,14 @@ function TrainingRow({ row, disabledItems, expanded, onToggle }) {
   );
 }
 
+// Capt. Weera: hide the training items that have "No data" in the Training
+// Monitor (Admin + Crew). The "No data" text below is kept on purpose - set
+// this to false to bring the empty cells back.
+export const HIDE_NO_DATA_ITEMS = true;
+
 export function TrainingItemCell({ item, result }) {
   const { status, daysRemaining, dueDate, count, lifetime } = result;
+  if (HIDE_NO_DATA_ITEMS && status === "unknown") return null;
 
   // Wording keys off the REAL overdue-ness (daysRemaining < 0), not the
   // (possibly maxSeverity-capped) status - Night Currency stays "warn" even

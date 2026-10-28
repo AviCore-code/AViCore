@@ -18,6 +18,14 @@ describe("Admin feature navigation regression", () => {
     expect(source).toContain("<LineSettingsPanel />");
   });
 
+  it("keeps server-managed Training Due and FTL email alerts visible in Web Admin", () => {
+    const source = read("../modules/settings/AdminSettingsTab.jsx");
+    const database = read("../services/desktopDatabase.js");
+    expect(source).toContain("Daily Training Due &amp; FTL Email Alerts");
+    expect(source).toContain("Notification Recipients");
+    expect(database).toContain('saveSetting("alert_email_config"');
+  });
+
   it("renders five main destinations with a second-level screen tab bar", () => {
     const source = read("./AdminWebApp.jsx");
     const css = read("./AdminWebApp.css");

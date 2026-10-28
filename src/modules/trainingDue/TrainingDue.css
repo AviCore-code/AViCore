@@ -130,3 +130,8 @@
   .docview-body{background:white;overflow:visible}
   .docview-body img{max-height:none;width:100%}
 }
+
+/* Hide wrapper cells left empty when a "No data" training item renders nothing. */
+.trainingdue-grid > div:empty { display: none; }
+.trainingdue-grid > div:not(:has(*)) { display: none; }
+.trainingdue-table.hide-nodata .trainingdue-row{grid-template-columns:2.2fr .9fr .8fr .8fr}

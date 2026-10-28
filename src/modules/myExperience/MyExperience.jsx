@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { listExperience, loadExperience, listDutyEntriesByPilot, getSetting, getPreferredPilotCode, isSinglePilotDevice, isDemoSession } from "../../services/desktopDatabase.js";
+import { exportLogbookPdf, listExperience, loadExperience, listDutyEntriesByPilot, getSetting, getPreferredPilotCode, isSinglePilotDevice, isDemoSession } from "../../services/desktopDatabase.js";
 import { combineExperience, combineAircraftRows, combineSpecialty, sumCombinedTotal, decimalToHHMM, getEffectiveUpdateDate, formatUpdateDate } from "../../utils/experienceCombine.js";
 import { normalizeAircraftRow } from "../../utils/timeMath.js";
 import "./MyExperience.css";
@@ -13,7 +13,10 @@ const AIRCRAFT_GROUPS = [
 const HELI_GROUPS = ["rotarySingle", "rotaryMulti"];
 const FIXED_GROUPS = ["fixedSingle", "fixedMulti"];
 
-export default function MyExperience() {
+export default function MyExperience({
+  title = "My Experience",
+  description = "Your cumulative flight hours (read-only — editable only by Admin under Pilot Experience). The Current total also includes Daily Duty records flown after the Update date."
+}) {
   const [pilots, setPilots] = useState([]);
   const [pilotCode, setPilotCode] = useState("");
   const [record, setRecord] = useState(null);
@@ -23,6 +26,7 @@ export default function MyExperience() {
   const [effectiveUpdate, setEffectiveUpdate] = useState("");
 
   const [msg, setMsg] = useState("");
+  const [exporting, setExporting] = useState(false);
   const [branding, setBranding] = useState(null);
   const [fullScreen, setFullScreen] = useState(false);
 
@@ -46,7 +50,14 @@ export default function MyExperience() {
   useEffect(() => {
     const pilot = pilots.find((p) => p.code === pilotCode);
     if (!pilot) { setRecord(null); setCombined(null); setCombinedRows({}); setSpecialty([]); setEffectiveUpdate(""); return; }
+    let cancelled = false;
+    setRecord(null);
+    setCombined(null);
+    setCombinedRows({});
+    setSpecialty([]);
+    setEffectiveUpdate("");
     Promise.all([loadExperience(pilot.licence), listDutyEntriesByPilot(pilotCode)]).then(([rec, entries]) => {
+      if (cancelled) return;
       setRecord(rec);
       const c = combineExperience(rec, entries);
       setCombined(c);
@@ -59,36 +70,61 @@ export default function MyExperience() {
       }
       setCombinedRows(byGroup);
     });
+    return () => { cancelled = true; };
   }, [pilotCode, pilots]);
 
   const profile = record?.profile;
   const totalHelicopter = sumCombinedTotal(HELI_GROUPS.flatMap((k) => combinedRows[k] || []));
   const totalFixed = sumCombinedTotal(FIXED_GROUPS.flatMap((k) => combinedRows[k] || []));
 
+  async function handlePdf(action) {
+    if (isDemoSession()) {
+      alert("Demo account — PDF export is disabled.");
+      return;
+    }
+    let previewWindow = null;
+    if (action === "view") {
+      previewWindow = window.open("", "_blank");
+      if (!previewWindow) {
+        setMsg("Preview blocked. Allow pop-ups for AviCore and try again.");
+        return;
+      }
+      previewWindow.opener = null;
+      previewWindow.document.title = "Pilot Experience Summary";
+      previewWindow.document.body.textContent = "Preparing PDF…";
+    }
+    setExporting(true);
+    setMsg(action === "view" ? "Preparing PDF preview…" : "Preparing one-page PDF…");
+    try {
+      const result = await exportLogbookPdf(
+        `PilotExperienceSummary_${profile?.code || pilotCode || "pilot"}.pdf`,
+        previewWindow ? { previewWindow } : {}
+      );
+      if (result && !result.ok) throw new Error(result.error || "PDF export failed.");
+      setMsg(action === "view" ? "PDF preview opened." : "PDF downloaded.");
+    } catch (err) {
+      if (previewWindow && !previewWindow.closed) previewWindow.close();
+      setMsg(`Export failed: ${err.message}`);
+    } finally {
+      setExporting(false);
+    }
+  }
+
 
   return (
     <div className={`myexp-page${fullScreen ? " page-fullscreen" : ""}`}>
       <div className="module-header no-print">
         <div>
-          <h1>My Experience</h1>
-          <p>Your cumulative flight hours (read-only — editable only by Admin under Pilot Experience). The Current total also includes Daily Duty records flown after the Update date.</p>
+          <h1>{title}</h1>
+          <p>{description}</p>
         </div>
         <div className="myexp-header-actions">
           <div className="myexp-controls">
-            {/* Print only. An "Export PDF" button was removed here.
-                It rendered the sheet through html2canvas, which lays out text
-                itself instead of using the browser's engine - with this app's
-                default font it measured runs narrower than it drew them, so
-                characters piled up and the spaces and colons between them were
-                squeezed out ("WeeraJuntaklud", "446 52" for 446:52). Forcing
-                Arial, disabling kerning/ligatures and waiting on
-                document.fonts.ready all failed to fix it.
-                Printing uses the browser's own engine: real selectable text,
-                correct spacing, and the layout Capt. Weera confirmed is right.
-                For a document that goes to a regulator that matters more than
-                having the filename filled in automatically. */}
-            <button className="primary" onClick={() => { if (isDemoSession()) { alert("Demo account — printing is disabled."); return; } window.print(); }} disabled={!record}>
-              Print / Save PDF
+            <button onClick={() => handlePdf("view")} disabled={!record || exporting}>
+              View PDF
+            </button>
+            <button className="primary" onClick={() => handlePdf("export")} disabled={!record || exporting}>
+              {exporting ? "Preparing…" : "Export PDF"}
             </button>
             <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
           </div>

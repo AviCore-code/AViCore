@@ -378,6 +378,13 @@ export async function downloadElementAsPdf(element, filename, options = {}) {
   // whole point of this path.
   report("Saving…");
   const name = String(filename || "document.pdf").replace(/\.pdf$/i, "") + ".pdf";
+  if (options.previewWindow) {
+    if (options.previewWindow.closed) return { ok: false, error: "The PDF preview window was closed." };
+    const blobUrl = URL.createObjectURL(pdf.output("blob"));
+    options.previewWindow.location.href = blobUrl;
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 5 * 60 * 1000);
+    return { ok: true, filePath: name, preview: true };
+  }
   pdf.save(name);
   return { ok: true, filePath: name };
 }

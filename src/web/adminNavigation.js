@@ -12,6 +12,7 @@ export const ADMIN_SECTIONS = [
     screens: [
       { key: "pilotRoster", label: "Pilot Roster", icon: "🗓️" },
       { key: "logbook", label: "Logbook", icon: "📖" },
+      { key: "experience", label: "Pilot Experience Summary", icon: "🪪" },
     ],
   },
   {

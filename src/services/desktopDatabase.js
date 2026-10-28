@@ -2,6 +2,7 @@ import { showDataErrorBanner } from "./dataErrorBanner.js";
 import { Capacitor } from "@capacitor/core";
 import { DEMO_PILOT_CODES } from "../config/demoUsers.js";
 import { downloadElementAsPdf, resolvePdfExportTarget } from "./downloadPdf.js";
+import { normalizeAlertEmailConfig } from "./emailAlertConfig.js";
 
 const DEMO_SET = new Set((DEMO_PILOT_CODES || []).map((c) => String(c).toUpperCase()));
 
@@ -270,14 +271,14 @@ export async function updateDutyEntry(code, id, entry) {
   return { ok: true };
 }
 
-export async function exportLogbookPdf(suggestedName) {
+export async function exportLogbookPdf(suggestedName, options = {}) {
   if (isDemoSession()) return { ok: false, error: "Demo account — export is disabled." };
 
   // One-page reports must use the in-page raster path on every platform. The
   // Electron bridge prints the whole BrowserWindow and cannot target this DOM
   // node or guarantee fit-to-page, which caused blank/clipped extra sheets.
   const { element, fitToPage } = resolvePdfExportTarget();
-  if (fitToPage) return downloadElementAsPdf(element, suggestedName, { landscape: true, fitToPage: true });
+  if (fitToPage) return downloadElementAsPdf(element, suggestedName, { ...options, landscape: true, fitToPage: true });
 
   if (window.aviCoreAPI) return window.aviCoreAPI.exportLogbookPdf(suggestedName);
   if (isMobile()) return (await mobileDb()).exportLogbookPdf(suggestedName);
@@ -561,11 +562,28 @@ export async function getLicenseStatus() {
 
 export async function getEmailConfig() {
   if (window.aviCoreAPI) return window.aviCoreAPI.getEmailConfig();
+  if (isWeb()) {
+    const saved = await getSetting("alert_email_config");
+    return {
+      enabled: !!saved?.enabled,
+      toAddress: String(saved?.toAddress || ""),
+      serverManaged: true,
+      smtpHost: "",
+      smtpPort: 587,
+      smtpSecure: false,
+      smtpUser: "",
+      hasPassword: true,
+      fromAddress: ""
+    };
+  }
   return { enabled: false, smtpHost: "", smtpPort: 587, smtpSecure: false, smtpUser: "", hasPassword: false, fromAddress: "", toAddress: "" };
 }
 
 export async function setEmailConfig(cfg) {
   if (window.aviCoreAPI) return window.aviCoreAPI.setEmailConfig(cfg);
+  if (isWeb()) {
+    return saveSetting("alert_email_config", normalizeAlertEmailConfig(cfg));
+  }
   throw new Error("Email setup is unavailable in browser preview");
 }
 

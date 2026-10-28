@@ -4,6 +4,7 @@ import Tools from "../tools/Tools.jsx";
 import PilotRoster from "../pilotRoster/PilotRoster.jsx";
 import HoursSummary from "../pilotRoster/HoursSummary.jsx";
 import MyLogbook from "../myLogbook/MyLogbook.jsx";
+import PilotExperienceSummary from "../myExperience/PilotExperienceSummary.jsx";
 import Reports from "../reports/Reports.jsx";
 import DutyEntry from "../dutyEntry/DutyEntry.jsx";
 import { isWeb } from "../../services/desktopDatabase.js";
@@ -36,6 +37,7 @@ const TABS = [
   { key: "tools", label: "Import & Setup", icon: "📥", Component: Tools },
   MIDDLE_TAB,
   { key: "logbook", label: "Logbook", icon: "📔", Component: MyLogbook },
+  { key: "experience", label: "Pilot Experience Summary", icon: "🪪", Component: PilotExperienceSummary },
   { key: "reports", label: "Report", icon: "📈", Component: Reports }
 ];
 

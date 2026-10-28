@@ -15,4 +15,5 @@
 // emails - ask if you want that added.
 export const ADMIN_ALLOWED_EMAILS = [
   "weera@uoathai.com",
+  "thitiwaree@uoathai.com",
 ];

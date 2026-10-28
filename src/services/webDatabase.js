@@ -281,7 +281,16 @@ export async function fetchPilotRoster() {
     .is("deleted_at", null)
     .order("name", { ascending: true });
   if (error) throw new Error("fetch pilot roster: " + error.message);
-  return data || [];
+  // One entry per pilot code. The login picker showed every name twice, which
+  // means the table returns the same pilot more than once (duplicate rows for
+  // the same code); the picker only needs each pilot once.
+  const seen = new Set();
+  return (data || []).filter((p) => {
+    const key = String(p.code || "").trim().toUpperCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 async function upsertDutyRowsWithLegacyConstraintFallback(sb, rows, options = {}) {
@@ -571,6 +580,38 @@ async function rawImportTrainingMany(pilots) {
   return { ok: true, count: rows.length };
 }
 
+async function retireManualDuplicates(sb, pilotCode, entries) {
+  const byType = new Map();
+  for (const e of entries || []) {
+    if (!e?.date || !e?.dutyType) continue;
+    if (!byType.has(e.dutyType)) byType.set(e.dutyType, new Set());
+    byType.get(e.dutyType).add(e.date);
+  }
+  let retired = 0;
+  for (const [dutyType, dateSet] of byType) {
+    const dates = [...dateSet];
+    for (let i = 0; i < dates.length; i += 150) {
+      const chunk = dates.slice(i, i + 150);
+      for (let pass = 0; pass < 20; pass++) {
+        const now = new Date().toISOString();
+        const { data, error } = await sb.from("Admin_pilot_duty_entries")
+          .update({ deleted_at: now, modified_at: now })
+          .eq("pilot_code", pilotCode)
+          .eq("duty_type", dutyType)
+          .in("date", chunk)
+          .is("deleted_at", null)
+          .is("entry_json->>sourceFile", null)
+          .select("uuid");
+        if (error) throw new Error("retire typed duplicates: " + error.message);
+        const n = (data || []).length;
+        retired += n;
+        if (!n) break;
+      }
+    }
+  }
+  return retired;
+}
+
 export async function addDutyEntriesMany(code, entries) {
   const sb = requireSupabase();
   const companyId = await currentCompanyId();
@@ -581,6 +622,15 @@ export async function addDutyEntriesMany(code, entries) {
   // imported file first (same semantics as the original addDutyEntriesMany).
   // No UNIQUE CONSTRAINT on this table — plain INSERT is safe after the delete.
   if (sourceFile) await removeDutyEntriesBySourceFile(code, sourceFile);
+  // Also retire hand-typed rows (no sourceFile) for the same pilot + date +
+  // duty type. The model is one record per pilot/date/type (the UNIQUE
+  // CONSTRAINT that enforced it was dropped for import speed), so a pilot who
+  // typed a flight into Daily Duty and then had the same day imported from the
+  // FDT file ended up with BOTH rows - every flight counted twice, pushing FT/DT
+  // rolling totals into false Warning/Exceeded (KCH 37h vs 18.6h real). The FDT
+  // file is the authoritative source; the typed rows are soft-deleted
+  // (recoverable), not erased.
+  if (sourceFile) await retireManualDuplicates(sb, pilotCode, entries);
   const rows = (entries || []).map((e) => ({
     uuid: makeId(),
     company_id: companyId,
@@ -638,6 +688,30 @@ export async function removeDutyEntriesBySourceFile(code, sourceFile) {
     const n = (data || []).length;
     removed += n;
     if (!n) break;              // nothing left matching
+  }
+
+  // An UPDATE that row-level security filters out is not an error in
+  // PostgREST - it just matches zero rows. So rows the delete policy does not
+  // cover (e.g. a company_id that is NULL or another tenant's, from an import
+  // made before multi-tenant) were skipped silently while the read policy
+  // could still show them, and they would go on counting towards FT/DT. Re-count
+  // what is still live and say so instead of reporting success.
+  let left = sb.from("Admin_pilot_duty_entries")
+    .select("uuid", { count: "exact", head: true })
+    .eq("pilot_code", pilotCode)
+    .is("deleted_at", null);
+  left = manual
+    ? left.is("entry_json->>sourceFile", null)
+    : left.eq("entry_json->>sourceFile", sourceFile);
+  const { count, error: countError } = await left;
+  if (countError) throw new Error("remove duty by file: " + countError.message);
+  if (count) {
+    throw new Error(
+      `${count} entr${count === 1 ? "y" : "ies"} for ${pilotCode} could not be deleted ` +
+      `(${removed} removed). The database security policy refused the delete ` +
+      "for these rows. Run shared/sql/fix-duty-entries-company-id.sql in " +
+      "Supabase -> SQL Editor to see which rows and why."
+    );
   }
   return { ok: true, removed };
 }
