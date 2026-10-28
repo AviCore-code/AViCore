@@ -580,6 +580,38 @@ async function rawImportTrainingMany(pilots) {
   return { ok: true, count: rows.length };
 }
 
+async function retireManualDuplicates(sb, pilotCode, entries) {
+  const byType = new Map();
+  for (const e of entries || []) {
+    if (!e?.date || !e?.dutyType) continue;
+    if (!byType.has(e.dutyType)) byType.set(e.dutyType, new Set());
+    byType.get(e.dutyType).add(e.date);
+  }
+  let retired = 0;
+  for (const [dutyType, dateSet] of byType) {
+    const dates = [...dateSet];
+    for (let i = 0; i < dates.length; i += 150) {
+      const chunk = dates.slice(i, i + 150);
+      for (let pass = 0; pass < 20; pass++) {
+        const now = new Date().toISOString();
+        const { data, error } = await sb.from("Admin_pilot_duty_entries")
+          .update({ deleted_at: now, modified_at: now })
+          .eq("pilot_code", pilotCode)
+          .eq("duty_type", dutyType)
+          .in("date", chunk)
+          .is("deleted_at", null)
+          .is("entry_json->>sourceFile", null)
+          .select("uuid");
+        if (error) throw new Error("retire typed duplicates: " + error.message);
+        const n = (data || []).length;
+        retired += n;
+        if (!n) break;
+      }
+    }
+  }
+  return retired;
+}
+
 export async function addDutyEntriesMany(code, entries) {
   const sb = requireSupabase();
   const companyId = await currentCompanyId();
@@ -590,6 +622,15 @@ export async function addDutyEntriesMany(code, entries) {
   // imported file first (same semantics as the original addDutyEntriesMany).
   // No UNIQUE CONSTRAINT on this table — plain INSERT is safe after the delete.
   if (sourceFile) await removeDutyEntriesBySourceFile(code, sourceFile);
+  // Also retire hand-typed rows (no sourceFile) for the same pilot + date +
+  // duty type. The model is one record per pilot/date/type (the UNIQUE
+  // CONSTRAINT that enforced it was dropped for import speed), so a pilot who
+  // typed a flight into Daily Duty and then had the same day imported from the
+  // FDT file ended up with BOTH rows - every flight counted twice, pushing FT/DT
+  // rolling totals into false Warning/Exceeded (KCH 37h vs 18.6h real). The FDT
+  // file is the authoritative source; the typed rows are soft-deleted
+  // (recoverable), not erased.
+  if (sourceFile) await retireManualDuplicates(sb, pilotCode, entries);
   const rows = (entries || []).map((e) => ({
     uuid: makeId(),
     company_id: companyId,
