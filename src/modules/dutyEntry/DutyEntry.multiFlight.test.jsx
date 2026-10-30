@@ -42,6 +42,9 @@ describe("Daily Duty — Flights / Day first, one row per flight", () => {
     fireEvent.change(screen.getByLabelText("Flight 3 route"), { target: { value: "VTSH-BQP-VTSH" } });
     fireEvent.change(screen.getByLabelText("Flight 1 route"), { target: { value: "VTSH-ERLQ2-VTSH" } });
     expect(routes()).toEqual(["VTSH-ERLQ2-VTSH", "VTSH-ERLQ2-VTSH", "VTSH-BQP-VTSH"]);
+    fireEvent.change(screen.getByLabelText("Flight 2 type"), { target: { value: "Ferry Flight" } });
+    fireEvent.change(screen.getByLabelText("Flight 1 type"), { target: { value: "Training" } });
+    expect([1, 2, 3].map((n) => screen.getByLabelText(`Flight ${n} type`).value)).toEqual(["Training", "Ferry Flight", "Training"]);
     fireEvent.click(within(screen.getAllByRole("radiogroup")[0]).getByText("4"));
     expect(screen.getByLabelText("Flight 4 route").value).toBe("VTSH-BQP-VTSH");
     expect(ls()[3]).toBe("KCH");

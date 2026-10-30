@@ -19,6 +19,7 @@ const DUTY_ROLES = ["PIC", "PICUS", "SIC", "TRI", "TRE"];
 const NON_FLIGHT_TYPES = ["Day Standby", "Night Standby", "Positioning", "Ground Training", "Meeting", "Travel", "Office", "Ground Run", "Other"];
 const DEFAULT_AIRCRAFT_TYPE = "AW139";
 const MAX_FLIGHTS_PER_DAY = 8;
+const FOLLOW_FLIGHT_1 = ["flightType", "aircraftType", "registration", "ls", "route"];
 const today = () => todayIso();
 
 function hhmmToMin(str) {
@@ -372,12 +373,14 @@ export default function DutyEntry() {
       route
     });
   }
-  // Editing LS or Route on flight 1 carries to the later flights that still
-  // hold flight 1's previous value - i.e. rows nobody has changed yet - so
-  // typing the route once after picking "3 flights" fills all three. A row
-  // already given its own value keeps it.
+  // Editing flight 1 carries to the later flights (Capt. Weera: "แก้เที่ยวที่
+  // หนึ่ง ต้อง default เปลี่ยนตาม") - Flight Type, A/C Type, Registration, LS
+  // and Route - on every row that still holds flight 1's previous value, i.e.
+  // rows nobody has changed yet. So typing the route once after picking
+  // "3 flights" fills all three, while a row given its own value keeps it.
+  // RS is not carried: it always defaults to the logged-in pilot.
   function updateLeg(i, field, value) {
-    const follows = i === 0 && (field === "ls" || field === "route");
+    const follows = i === 0 && FOLLOW_FLIGHT_1.includes(field);
     const before = flight.legs[0]?.[field] ?? "";
     applyLegs(flight.legs.map((leg, idx) => {
       if (idx === i) return { ...leg, [field]: value };
