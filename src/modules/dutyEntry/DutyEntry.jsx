@@ -61,9 +61,9 @@ function checkOnOffshoreHours(onshoreHours, offshoreHours, totalFlightTime) {
 // One row per flight. RS always starts as the logged-in pilot (Capt. Weera:
 // "Default RS ตามชื่อ log in และสามารถเลือกแก้ไขได้") - every row, not only
 // the first, so a seat changed on one flight doesn't carry into the next.
-// Flight Type, A/C Type, Registration and LS copy the flight above (the
-// common case is the same aircraft and crew all day); Route starts blank.
-// Every field stays editable per flight.
+// Flight Type, A/C Type, Registration, LS and Route copy the flight above
+// (Capt. Weera: 3 flights on the same route with the same left-seat pilot is
+// the common day). Every field stays editable per flight.
 const blankLeg = (prev, me = "") => {
   const prevLs = prev?.ls || "";
   return {
@@ -73,7 +73,7 @@ const blankLeg = (prev, me = "") => {
     rs: me,
     // Don't copy the pilot into LS as well when they sat left on the flight above.
     ls: prevLs && prevLs.toUpperCase() !== String(me).toUpperCase() ? prevLs : "",
-    route: ""
+    route: prev?.route || ""
   };
 };
 
@@ -372,8 +372,22 @@ export default function DutyEntry() {
       route
     });
   }
+  // Editing LS or Route on flight 1 carries to the later flights that still
+  // hold flight 1's previous value - i.e. rows nobody has changed yet - so
+  // typing the route once after picking "3 flights" fills all three. A row
+  // already given its own value keeps it.
   function updateLeg(i, field, value) {
-    applyLegs(flight.legs.map((leg, idx) => (idx === i ? { ...leg, [field]: value } : leg)));
+    const follows = i === 0 && (field === "ls" || field === "route");
+    const before = flight.legs[0]?.[field] ?? "";
+    applyLegs(flight.legs.map((leg, idx) => {
+      if (idx === i) return { ...leg, [field]: value };
+      if (follows && idx > 0 && (leg[field] ?? "") === before) {
+        // Never put the same pilot in both seats of a flight.
+        if (field === "ls" && value && String(value).toUpperCase() === String(leg.rs || "").toUpperCase()) return leg;
+        return { ...leg, [field]: value };
+      }
+      return leg;
+    }));
   }
   function addLeg() {
     if (flight.legs.length >= MAX_FLIGHTS_PER_DAY) return;
