@@ -17,6 +17,7 @@
 
 import { todayIso } from "./dateKeys.js";
 import { OPS_CM_01 } from "./fatigueCriteria.js";
+import { entryFlightCount } from "./flightLegs.js";
 
 // --- Parameter 1: Flight Duty Time -----------------------------------------
 // DT!AI = IF(AE>=7,6, >=6,5, >=5,4, >=4,3, >=3,2, >0,1, 0) where AE = duty
@@ -197,7 +198,7 @@ export function scoreDaysForPilot(entries, dutyHoursByDate = null, criteria = nu
       byDate.set(date, { date, flights: 0, sectors: 0, departures: [], flightHours: 0 });
     }
     const d = byDate.get(date);
-    d.flights += 1;
+    d.flights += entryFlightCount(e); // one entry can hold several flights (legs)
     d.sectors += countSectors(e.route);
     if (e.schDep) d.departures.push(e.schDep);
     d.flightHours += hhmmToHours(e.totalFlightTime);

@@ -25,6 +25,7 @@
 import { buildDutyPeriods, periodDutyCreditHours } from "./dutyPeriods.js";
 import { entryFlightHours } from "./statusCompute.js";
 import { pilotWeeklyFatigue, TOTAL_INDEX_BANDS } from "./fatigueMonitor.js";
+import { entryFlightCount } from "./flightLegs.js";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -80,7 +81,7 @@ export function monthlyFleetTotals({ rows, limits, months }) {
       const bucket = byMonth.get(key);
       if (!bucket) continue;
       bucket.ftHours += entryFlightHours(e);
-      bucket.flights += 1;
+      bucket.flights += entryFlightCount(e);
       bucket.pilots.add(r.pilot?.code);
     }
 
@@ -287,7 +288,7 @@ export function pilotComparison({ rows, limits, months }) {
     for (const e of entries) {
       if (e?.dutyType !== "flight") continue;
       ftHours += entryFlightHours(e);
-      flights += 1;
+      flights += entryFlightCount(e);
       active.add(monthKeyOf(e.date));
     }
 

@@ -7,6 +7,7 @@ import { DEFAULT_FLEET_CONFIG, withFleetDefaults } from "../../utils/fleetConfig
 import { DEFAULT_FTL_LIMITS, withFtlDefaults } from "../../utils/ftlLimits.js";
 import { buildDutyPeriods, periodDutyCreditHours, entryToInterval } from "../../utils/dutyPeriods.js";
 import { decimalToHHMM, formatDateTime, STATUS_LABEL, entryDutyHours } from "../../utils/statusCompute.js";
+import { entryFlightTypes } from "../../utils/flightLegs.js";
 import "./DutyEntry.css";
 import { todayIso } from "../../utils/dateKeys.js";
 
@@ -17,6 +18,7 @@ const DUTY_ROLES = ["PIC", "PICUS", "SIC", "TRI", "TRE"];
 // their own endDate (defaults to the start date).
 const NON_FLIGHT_TYPES = ["Day Standby", "Night Standby", "Positioning", "Ground Training", "Meeting", "Travel", "Office", "Ground Run", "Other"];
 const DEFAULT_AIRCRAFT_TYPE = "AW139";
+const MAX_FLIGHTS_PER_DAY = 8;
 const today = () => todayIso();
 
 function hhmmToMin(str) {
@@ -56,22 +58,28 @@ function checkOnOffshoreHours(onshoreHours, offshoreHours, totalFlightTime) {
   }
 }
 
-// A leg's Aircraft Type/Registration default to the previous leg's values
-// (the common case is one aircraft all day), but stay fully editable per
-// leg for days that switch aircraft mid-duty.
-const blankLeg = (prev) => ({
+// One row per flight. A new row copies the flight above it - Flight Type,
+// A/C Type, Registration and both seats (the common case is the same crew
+// and aircraft all day) - and leaves Route blank. Every field stays editable
+// per flight, for days that change type, aircraft or crew between flights.
+const blankLeg = (prev, seat = "") => ({
+  flightType: prev?.flightType || FLIGHT_TYPES[0],
   aircraftType: prev?.aircraftType || DEFAULT_AIRCRAFT_TYPE,
   registration: prev?.registration || "",
-  rs: "", ls: "", route: ""
+  rs: prev ? prev.rs || "" : seat,
+  ls: prev ? prev.ls || "" : "",
+  route: ""
 });
 
 const blankFlight = () => ({
   date: today(), flightType: FLIGHT_TYPES[0],
-  legs: [blankLeg()],
+  legs: [],
   aircraftType: DEFAULT_AIRCRAFT_TYPE, registration: "", route: "",
   // No crewNumber here: the Crew is derived from schDep by the Fatigue Monitor
   // rather than typed in - see the note by the removed field below.
-  schDep: "", stop: "", flightsPerDay: "1", totalFlightTime: "",
+  // "" = not chosen yet: a new Flight Duty entry asks for Flights / Day
+  // first and only then opens the form with one row per flight.
+  schDep: "", stop: "", flightsPerDay: "", totalFlightTime: "",
   roles: [{ role: "PIC", dayHours: "", nightHours: "" }],
   // ifrRulesHours = IFR flight-rules time, ifrHours = IMC (time in cloud).
   // Two separate figures - see the fields in the form below.
@@ -84,8 +92,13 @@ const blankNonFlight = () => ({ date: today(), endDate: today(), nonFlightType: 
 // a single leg from their old flat aircraftType/registration/route/
 // totalFlightTime fields so editing an old entry doesn't show an empty list.
 function legsFromEntry(entry) {
-  if (Array.isArray(entry.legs) && entry.legs.length) return entry.legs;
+  if (Array.isArray(entry.legs) && entry.legs.length) {
+    // Legs saved before Flight Type moved onto each flight carry none - they
+    // all flew the entry's one type.
+    return entry.legs.map((l) => ({ ...l, flightType: l.flightType || entry.flightType || FLIGHT_TYPES[0] }));
+  }
   return [{
+    flightType: entry.flightType || FLIGHT_TYPES[0],
     aircraftType: entry.aircraftType || DEFAULT_AIRCRAFT_TYPE,
     registration: entry.registration || "",
     rs: "", ls: "",
@@ -337,12 +350,17 @@ export default function DutyEntry() {
   // editing legs overrides them until the legs change again. Total Flight
   // Time is no longer derived from legs (the per-leg Flight Time field was
   // removed) - it's entered once, manually, at the top of the form.
+  //
+  // The entry-level flightType/aircraftType/registration mirror the FIRST
+  // flight, so the Logbook, FDT Statistics and anything else that reads one
+  // value per entry keep working; the per-flight detail is in `legs`.
   function applyLegs(legs) {
     const route = legs.filter((l) => l.route).map((l) => l.route).join("/");
     setFlight({
       ...flight,
       legs,
-      flightsPerDay: String(legs.length),
+      flightsPerDay: legs.length ? String(legs.length) : "",
+      flightType: legs[0]?.flightType || FLIGHT_TYPES[0],
       aircraftType: legs[0]?.aircraftType || "",
       registration: legs[0]?.registration || "",
       route
@@ -352,11 +370,21 @@ export default function DutyEntry() {
     applyLegs(flight.legs.map((leg, idx) => (idx === i ? { ...leg, [field]: value } : leg)));
   }
   function addLeg() {
-    applyLegs([...flight.legs, blankLeg(flight.legs[flight.legs.length - 1])]);
+    if (flight.legs.length >= MAX_FLIGHTS_PER_DAY) return;
+    applyLegs([...flight.legs, blankLeg(flight.legs[flight.legs.length - 1], pilotCode)]);
   }
   function removeLeg(i) {
     if (flight.legs.length <= 1) return;
     applyLegs(flight.legs.filter((_, idx) => idx !== i));
+  }
+  // Flights / Day picked (first step of a new entry, or changed later): grow
+  // or shrink the flight rows to that count. Rows already filled are kept;
+  // new rows copy the one above.
+  function setFlightCount(n) {
+    const count = Math.max(1, Math.min(MAX_FLIGHTS_PER_DAY, Number(n) || 1));
+    const legs = flight.legs.slice(0, count);
+    while (legs.length < count) legs.push(blankLeg(legs[legs.length - 1], pilotCode));
+    applyLegs(legs);
   }
 
   async function handleSave() {
@@ -382,6 +410,17 @@ export default function DutyEntry() {
       if (onOffMin > totalMin) {
         window.alert(
           `Onshore + Offshore (${minToHHMM(onOffMin)}) exceed Total Flight Time (${minToHHMM(totalMin)}).\n\nPlease correct the Onshore/Offshore hours before saving.`
+        );
+        return;
+      }
+      if (!flight.legs.length) { setMsg("Choose Flights / Day first."); return; }
+      // A flight whose seats are filled in but don't include this pilot is
+      // almost certainly a typo in RS/LS - it would put the flight in the
+      // wrong pilot's record. Seats left blank are still allowed.
+      const unseated = unseatedFlights(flight.legs, pilotCode);
+      if (unseated.length) {
+        window.alert(
+          `${pilotCode} is not in RS or LS on flight ${unseated.join(", ")}.\n\nPlease check the seats before saving.`
         );
         return;
       }
@@ -434,7 +473,10 @@ export default function DutyEntry() {
   function handleEdit(entry) {
     playClick();
     setDutyType(entry.dutyType);
-    if (entry.dutyType === "flight") setFlight({ ...blankFlight(), ...entry, ...splitLegacyIfr(entry), legs: legsFromEntry(entry) });
+    if (entry.dutyType === "flight") {
+      const legs = legsFromEntry(entry);
+      setFlight({ ...blankFlight(), ...entry, ...splitLegacyIfr(entry), legs, flightsPerDay: String(legs.length) });
+    }
     else setNonFlight({ ...blankNonFlight(), ...entry });
     setEditingId(entry.id);
     setMsg("");
@@ -586,7 +628,8 @@ export default function DutyEntry() {
         <FlightForm
           flight={flight} setFlight={setFlight}
           updateRole={updateRole} addRole={addRole} removeRole={removeRole}
-          updateLeg={updateLeg} addLeg={addLeg} removeLeg={removeLeg}
+          updateLeg={updateLeg} addLeg={addLeg} removeLeg={removeLeg} setFlightCount={setFlightCount}
+          pilotCode={pilotCode}
           fleet={fleet} pilots={pilots}
           actualFdtDisplay={actualFdtDisplay}
         />
@@ -595,7 +638,7 @@ export default function DutyEntry() {
       )}
 
       <div className="duty-entry-actions">
-        <button className="primary" onClick={handleSave}>{editingId != null ? "Update Entry" : "Save Entry"}</button>
+        <button className="primary" onClick={handleSave} disabled={dutyType === "flight" && !flight.legs.length}>{editingId != null ? "Update Entry" : "Save Entry"}</button>
         <button onClick={handleCancelEdit}>{editingId != null ? "Cancel" : "Clear"}</button>
         {msg && <span className="duty-entry-msg">{msg}</span>}
       </div>
@@ -609,7 +652,7 @@ export default function DutyEntry() {
             <span className="duty-entry-date">{isoToDisplay(e.date)}</span>
             <span className="duty-entry-summary">
               {e.dutyType === "flight"
-                ? `${e.flightType} · ${e.aircraftType || "-"} (${e.registration || "-"}) · ${e.route || "-"} · FT ${e.totalFlightTime || "0:00"}${e.legs?.length > 1 ? ` · ${e.legs.length} legs` : ""}`
+                ? flightSummary(e)
                 : `${e.nonFlightType} · ${e.start || "-"}–${e.end || "-"}${e.remark ? " · " + e.remark : ""}`}
             </span>
             <button className="duty-entry-edit" onClick={() => handleEdit(e)}>Edit</button>
@@ -677,17 +720,72 @@ function PilotPicker({ value, onChange, pilots, placeholder }) {
   );
 }
 
-function FlightForm({ flight, setFlight, updateRole, addRole, removeRole, updateLeg, addLeg, removeLeg, fleet, pilots, actualFdtDisplay }) {
+// Flights (1-based numbers) whose RS/LS are filled in but don't include the
+// pilot this entry is for. Seats left blank aren't flagged.
+function unseatedFlights(legs, pilotCode) {
+  const me = String(pilotCode || "").toUpperCase();
+  if (!me) return [];
+  const out = [];
+  (legs || []).forEach((l, i) => {
+    const rs = String(l?.rs || "").toUpperCase().trim();
+    const ls = String(l?.ls || "").toUpperCase().trim();
+    if ((rs || ls) && rs !== me && ls !== me) out.push(i + 1);
+  });
+  return out;
+}
+
+// One line per saved flight entry in Recent Entries.
+function flightSummary(e) {
+  const legs = Array.isArray(e.legs) && e.legs.length ? e.legs : null;
+  const ft = `FT ${e.totalFlightTime || "0:00"}`;
+  if (!legs || legs.length === 1) {
+    const l = legs?.[0] || {};
+    return `${l.flightType || e.flightType} · ${l.aircraftType || e.aircraftType || "-"} (${l.registration || e.registration || "-"}) · ${l.route || e.route || "-"} · ${ft}`;
+  }
+  const parts = legs.map((l, i) => `${i + 1}) ${(l.flightType || e.flightType || "").replace(/ Flight$/, "")} ${l.registration || "-"} ${l.route || "-"}`);
+  return `${legs.length} flights (${entryFlightTypes(e).join(" / ")}) · ${parts.join(" · ")} · ${ft}`;
+}
+
+function FlightCountPicker({ value, onPick }) {
+  return (
+    <div className="duty-count-picker" role="radiogroup" aria-labelledby="duty-count-label">
+      {Array.from({ length: MAX_FLIGHTS_PER_DAY }, (_, i) => i + 1).map((n) => (
+        <button
+          key={n} type="button" role="radio" aria-checked={value === n}
+          className={value === n ? "active" : ""}
+          onClick={() => onPick(n)}
+        >{n}</button>
+      ))}
+    </div>
+  );
+}
+
+function FlightForm({ flight, setFlight, updateRole, addRole, removeRole, updateLeg, addLeg, removeLeg, setFlightCount, pilotCode, fleet, pilots, actualFdtDisplay }) {
   const set = (key, value) => setFlight({ ...flight, [key]: value });
+  const count = flight.legs.length;
+  const unseated = new Set(unseatedFlights(flight.legs, pilotCode));
+
+  // Step 1 of a new entry: the date and how many flights were flown. The rest
+  // of the form opens only once the count is known, with one row per flight.
+  if (!count) {
+    return (
+      <div className="duty-form">
+        <div className="duty-count-step">
+          <Field label="Date"><DateField value={flight.date} onChange={(v) => set("date", v)} /></Field>
+          <div className="duty-field duty-count-field">
+            <span id="duty-count-label">Flights / Day</span>
+            <FlightCountPicker value={0} onPick={setFlightCount} />
+            <p className="duty-count-hint">How many flights today? One row opens per flight.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="duty-form">
       <div className="duty-form-grid">
         <Field label="Date"><DateField value={flight.date} onChange={(v) => set("date", v)} /></Field>
-        <Field label="Flight Type">
-          <select value={flight.flightType} onChange={(e) => set("flightType", e.target.value)}>
-            {FLIGHT_TYPES.map((t) => <option key={t}>{t}</option>)}
-          </select>
-        </Field>
         <Field label="Sch Dep" className="narrow"><TimeField value={flight.schDep} onChange={(v) => set("schDep", v)} /></Field>
         <Field label="Last Engine Stop" className="narrow"><TimeField value={flight.stop} onChange={(v) => set("stop", v)} /></Field>
         {/* "Crew Number" was removed at Capt. Weera's instruction. It was typed
@@ -695,7 +793,6 @@ function FlightForm({ flight, setFlight, updateRole, addRole, removeRole, update
             from Sch Dep above (22:30-06:59 = Crew 1 ... 09:01-22:29 = Crew 6,
             see fatigueMonitor.js crewForDeparture), so a hand-entered value
             could only ever disagree with the computed one. */}
-        <Field label="Flights/Day" className="narrow"><input type="number" value={flight.flightsPerDay} onChange={(e) => set("flightsPerDay", e.target.value)} /></Field>
         <Field label="Total Flight Time (H:MM)" className="narrow"><input value={flight.totalFlightTime} onChange={(e) => {
           const v = e.target.value;
           const roles = flight.roles.length ? flight.roles.map((r, idx) => (idx === 0 ? { ...r, dayHours: v } : r)) : flight.roles;
@@ -714,26 +811,36 @@ function FlightForm({ flight, setFlight, updateRole, addRole, removeRole, update
         </Field>
       </div>
 
+      <div className="duty-field duty-count-field duty-count-inline">
+        <span id="duty-count-label">Flights / Day</span>
+        <FlightCountPicker value={count} onPick={setFlightCount} />
+      </div>
+
       <div className="duty-legs">
         <div className="duty-legs-head">
-          <span>A/C Type</span><span>Registration</span><span>RS</span><span>LS</span><span>Route</span><span />
+          <span>#</span><span>Flight Type</span><span>A/C Type</span><span>Registration</span><span>RS</span><span>LS</span><span>Route</span><span />
         </div>
         {flight.legs.map((leg, i) => (
-          <div key={i} className="duty-legs-row">
-            <select value={leg.aircraftType} onChange={(e) => updateLeg(i, "aircraftType", e.target.value)}>
+          <div key={i} className={`duty-legs-row${unseated.has(i + 1) ? " unseated" : ""}`}>
+            <span className="duty-leg-no" aria-label={`Flight ${i + 1}`}>{i + 1}</span>
+            <select aria-label={`Flight ${i + 1} type`} value={leg.flightType || FLIGHT_TYPES[0]} onChange={(e) => updateLeg(i, "flightType", e.target.value)}>
+              {withCurrentOption(FLIGHT_TYPES, leg.flightType).map((t) => <option key={t}>{t}</option>)}
+            </select>
+            <select aria-label={`Flight ${i + 1} aircraft type`} value={leg.aircraftType} onChange={(e) => updateLeg(i, "aircraftType", e.target.value)}>
               {withCurrentOption(fleet.aircraftTypes, leg.aircraftType).map((t) => <option key={t}>{t}</option>)}
             </select>
-            <select value={leg.registration} onChange={(e) => updateLeg(i, "registration", e.target.value)}>
+            <select aria-label={`Flight ${i + 1} registration`} value={leg.registration} onChange={(e) => updateLeg(i, "registration", e.target.value)}>
               <option value="">—</option>
               {withCurrentOption(fleet.registrations, leg.registration).map((r) => <option key={r}>{r}</option>)}
             </select>
             <PilotPicker value={leg.rs} onChange={(v) => updateLeg(i, "rs", v)} pilots={pilots} placeholder="RS" />
             <PilotPicker value={leg.ls} onChange={(v) => updateLeg(i, "ls", v)} pilots={pilots} placeholder="LS" />
-            <input value={leg.route} lang="en" inputMode="text" onChange={(e) => updateLeg(i, "route", e.target.value)} placeholder="VTSH-CPOC-VTSH" />
-            {flight.legs.length > 1 && <button onClick={() => removeLeg(i)}>×</button>}
+            <input aria-label={`Flight ${i + 1} route`} value={leg.route} lang="en" inputMode="text" onChange={(e) => updateLeg(i, "route", e.target.value)} placeholder="VTSH-CPOC-VTSH" />
+            {flight.legs.length > 1 ? <button aria-label={`Remove flight ${i + 1}`} onClick={() => removeLeg(i)}>×</button> : <span />}
+            {unseated.has(i + 1) && <div className="duty-leg-warn">{pilotCode} is not in RS or LS on this flight.</div>}
           </div>
         ))}
-        <button className="duty-add-role" onClick={addLeg}>+ Add Leg</button>
+        {count < MAX_FLIGHTS_PER_DAY && <button className="duty-add-role" onClick={addLeg}>+ Add Flight</button>}
       </div>
 
       <div className="duty-roles">
