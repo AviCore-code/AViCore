@@ -58,18 +58,24 @@ function checkOnOffshoreHours(onshoreHours, offshoreHours, totalFlightTime) {
   }
 }
 
-// One row per flight. A new row copies the flight above it - Flight Type,
-// A/C Type, Registration and both seats (the common case is the same crew
-// and aircraft all day) - and leaves Route blank. Every field stays editable
-// per flight, for days that change type, aircraft or crew between flights.
-const blankLeg = (prev, seat = "") => ({
-  flightType: prev?.flightType || FLIGHT_TYPES[0],
-  aircraftType: prev?.aircraftType || DEFAULT_AIRCRAFT_TYPE,
-  registration: prev?.registration || "",
-  rs: prev ? prev.rs || "" : seat,
-  ls: prev ? prev.ls || "" : "",
-  route: ""
-});
+// One row per flight. RS always starts as the logged-in pilot (Capt. Weera:
+// "Default RS ตามชื่อ log in และสามารถเลือกแก้ไขได้") - every row, not only
+// the first, so a seat changed on one flight doesn't carry into the next.
+// Flight Type, A/C Type, Registration and LS copy the flight above (the
+// common case is the same aircraft and crew all day); Route starts blank.
+// Every field stays editable per flight.
+const blankLeg = (prev, me = "") => {
+  const prevLs = prev?.ls || "";
+  return {
+    flightType: prev?.flightType || FLIGHT_TYPES[0],
+    aircraftType: prev?.aircraftType || DEFAULT_AIRCRAFT_TYPE,
+    registration: prev?.registration || "",
+    rs: me,
+    // Don't copy the pilot into LS as well when they sat left on the flight above.
+    ls: prevLs && prevLs.toUpperCase() !== String(me).toUpperCase() ? prevLs : "",
+    route: ""
+  };
+};
 
 const blankFlight = () => ({
   date: today(), flightType: FLIGHT_TYPES[0],

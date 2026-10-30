@@ -30,6 +30,19 @@ async function openForm() {
 const picker = () => screen.getByRole("radiogroup");
 
 describe("Daily Duty — Flights / Day first, one row per flight", () => {
+  it("defaults RS to the logged-in pilot on every flight, editable", async () => {
+    const { container } = await openForm();
+    fireEvent.click(within(picker()).getByText("2"));
+    const rs = () => [...container.querySelectorAll(".duty-legs-row")].map((r) => r.querySelectorAll(".pilot-picker input")[0].value);
+    expect(rs()).toEqual(["WJU", "WJU"]);
+    fireEvent.change(container.querySelectorAll(".duty-legs-row .pilot-picker input")[0], { target: { value: "KCH" } });
+    fireEvent.change(container.querySelectorAll(".duty-legs-row .pilot-picker input")[1], { target: { value: "WJU" } }); // WJU moves to LS on flight 1
+    fireEvent.click(within(screen.getAllByRole("radiogroup")[0]).getByText("3"));
+    expect(rs()).toEqual(["KCH", "WJU", "WJU"]);
+    const ls3 = container.querySelectorAll(".duty-legs-row")[2].querySelectorAll(".pilot-picker input")[1].value;
+    expect(ls3).toBe("");
+  });
+
   it("asks for Flights / Day before showing the flight form", async () => {
     await openForm();
     expect(screen.queryByText("Sch Dep")).toBeNull();
