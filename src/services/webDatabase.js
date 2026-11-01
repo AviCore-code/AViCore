@@ -1,6 +1,7 @@
 import { showDataErrorBanner } from "./dataErrorBanner.js";
 import { cacheableRead, queueableWrite } from "./offlineWrap.js";
-import { registerCurrentReader } from "./offlineQueue.js";
+import { registerCurrentReader, pendingWrites, rewriteQueuedWrite, discardWrite } from "./offlineQueue.js";
+import { applyPendingDutyWrites, isPendingDutyId, pendingOpIdOf } from "./offlineDutyOverlay.js";
 import { createClient } from "@supabase/supabase-js";
 import { resolveCompanyId } from "./companyContext.js";
 import { downloadElementAsPdf, resolvePdfExportTarget } from "./downloadPdf.js";
@@ -1305,7 +1306,21 @@ export function isConfigured() {
 export const getSetting = cacheableRead((key) => `setting:${key}`, rawGetSetting);
 export const listExperience = cacheableRead("experience:list", rawListExperience);
 export const loadExperience = cacheableRead((licence) => `experience:${normalize(licence)}`, rawLoadExperience);
-export const listDutyEntriesByPilot = cacheableRead((code) => `duty:${normalize(code)}`, rawListDutyEntriesByPilot);
+const cachedListDutyEntriesByPilot = cacheableRead((code) => `duty:${normalize(code)}`, rawListDutyEntriesByPilot);
+
+// Server (or cached) entries with this pilot's not-yet-sent duty writes laid
+// over them - see offlineDutyOverlay.js. With nothing cached yet but entries
+// waiting in the queue, those entries alone are still shown and counted.
+export async function listDutyEntriesByPilot(code) {
+  let base;
+  let readError = null;
+  try { base = await cachedListDutyEntriesByPilot(code); } catch (err) { readError = err; base = []; }
+  let ops = [];
+  try { ops = await pendingWrites(); } catch { ops = []; }
+  const merged = applyPendingDutyWrites(base, ops, code);
+  if (readError && !merged.length) throw readError;
+  return merged;
+}
 export const listRoster = cacheableRead((q) => `roster:${q?.from || ""}:${q?.to || ""}`, rawListRoster);
 export const listRosterPilots = cacheableRead("roster:pilots", rawListRosterPilots);
 export const listWeeklyPlan = cacheableRead((q) => `weekly:${q?.from || ""}:${q?.to || ""}`, rawListWeeklyPlan);
@@ -1322,14 +1337,38 @@ export const addDutyEntry = queueableWrite(
   "addDutyEntry", rawAddDutyEntry,
   (entry) => `Duty ${entry?.date || ""} — ${entry?.pilotCode || ""}`
 );
-export const updateDutyEntry = queueableWrite(
+const queuedUpdateDutyEntry = queueableWrite(
   "updateDutyEntry", rawUpdateDutyEntry,
   (_code, _id, entry) => `Edit duty ${entry?.date || ""} — ${entry?.pilotCode || ""}`
 );
-export const deleteDutyEntry = queueableWrite(
+const queuedDeleteDutyEntry = queueableWrite(
   "deleteDutyEntry", rawDeleteDutyEntry,
   (code) => `Delete duty — ${code || ""}`
 );
+
+// Editing or deleting an entry that is itself still waiting to be sent: the
+// server has never seen it, so change or drop the queued "add" instead of
+// queuing an update/delete for a record that doesn't exist there yet.
+export async function updateDutyEntry(code, id, entry) {
+  // "pending" is a display flag from the overlay - never store it.
+  const { pending: _p, pendingError: _e, ...stored } = entry || {};
+  if (isPendingDutyId(id)) {
+    const { id: _drop, ...clean } = stored;
+    if (await rewriteQueuedWrite(pendingOpIdOf(id), [clean])) return { ok: true, queued: true };
+    // Already sent meanwhile: it now exists on the server under a new id,
+    // and the upsert on pilot + date + type makes a fresh add land on it.
+    return addDutyEntry(clean);
+  }
+  return queuedUpdateDutyEntry(code, id, stored);
+}
+
+export async function deleteDutyEntry(code, id) {
+  if (isPendingDutyId(id)) {
+    await discardWrite(pendingOpIdOf(id));
+    return { ok: true };
+  }
+  return queuedDeleteDutyEntry(code, id);
+}
 
 // The two SHARED documents - roster and weekly plan - are also editable
 // offline, but they are not simply replayed. Each queued edit carries what the

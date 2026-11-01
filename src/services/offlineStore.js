@@ -191,3 +191,17 @@ export async function outboxMarkFailed(id, message, conflictDetail) {
 export async function outboxCount() {
   return (await outboxList()).length;
 }
+
+// Replaces a queued write in place, keeping its id and its place in the
+// queue. Used when a pilot edits an entry that is still waiting to be sent:
+// the queued "add" simply carries the new version, instead of an "update"
+// aimed at a record the server has never seen.
+export async function outboxReplace(record) {
+  if (!record?.id) return;
+  // Wherever it lives now (memory fallback or IndexedDB), replace it there -
+  // writing it to the other place too would list it twice.
+  if (memory.outbox.has(record.id)) { memory.outbox.set(record.id, record); return; }
+  const db = await openDb();
+  if (!db) { memory.outbox.set(record.id, record); return; }
+  try { await asPromise(tx(db, OUTBOX_STORE, "readwrite").put(record)); } catch { memory.outbox.set(record.id, record); }
+}

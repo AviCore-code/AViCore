@@ -454,17 +454,21 @@ export default function DutyEntry() {
     // a Non-Flight entry), computed live above from buildDutyPeriods/
     // periodDutyCreditHours, not a separately editable value, so it can
     // never drift from what was on screen.
-    const withTotalDuty = { pilotCode, dutyType, ...base, totalDuty: dutyType === "flight" ? actualFdtDisplay : actualNonFdtDisplay };
+    // pending/pendingError mark an entry still waiting in the offline queue
+    // (see offlineDutyOverlay.js) - display only, never stored.
+    const { pending: _pending, pendingError: _pendingError, ...baseClean } = base;
+    const withTotalDuty = { pilotCode, dutyType, ...baseClean, totalDuty: dutyType === "flight" ? actualFdtDisplay : actualNonFdtDisplay };
 
     try {
+      const offlineNote = " — saved on this device, will send when back online";
       if (editingId != null) {
-        await updateDutyEntry(pilotCode, editingId, withTotalDuty);
-        setMsg(`Updated — ${pilotCode} on ${base.date}`);
+        const res = await updateDutyEntry(pilotCode, editingId, withTotalDuty);
+        setMsg(`Updated — ${pilotCode} on ${base.date}${res?.queued ? offlineNote : ""}`);
         playOk();
         setEditingId(null);
       } else {
-        await addDutyEntry(withTotalDuty);
-        setMsg(`Saved — ${pilotCode} on ${base.date}`);
+        const res = await addDutyEntry(withTotalDuty);
+        setMsg(`Saved — ${pilotCode} on ${base.date}${res?.queued ? offlineNote : ""}`);
         playOk();
       }
       if (dutyType === "flight") setFlight(blankFlight());
@@ -673,6 +677,11 @@ export default function DutyEntry() {
           <div key={e.id} className={`duty-entry-row${editingId === e.id ? " editing" : ""}`}>
             <span className={`duty-entry-tag ${e.dutyType}`}>{e.dutyType === "flight" ? "Flight" : (e.nonFlightType || "Non-Flight")}</span>
             <span className="duty-entry-date">{isoToDisplay(e.date)}</span>
+            {e.pending && (
+              <span className="duty-entry-pending" title={e.pendingError ? `Not sent yet: ${e.pendingError}` : "Saved on this device — sends automatically when back online"}>
+                รอส่ง
+              </span>
+            )}
             <span className="duty-entry-summary">
               {e.dutyType === "flight"
                 ? flightSummary(e)

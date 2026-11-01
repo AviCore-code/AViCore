@@ -115,3 +115,5 @@
   .duty-entry-row{align-items:flex-start;flex-wrap:wrap}
   .duty-entry-summary{flex-basis:calc(100% - 90px)}
 }
+
+.duty-entry-pending{font-size:10.5px;font-weight:800;color:#f59e0b;background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.35);border-radius:6px;padding:2px 7px;white-space:nowrap}

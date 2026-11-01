@@ -18,7 +18,7 @@
 // Silently discarding a pilot's duty entry because the server was briefly
 // unhappy would be the worst possible behaviour here.
 
-import { outboxAdd, outboxList, outboxRemove, outboxMarkFailed } from "./offlineStore.js";
+import { outboxAdd, outboxList, outboxRemove, outboxMarkFailed, outboxReplace } from "./offlineStore.js";
 import { classifyEdits } from "./offlineMerge.js";
 
 // Which data-layer function each queued write replays. Registered by
@@ -133,6 +133,16 @@ export async function pendingWrites() {
 export async function discardWrite(id) {
   await outboxRemove(id);
   await refreshPendingCount();
+}
+
+// New arguments for a write still in the queue (same id, same position).
+// Returns false if it has already been sent or discarded.
+export async function rewriteQueuedWrite(id, args) {
+  const op = (await outboxList()).find((o) => String(o.id) === String(id));
+  if (!op) return false;
+  await outboxReplace({ ...op, args, lastError: null });
+  await refreshPendingCount();
+  return true;
 }
 
 let flushing = false;
