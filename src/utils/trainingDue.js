@@ -1,10 +1,12 @@
 // Flight Crew Training DUE tracking - mirrors the "Pilot Training DUE
 // Monitor" sheet in the Training Track(V.3).xlsm workbook the company
 // already uses (imported via the Training DUE module's "Import Excel"
-// button). Every item here is a due-date except iApp180, which is a rolling
-// 180-day COUNT minimum, not a date - same "must reach at least this much"
-// shape as the FTL currency minimums in ftlLimits.js (iappMin180d etc).
-export const TRAINING_ITEMS = [
+// button). Every item here is a due-date.
+//
+// TRAINING_COLUMNS is the workbook's column order (B..AF) and is used ONLY by
+// the Excel importer to line columns up. TRAINING_ITEMS - what every page
+// shows, monitors and counts - is the same list without the retired items.
+export const TRAINING_COLUMNS = [
   { key: "passport", label: "Passport" },
   { key: "thaiLicense", label: "Thai License" },
   { key: "medical", label: "Medical" },
@@ -28,6 +30,10 @@ export const TRAINING_ITEMS = [
   { key: "caSim", label: "Check Airmen (Sim)" },
   { key: "dcpCert", label: "DCP Certificate" },
   { key: "pbn", label: "PBN" },
+  // I.APP (180D) removed from Training at Capt. Weera's instruction - FTL
+  // Monitor already tracks it from the I.App field on Daily Duty. Kept HERE
+  // only so the Excel columns after it stay aligned; RETIRED_TRAINING_ITEMS
+  // drops it from TRAINING_ITEMS.
   { key: "iApp180", label: "I.APP (180D)", type: "count" },
   { key: "egpwsTcas", label: "EGPWS & TCAS" },
   { key: "recencyFI", label: "Recency — Flight Instructor" },
@@ -51,6 +57,9 @@ export const TRAINING_ITEMS = [
 // minimum count instead of a day window ("No. < 5" in the sheet). Editable
 // later from Settings if the company wants to tune these - stored the same
 // way ftl_limits is (a single app_settings row, synced to every device).
+export const RETIRED_TRAINING_ITEMS = ["iApp180"];
+export const TRAINING_ITEMS = TRAINING_COLUMNS.filter((item) => !RETIRED_TRAINING_ITEMS.includes(item.key));
+
 export const DEFAULT_TRAINING_THRESHOLDS = {
   passport: 200, thaiLicense: 90, medical: 90, lpc: 90, opc2: 90, lineCheck: 90,
   flightTraining: 90, night: 30, crm: 90, huet: 90, firstAids: 90, fireFighting: 90,

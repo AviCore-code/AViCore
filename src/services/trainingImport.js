@@ -1,10 +1,10 @@
 import * as XLSX from "xlsx";
-import { TRAINING_ITEMS, SETTINGS_HIDDEN_TRAINING_ITEMS } from "../utils/trainingDue.js";
+import { TRAINING_COLUMNS, SETTINGS_HIDDEN_TRAINING_ITEMS, RETIRED_TRAINING_ITEMS } from "../utils/trainingDue.js";
 
 // I.APP (180D) is auto-rolled from Daily Duty, not the Excel workbook - skip
 // storing its cell value on import (still walk past its column via the loop
 // index `i` below, so every column after it stays correctly aligned).
-const IMPORT_SKIPPED_ITEMS = new Set(SETTINGS_HIDDEN_TRAINING_ITEMS);
+const IMPORT_SKIPPED_ITEMS = new Set([...SETTINGS_HIDDEN_TRAINING_ITEMS, ...RETIRED_TRAINING_ITEMS]);
 
 // Reads the company's "Training Track(V.3).xlsm" workbook (or any workbook
 // with the same two sheets) and turns it into training records this app can
@@ -12,7 +12,7 @@ const IMPORT_SKIPPED_ITEMS = new Set(SETTINGS_HIDDEN_TRAINING_ITEMS);
 // already used everywhere else in AviCore (Pilot Experience, Daily Duty):
 //   "INPUT DATA" rows 3+, cols A-D  -> No / Name / License No / CODE
 //   "Pilot Training DUE Monitor" rows 2+, col A = CODE, cols B..AF = the
-//     due-date/count items in exactly the order TRAINING_ITEMS is defined in
+//     due-date/count items in exactly the order TRAINING_COLUMNS is defined in
 //     (verified against the real workbook: B=Passport ... AF=Flight Recency
 //     90D). The workbook's LAST column, Flight Recency (90D), is no longer a
 //     training item here and is simply not read - everything before it still
@@ -92,7 +92,7 @@ function readDueMonitor(workbook) {
 
     if (/^caution$/i.test(label)) {
       thresholds = {};
-      TRAINING_ITEMS.forEach((item, i) => {
+      TRAINING_COLUMNS.forEach((item, i) => {
         if (IMPORT_SKIPPED_ITEMS.has(item.key)) return;
         const raw = cellVal(ws, r, DUE_MONITOR_FIRST_DATA_COL + i);
         const days = parseCautionCell(raw);
@@ -107,7 +107,7 @@ function readDueMonitor(workbook) {
     if (!/^[A-Z]{3}$/.test(code)) continue;
 
     const record = {};
-    TRAINING_ITEMS.forEach((item, i) => {
+    TRAINING_COLUMNS.forEach((item, i) => {
       if (IMPORT_SKIPPED_ITEMS.has(item.key)) return;
       record[item.key] = normValue(cellVal(ws, r, DUE_MONITOR_FIRST_DATA_COL + i));
     });
