@@ -6,6 +6,12 @@ import DocumentViewer from "./DocumentViewer.jsx";
 import "./TrainingDue.css";
 import "./Training.css";
 
+// The "monitored" tick on each item writes the fleet-wide
+// training_disabled_items setting (the same one Settings -> Training Setting
+// edits), so it changes the item for every pilot. Crew builds (web/mobile)
+// don't get the tick - a pilot must not switch monitoring off for the fleet.
+const CAN_SET_MONITORING = !["web", "mobile"].includes(import.meta.env.MODE);
+
 // Attached documents live inside the training record on the web build, so
 // they travel with every read of it. Five megabytes is generous for a
 // scanned certificate and small enough not to make the Training pages crawl.
@@ -152,7 +158,7 @@ function TrainingDateField({ value, onChange, invalid }) {
 //    item right under that item's date field, so the date and its
 //    certificate are entered together.
 // Excel re-imports and manual saves both preserve already-attached docs.
-export default function TrainingInput({ pilots, thresholds, onSaved }) {
+export default function TrainingInput({ pilots, thresholds, disabledItems = [], onSaved }) {
   const [selected, setSelected] = useState("");
   const [newCode, setNewCode] = useState("");
   const [newName, setNewName] = useState("");
@@ -173,6 +179,8 @@ export default function TrainingInput({ pilots, thresholds, onSaved }) {
   const [docBusyKey, setDocBusyKey] = useState(null);
   const [docMsg, setDocMsg] = useState(null);
   const [viewing, setViewing] = useState(null);
+  const [monitorBusyKey, setMonitorBusyKey] = useState(null);
+  const disabledSet = useMemo(() => new Set(disabledItems || []), [disabledItems]);
 
   useEffect(() => {
     if (!fullScreen) return;
@@ -328,6 +336,26 @@ export default function TrainingInput({ pilots, thresholds, onSaved }) {
     }
   }
 
+  // Tick = monitored. Re-reads the saved list first so a change made in
+  // Settings (or on another device) since this page loaded isn't overwritten.
+  async function handleToggleMonitored(itemKey, monitored) {
+    setMonitorBusyKey(itemKey);
+    setDocMsg(null);
+    try {
+      const saved = await getSetting("training_disabled_items");
+      const next = new Set(Array.isArray(saved) ? saved : (disabledItems || []));
+      if (monitored) next.delete(itemKey); else next.add(itemKey);
+      await saveSetting("training_disabled_items", Array.from(next));
+      await onSaved();
+      const label = TRAINING_ITEMS.find((i) => i.key === itemKey)?.label || itemKey;
+      setDocMsg({ ok: true, text: `${label} ${monitored ? "is now monitored" : "is no longer monitored"} for all pilots.` });
+    } catch (err) {
+      setDocMsg({ ok: false, text: "Could not change monitoring: " + err.message });
+    } finally {
+      setMonitorBusyKey(null);
+    }
+  }
+
   async function handleView(path, title) {
     if (window.aviCoreAPI) {
       const result = await openFile(path);
@@ -406,8 +434,21 @@ export default function TrainingInput({ pilots, thresholds, onSaved }) {
         <>
           <div className="training-form-grid">
             {TRAINING_ITEMS.map((item) => (
-              <div className="training-form-field" key={item.key}>
-                <label className="title">{item.label}</label>
+              <div className={`training-form-field${disabledSet.has(item.key) ? " unmonitored" : ""}`} key={item.key}>
+                <div className="training-form-field-head">
+                  <label className="title">{item.label}</label>
+                  {CAN_SET_MONITORING ? (
+                    <label className="training-monitor-tick" title={disabledSet.has(item.key) ? "Not monitored — tick to monitor this item for all pilots" : "Monitored for all pilots — untick to stop monitoring"}>
+                      <input
+                        type="checkbox"
+                        aria-label={`Monitor ${item.label}`}
+                        checked={!disabledSet.has(item.key)}
+                        disabled={monitorBusyKey !== null}
+                        onChange={(e) => handleToggleMonitored(item.key, e.target.checked)}
+                      />
+                    </label>
+                  ) : disabledSet.has(item.key) && <span className="training-monitor-off">Not monitored</span>}
+                </div>
                 {item.type === "count" ? (
                   <div className="row">
                     <input type="number" min="0" placeholder="count (180d)" value={values[item.key] ?? ""} onChange={(e) => updateField(item.key, e.target.value)} />

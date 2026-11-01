@@ -73,7 +73,7 @@ export default function Training() {
       <div className="training-tab-body">
         {tab === "all" && <TrainingAllStatus pilots={pilots} thresholds={thresholds} disabledItems={disabledItems} loading={loading} onRefresh={refresh} />}
         {tab === "person" && <TrainingPersonStatus pilots={pilots} thresholds={thresholds} disabledItems={disabledItems} loading={loading} />}
-        {tab === "input" && <TrainingInput pilots={pilots} thresholds={thresholds} onSaved={refresh} />}
+        {tab === "input" && <TrainingInput pilots={pilots} thresholds={thresholds} disabledItems={disabledItems} onSaved={refresh} />}
         {tab === "staff" && <StaffTraining />}
       </div>
     </div>

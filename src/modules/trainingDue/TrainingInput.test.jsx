@@ -64,4 +64,23 @@ describe("Training Input / Import (merged tab)", () => {
     expect(screen.queryByText("📎 Attach")).toBeNull();
     expect(screen.getAllByText("Save pilot first to attach").length).toBe(TRAINING_ITEMS.length);
   });
+
+  it("ticks show which items are monitored; unticking saves the fleet-wide setting", async () => {
+    const onSaved = vi.fn(async () => {});
+    const off = TRAINING_ITEMS[1].key;
+    db.getSetting.mockResolvedValueOnce([off]);
+    const { container } = render(<TrainingInput pilots={pilots} thresholds={{}} disabledItems={[off]} onSaved={onSaved} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "ABC" } });
+    const tick0 = screen.getByLabelText(`Monitor ${TRAINING_ITEMS[0].label}`);
+    const tick1 = screen.getByLabelText(`Monitor ${TRAINING_ITEMS[1].label}`);
+    expect(tick0.checked).toBe(true);
+    expect(tick1.checked).toBe(false);
+    expect(container.querySelectorAll(".training-form-field.unmonitored").length).toBe(1);
+    fireEvent.click(tick0);
+    await waitFor(() => expect(db.saveSetting).toHaveBeenCalled());
+    const [key, value] = db.saveSetting.mock.calls[0];
+    expect(key).toBe("training_disabled_items");
+    expect(new Set(value)).toEqual(new Set([off, TRAINING_ITEMS[0].key]));
+    expect(onSaved).toHaveBeenCalled();
+  });
 });

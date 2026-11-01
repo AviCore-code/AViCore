@@ -23,6 +23,13 @@
 
 .training-form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
 .training-form-field{background:rgba(15,23,42,.6);border:1px solid rgba(148,163,184,.15);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.training-form-field-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.training-monitor-tick{display:inline-flex;align-items:center;cursor:pointer}
+.training-monitor-tick input{width:18px;height:18px;accent-color:#22c55e;cursor:pointer;margin:0}
+.training-monitor-tick input:disabled{cursor:wait}
+.training-monitor-off{font-size:10px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.03em}
+.training-form-field.unmonitored{opacity:.55;border-style:dashed}
+.training-form-field.unmonitored:hover,.training-form-field.unmonitored:focus-within{opacity:.85}
 .training-form-field label.title{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;color:#94a3b8}
 .training-form-field .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .training-form-field input[type="date"],
