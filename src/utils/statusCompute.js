@@ -250,16 +250,36 @@ export function computeTomorrowAvailability(entries, limits, opts = {}) {
   };
 }
 
-// Worst-of across a stat block's Bar-classified fields plus the Recovery
-// Rest status and the FT 90D customer-requirement minimum - used to badge
+// Worst-of across a stat block's Bar-classified fields, the recency minimums
+// (T/O, L/D, I.APP - see recencyShortfalls), the Recovery Rest status and the
+// FT 90D customer-requirement minimum - used to badge
 // a pilot row "OK/WARNING/EXCEEDED" at a glance in All Status / Dashboard
 // without re-rendering every bar.
 const RANK = { ok: 0, warn: 1, exc: 2 };
+
+// Recency minimums shown on All Status as T/O (90D), L/D (90D) and I.APP
+// (180D). Below the minimum is a WARNING, never EXCEEDED - same rule the
+// cells themselves use. They were coloured orange on the row but left out of
+// the row's STATUS, so a pilot with 0/≥5 I.APP still read "OK" (Capt. Weera:
+// PKR and RPA "ต้องเป็น warning เพราะ i.app <5").
+export function recencyShortfalls(stats, limits) {
+  const out = [];
+  const add = (key, label, value, min, unit) => {
+    if (!Number.isFinite(Number(min)) || Number(min) <= 0) return;
+    if ((Number(value) || 0) < Number(min)) out.push({ key, label, value: Number(value) || 0, min: Number(min), unit });
+  };
+  add("takeoff90d", "T/O (90D)", (stats.toDay90 || 0) + (stats.toNight90 || 0), limits.takeoffLandingMin90d, "take-offs");
+  add("landing90d", "L/D (90D)", (stats.landDay90 || 0) + (stats.landNight90 || 0), limits.takeoffLandingMin90d, "landings");
+  add("iapp180d", "I.APP (180D)", stats.iApp180, limits.iappMin180d, "instrument approaches");
+  return out;
+}
+
 export function overallStatus(stats, limits, recoveryRestStatus) {
   const checks = [
     classify(stats.dt7d, limits.dt7d), classify(stats.dt14d, limits.dt14d), classify(stats.dt28d, limits.dt28d),
     classify(stats.ft7d, limits.ft7d), classify(stats.ft28d, limits.ft28d), classify(stats.ft365d, limits.ft365d),
     stats.ft90d >= limits.ft90dMin ? "ok" : "warn",
+    recencyShortfalls(stats, limits).length ? "warn" : "ok",
     recoveryRestStatus
   ];
   return checks.reduce((worst, s) => (RANK[s] > RANK[worst] ? s : worst), "ok");
@@ -300,6 +320,14 @@ export function buildRecommendations(row, limits) {
       key: `${pilotKey}|ft90d`,
       pilot: who, status: "warn",
       text: `${who}: Flight Time 90D at ${decimalToHHMM(stats.ft90d)} / ≥${decimalToHHMM(limits.ft90dMin)} (Customer Requirement) — below the minimum, schedule more flight time this window if possible.`
+    });
+  }
+
+  for (const r of recencyShortfalls(stats, limits)) {
+    recs.push({
+      key: `${pilotKey}|${r.key}`,
+      pilot: who, status: "warn",
+      text: `${who}: ${r.label} at ${r.value} / ≥${r.min} — below the recency minimum, plan ${r.min - r.value} more ${r.unit} before the window runs out.`
     });
   }
 
