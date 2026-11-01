@@ -40,6 +40,7 @@ import { rosterDayInfo, TRAINING_DUTY_WINDOWS } from "../modules/pilotRoster/ros
 import { ITEM_ROSTER_CODES, trainingCodeFor } from "../modules/pilotRoster/weeklyPlanTrainingQueue.js";
 import { MIN_REST_HOURS } from "../modules/pilotRoster/weeklyPlanSections.js";
 import { todayIso } from "../utils/dateKeys.js";
+import { isMonitoredInSet } from "../utils/trainingDue.js";
 
 const MS_PER_DAY = 86400000;
 
@@ -480,7 +481,7 @@ export function planTrainingOntoRoster({
 
     for (const item of items || []) {
       if (!ITEM_ROSTER_CODES[item.key]) continue;          // not a rostered course
-      if (monitored && !monitored.has(item.key)) continue;  // switched off
+      if (!isMonitoredInSet(record, item.key, monitored)) continue; // switched off (fleet or this pilot)
       if (item.type === "count") continue;                 // a count, not a date
 
       const dueIso = isoOf(record[item.key]);

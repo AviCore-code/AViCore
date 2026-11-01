@@ -22,6 +22,7 @@ import { TRAINING_PAIRS_SETTING_KEY, isInstructorFromSpecialty } from "./weeklyP
 import { isDemoSession } from "../../services/desktopDatabase.js";
 import { todayIso } from "../../utils/dateKeys.js";
 import "./PilotRoster.css";
+import { isMonitoredInSet } from "../../utils/trainingDue.js";
 
 // The weekly PLANNING board, modelled on the company's own spreadsheet
 // ("SKL WeeklySchedulePlan 2026 (V3).xlsm", sheet "SKL Weekly Plan"): one
@@ -410,7 +411,7 @@ export default function WeeklySchedule() {
         // for day flying).
         const expired = [];
         for (const item of TRAINING_ITEMS) {
-          if (item.key === "night" || !monitored.has(item.key)) continue;
+          if (item.key === "night" || !isMonitoredInSet(record, item.key, monitored)) continue;
           const result = classifyTrainingValue(item, record[item.key], thresholds[item.key], today);
           if (result.daysRemaining != null && result.daysRemaining < 0) expired.push(item.label);
         }

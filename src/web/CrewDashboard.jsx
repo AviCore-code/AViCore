@@ -191,7 +191,7 @@ export default function CrewDashboard() {
   // --- Training due soon ---------------------------------------------------
   const trainingDue = useMemo(() => {
     if (!training) return [];
-    const monitored = new Set(monitoredTrainingItems(training.disabled).map((i) => i.key));
+    const monitored = new Set(monitoredTrainingItems(training.disabled, training.record).map((i) => i.key));
     const now = new Date();
     return TRAINING_ITEMS
       .filter((item) => monitored.has(item.key) && item.type !== "count")

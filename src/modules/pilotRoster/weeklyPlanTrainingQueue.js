@@ -24,6 +24,7 @@
 
 import { rosterDayInfo } from "./rosterCodes.js";
 import { todayIso } from "../../utils/dateKeys.js";
+import { isMonitoredInSet } from "../../utils/trainingDue.js";
 
 // Which roster codes satisfy which training item. A simulator day covers both
 // the LPC and the OPC (they are flown in the same visit); a line check is a
@@ -144,7 +145,7 @@ export function trainingToBook({
     for (const item of items || []) {
       const codes = ITEM_ROSTER_CODES[item.key];
       if (!codes) continue;                                  // not a rostered course
-      if (monitored && !monitored.has(item.key)) continue;    // switched off
+      if (!isMonitoredInSet(record, item.key, monitored)) continue; // switched off (fleet or this pilot)
       if (item.type === "count") continue;                    // a count, not a date
 
       const dueIso = isoOf(record[item.key]);

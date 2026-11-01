@@ -110,7 +110,7 @@ export default function TrainingAllStatus({ pilots, thresholds, disabledItems, l
 
 function TrainingRow({ row, disabledItems, expanded, onToggle }) {
   const { code, name, computed } = row;
-  const { exc: excCount, warn: warnCount, unknown: unknownCount } = trainingIssueCounts(computed, disabledItems);
+  const { exc: excCount, warn: warnCount, unknown: unknownCount } = trainingIssueCounts(computed, disabledItems, row.record);
 
   return (
     <div className={`trainingdue-rowgroup${expanded ? " open" : ""}`}>
@@ -125,7 +125,7 @@ function TrainingRow({ row, disabledItems, expanded, onToggle }) {
       {expanded && (
         <div className="trainingdue-detail">
           <div className="trainingdue-grid">
-            {monitoredTrainingItems(disabledItems).map((item) => (
+            {monitoredTrainingItems(disabledItems, row.record).map((item) => (
               <TrainingItemCell key={item.key} item={item} result={computed.perItem[item.key]} />
             ))}
           </div>

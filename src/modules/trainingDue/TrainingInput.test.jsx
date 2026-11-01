@@ -65,22 +65,32 @@ describe("Training Input / Import (merged tab)", () => {
     expect(screen.getAllByText("Save pilot first to attach").length).toBe(TRAINING_ITEMS.length);
   });
 
-  it("ticks show which items are monitored; unticking saves the fleet-wide setting", async () => {
+  it("tick is per pilot: overrides the fleet setting for that pilot only, and survives Save Pilot", async () => {
     const onSaved = vi.fn(async () => {});
-    const off = TRAINING_ITEMS[1].key;
-    db.getSetting.mockResolvedValueOnce([off]);
-    const { container } = render(<TrainingInput pilots={pilots} thresholds={{}} disabledItems={[off]} onSaved={onSaved} />);
+    const offFleet = TRAINING_ITEMS[1].key;
+    const { container } = render(<TrainingInput pilots={pilots} thresholds={{}} disabledItems={[offFleet]} onSaved={onSaved} />);
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "ABC" } });
-    const tick0 = screen.getByLabelText(`Monitor ${TRAINING_ITEMS[0].label}`);
     const tick1 = screen.getByLabelText(`Monitor ${TRAINING_ITEMS[1].label}`);
-    expect(tick0.checked).toBe(true);
+    expect(screen.getByLabelText(`Monitor ${TRAINING_ITEMS[0].label}`).checked).toBe(true);
     expect(tick1.checked).toBe(false);
     expect(container.querySelectorAll(".training-form-field.unmonitored").length).toBe(1);
-    fireEvent.click(tick0);
-    await waitFor(() => expect(db.saveSetting).toHaveBeenCalled());
-    const [key, value] = db.saveSetting.mock.calls[0];
-    expect(key).toBe("training_disabled_items");
-    expect(new Set(value)).toEqual(new Set([off, TRAINING_ITEMS[0].key]));
+    fireEvent.click(tick1); // switch on for ABC only
+    await waitFor(() => expect(db.saveTraining).toHaveBeenCalled());
+    const [code, , record] = db.saveTraining.mock.calls[0];
+    expect(code).toBe("ABC");
+    expect(record.monitor).toEqual({ [offFleet]: true });
+    expect(record.docs).toEqual(pilots[0].record.docs);
+    expect(db.saveSetting).not.toHaveBeenCalled(); // fleet setting untouched
     expect(onSaved).toHaveBeenCalled();
+  });
+
+  it("Save Pilot keeps the pilot's monitor ticks", async () => {
+    const withTicks = [{ ...pilots[0], record: { ...pilots[0].record, monitor: { [TRAINING_ITEMS[2].key]: false } } }];
+    render(<TrainingInput pilots={withTicks} thresholds={{}} disabledItems={[]} onSaved={async () => {}} />);
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "ABC" } });
+    expect(screen.getByLabelText(`Monitor ${TRAINING_ITEMS[2].label}`).checked).toBe(false);
+    fireEvent.click(screen.getByText("Save Pilot"));
+    await waitFor(() => expect(db.saveTraining).toHaveBeenCalled());
+    expect(db.saveTraining.mock.calls[0][2].monitor).toEqual({ [TRAINING_ITEMS[2].key]: false });
   });
 });

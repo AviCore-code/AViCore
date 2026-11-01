@@ -158,7 +158,7 @@ export default function MyTrainingStatus() {
               <span className={`mystatus-badge ${computed.status}`}>{LABEL[computed.status]}</span>
             </div>
             <div className="trainingdue-grid">
-              {monitoredTrainingItems(disabledItems).map((item) => (
+              {monitoredTrainingItems(disabledItems, training?.record).map((item) => (
                 <div key={item.key} style={{ display: "flex", flexDirection: "column" }}>
                   <TrainingItemCell item={item} result={computed.perItem[item.key]} />
                   {docs[item.key] && (

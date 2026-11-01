@@ -128,9 +128,34 @@ export function withTrainingDisabledDefaults(saved) {
   return Array.isArray(saved) ? saved : DEFAULT_TRAINING_DISABLED_ITEMS;
 }
 
-export function monitoredTrainingItems(disabledItems) {
-  const disabled = new Set(disabledItems || []);
-  return TRAINING_ITEMS.filter((item) => !disabled.has(item.key));
+// Per-pilot override (Capt. Weera: "ติ๊กให้เขียว ก้อจะ active เฉพาะคนนั้น").
+// A pilot's training record may carry `monitor: { [itemKey]: true | false }`,
+// set from the tick on each item in Training -> Input / Import. true = this
+// pilot is monitored on the item, false = not, even if the fleet-wide
+// Training Setting says otherwise. An item with no override follows the
+// fleet setting, so pilots nobody has ticked behave exactly as before.
+export function isItemMonitoredFor(record, itemKey, fleetDisabled) {
+  const own = record?.monitor?.[itemKey];
+  if (own === true || own === false) return own;
+  if (fleetDisabled instanceof Set) return !fleetDisabled.has(itemKey);
+  return !(fleetDisabled || []).includes(itemKey);
+}
+
+// Same, from a Set of fleet-MONITORED keys (what the roster planners carry).
+export function isMonitoredInSet(record, itemKey, fleetMonitored) {
+  const own = record?.monitor?.[itemKey];
+  if (own === true || own === false) return own;
+  return fleetMonitored ? fleetMonitored.has(itemKey) : true;
+}
+
+// Fleet-wide disabled list + this pilot's overrides -> the items actually
+// switched off for this pilot.
+export function pilotDisabledItems(disabledItems, record) {
+  return TRAINING_ITEMS.filter((item) => !isItemMonitoredFor(record, item.key, disabledItems)).map((item) => item.key);
+}
+
+export function monitoredTrainingItems(disabledItems, record = null) {
+  return TRAINING_ITEMS.filter((item) => isItemMonitoredFor(record, item.key, disabledItems));
 }
 
 // I.APP (180D) is entered via the "I.App" field on the Daily Duty flight
@@ -205,7 +230,7 @@ export function computeTrainingRow(record, thresholds, disabledItems, today = ne
   for (const item of TRAINING_ITEMS) {
     perItem[item.key] = classifyTrainingValue(item, record?.[item.key], thresholds[item.key], today);
   }
-  const monitoredKeys = monitoredTrainingItems(disabledItems).map((item) => item.key);
+  const monitoredKeys = monitoredTrainingItems(disabledItems, record).map((item) => item.key);
   return { perItem, status: overallTrainingStatus(perItem, monitoredKeys) };
 }
 
@@ -214,9 +239,9 @@ export function computeTrainingRow(record, thresholds, disabledItems, today = ne
 // grid use. Counting every item made a pilot with one expired-but-disabled
 // item read "Expired 1" next to a WARNING badge, with nothing in the detail
 // to explain it.
-export function trainingIssueCounts(computed, disabledItems) {
+export function trainingIssueCounts(computed, disabledItems, record = null) {
   const counts = { exc: 0, warn: 0, unknown: 0 };
-  for (const item of monitoredTrainingItems(disabledItems)) {
+  for (const item of monitoredTrainingItems(disabledItems, record)) {
     const status = computed.perItem[item.key]?.status;
     if (status in counts) counts[status]++;
   }
@@ -243,7 +268,7 @@ export function formatDueDate(d) {
 export function buildTrainingRecommendations(pilot, thresholds, disabledItems, today = new Date()) {
   const who = `${pilot.code || "-"} — ${pilot.name || "-"}`;
   const computed = computeTrainingRow(pilot.record, thresholds, disabledItems, today);
-  const disabled = new Set(disabledItems || []);
+  const disabled = new Set(pilotDisabledItems(disabledItems, pilot.record));
   const recs = [];
   for (const item of TRAINING_ITEMS) {
     if (disabled.has(item.key)) continue;

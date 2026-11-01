@@ -116,7 +116,7 @@ export default function TrainingPersonStatus({ pilots, thresholds, disabledItems
               <span className={`mystatus-badge ${computed.status}`}>{LABEL[computed.status]}</span>
             </div>
             <div className="trainingdue-grid">
-              {monitoredTrainingItems(disabledItems).map((item) => (
+              {monitoredTrainingItems(disabledItems, pilot?.record).map((item) => (
                 <div key={item.key} style={{ display: "flex", flexDirection: "column" }}>
                   <TrainingItemCell item={item} result={computed.perItem[item.key]} />
                   {docs[item.key] && (
