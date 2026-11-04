@@ -19,6 +19,46 @@ export function updateFirstSeenWarnings(recommendations, previous, day, now = ne
   return active;
 }
 
+function recommendationState(rec) {
+  return `${String(rec?.category || "training")}|${String(rec?.status || "warn")}`;
+}
+
+const VALID_WARNING_STATES = new Set([
+  "training|warn",
+  "training|exc",
+  "ftl|warn",
+  "ftl|exc",
+]);
+
+function validWarningSnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) return false;
+  const prototype = Object.getPrototypeOf(snapshot);
+  if (prototype !== Object.prototype && prototype !== null) return false;
+  return Object.values(snapshot).every((state) => VALID_WARNING_STATES.has(state));
+}
+
+export function selectNewRecommendations(recommendations, previousSnapshot) {
+  const snapshot = {};
+  for (const rec of recommendations || []) {
+    const key = String(rec?.key || "").trim();
+    if (key) snapshot[key] = recommendationState(rec);
+  }
+  const initialized = validWarningSnapshot(previousSnapshot);
+  if (!initialized) return { recommendations: [], snapshot, initialized: false };
+  return {
+    recommendations: (recommendations || []).filter((rec) => {
+      const key = String(rec?.key || "").trim();
+      if (!key) return false;
+      if (!Object.prototype.hasOwnProperty.call(previousSnapshot, key)) return true;
+      const current = snapshot[key];
+      const category = String(rec?.category || "training");
+      return previousSnapshot[key] === `${category}|warn` && current === `${category}|exc`;
+    }),
+    snapshot,
+    initialized: true,
+  };
+}
+
 /**
  * @param {{ experience?: any[], duty?: any[], limits: any, asOfDay?: string | Date }} input
  */

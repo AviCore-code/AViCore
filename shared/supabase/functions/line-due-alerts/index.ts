@@ -5,6 +5,7 @@ import { bangkokDay, birthdayPilots, digestMessages, pushBatch, ensureDeliverySn
 import {
   buildLineFtlRecommendations,
   recommendationsForAudience,
+  selectNewRecommendations,
   updateFirstSeenWarnings,
 } from "./recommendations.js";
 
@@ -99,6 +100,12 @@ Deno.serve(async req => {
     const seenNow = updateFirstSeenWarnings(recs, firstSeen, day, now);
     if (!dryRun) await save("line_alert_first_seen", seenNow);
     recs.sort((a, b) => (a.status === "exc" ? 0 : 1) - (b.status === "exc" ? 0 : 1) || a.key.localeCompare(b.key));
+    const previousWarningSnapshot = await get("line_alert_warning_snapshot");
+    const warningDelta = selectNewRecommendations(recs, previousWarningSnapshot);
+    if (previousWarningSnapshot != null && !warningDelta.initialized) {
+      console.warn("LINE warning snapshot is malformed; replacing it with a silent baseline");
+    }
+    const newRecs = warningDelta.recommendations;
     if (dryRun) {
       const response = await fetch(`https://api.line.me/v2/bot/group/${groupId}/summary`, {
         headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10000),
@@ -107,10 +114,14 @@ Deno.serve(async req => {
       const group = await response.json();
       return json({ ok: true, dryRun: true, company: slug, groupId, groupName: group.groupName,
         warnings: recs.length,
+        newWarnings: newRecs.length,
+        baselineInitialized: warningDelta.initialized,
         trainingWarnings: recs.filter((rec: any) => rec.category === "training").length,
+        newTrainingWarnings: newRecs.filter((rec: any) => rec.category === "training").length,
         ftlWarnings: recs.filter((rec: any) => rec.category === "ftl").length,
+        newFtlWarnings: newRecs.filter((rec: any) => rec.category === "ftl").length,
         birthdays: birthdays.length,
-        batches: digestMessages(recs, day, { birthdays }).length });
+        batches: digestMessages(newRecs, day, { birthdays }).length });
     }
     // Preserve the existing Training Due fan-out, but keep operational FTL data
     // restricted to the explicitly configured pilot group. Secondary payloads,
@@ -150,11 +161,12 @@ Deno.serve(async req => {
       groupId,
       day,
       birthdays,
-      primaryRecommendations: recs,
-      secondaryRecommendations: recommendationsForAudience(recs, "secondary"),
+      primaryRecommendations: newRecs,
+      secondaryRecommendations: recommendationsForAudience(newRecs, "secondary"),
       groups: discoveredGroups,
       users: privateIds,
     });
+    delivery.warningSnapshot ||= warningDelta.snapshot;
     // Persist the complete primary + secondary snapshot before the first LINE push.
     await save("line_alert_delivery", delivery);
     for (const batch of delivery.batches) {
@@ -177,10 +189,15 @@ Deno.serve(async req => {
         await save("line_alert_delivery", delivery);
       }
     }
+    await save("line_alert_warning_snapshot", delivery.warningSnapshot);
     delivery.complete = true;
     await save("line_alert_delivery", delivery);
-    await save("line_alert_status", { checkedAt: now.toISOString(), state: delivery.batches.length ? "LINE accepted" : "No Training/FTL alerts" });
-    return json({ ok: true, batches: delivery.batches.length });
+    const sentAnything = delivery.batches.length > 0 || delivery.secondary.batches.length > 0;
+    await save("line_alert_status", {
+      checkedAt: now.toISOString(),
+      state: sentAnything ? "LINE accepted — new alerts only" : "No new Training/FTL alerts",
+    });
+    return json({ ok: true, batches: delivery.batches.length, newWarnings: newRecs.length });
   } catch (error) {
     console.error("LINE due alerts failed", error instanceof Error ? error.message : "Unknown error");
     if (companyId) await save("line_alert_status", { checkedAt: new Date().toISOString(), state: "Failed — check server logs" }).catch(() => {});
