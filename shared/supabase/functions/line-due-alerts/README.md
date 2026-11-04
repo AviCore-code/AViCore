@@ -59,8 +59,10 @@ No immediate real due-date digest was sent during setup. First scheduled run is
   is not disclosed to chats merely observed by the webhook.
 - Rolling windows are anchored to the Bangkok calendar day even though the Edge runtime
   and cron execute in UTC.
-- One summary per Bangkok day when warnings exist, with overdue items first. Existing alerts
-  recur daily until resolved. No message when there are no warnings.
+- One check per Bangkok day at 05:00. The first run establishes a silent baseline; later runs
+  send only newly appearing warnings or warnings whose state changes from warning to exceeded.
+  Unchanged warnings are not repeated. Resolved keys are removed from the baseline, so a later
+  recurrence is treated as new. Birthday greetings remain eligible on the matching day.
 - Groups see pilot code/name, course/document name, due date and days remaining from the same
   recommendation text used by AviCore. Tokens stay on the server.
 - Text is split into at most 5 messages per request, each below 5,000 UTF-16 units.
