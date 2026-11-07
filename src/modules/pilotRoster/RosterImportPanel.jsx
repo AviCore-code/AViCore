@@ -1,20 +1,7 @@
 import { useState } from "react";
-import { readRosterWorkbookFile, parseRosterWorkbook, listRosterSheetNames } from "../../services/rosterImport.js";
+import { readRosterWorkbookFile, parseRosterWorkbook, listRosterSheetNames, guessRosterSheet } from "../../services/rosterImport.js";
 import { importRosterMany } from "../../services/desktopDatabase.js";
 import "./PilotRoster.css";
-
-// The company's roster workbook carries ~90+ sheets (years of drafts and
-// revisions), so this doesn't guess which one is "current" - it just
-// pre-selects the sheet named "RR <year>" with the highest year (falling
-// back to the first sheet) and lets the person confirm/change it before
-// anything is imported.
-function guessDefaultSheet(names) {
-  const rrSheets = names
-    .map((n) => ({ n, m: n.match(/^RR\s?(\d{4})$/i) }))
-    .filter((x) => x.m)
-    .sort((a, b) => Number(b.m[1]) - Number(a.m[1]));
-  return rrSheets.length ? rrSheets[0].n : names[0];
-}
 
 export default function RosterImportPanel({ onImported, onCancel }) {
   const [workbook, setWorkbook] = useState(null);
@@ -47,7 +34,7 @@ export default function RosterImportPanel({ onImported, onCancel }) {
       const names = listRosterSheetNames(wb);
       setWorkbook(wb);
       setSheetNames(names);
-      const guess = guessDefaultSheet(names);
+      const guess = guessRosterSheet(names);
       setSheetName(guess);
       runParse(wb, guess);
     } catch (err) {
@@ -87,7 +74,7 @@ export default function RosterImportPanel({ onImported, onCancel }) {
         <div>
           <h2 style={{ margin: 0, fontSize: "16px" }}>Import Duty Schedule from Excel</h2>
           <p style={{ margin: "4px 0 0", color: "#94a3b8", fontSize: "12.5px" }}>
-            Loads one sheet from the company's roster workbook (e.g. "RR 2026"). Blank cells clear existing assignments for the pilots and dates in this sheet. Days outside the sheet are unchanged.
+            Loads one sheet from the company's roster workbook — "RR 2026_Add Training (MP)" is picked by default; choose another below if needed. Blank cells clear existing assignments for the pilots and dates in this sheet. Days outside the sheet are unchanged.
           </p>
         </div>
         <div style={{ display: "flex", gap: "8px" }}>

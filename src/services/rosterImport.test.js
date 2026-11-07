@@ -29,3 +29,19 @@ describe('roster Excel replacement',()=>{
  });
 });
 
+
+import { guessRosterSheet } from "./rosterImport.js";
+describe("guessRosterSheet", () => {
+  const names = ["2025", "RR (DEMO)", "RR 2026", "HR (3)", "RR 2026_Add Training", "Pilot schedule 2027", "RR 2026_Add Training (SIM)", "RR 2026_Add Training (MP)", "ADMIN 2026"];
+  it("pre-selects RR <latest year>_Add Training (MP)", () => {
+    expect(guessRosterSheet(names)).toBe("RR 2026_Add Training (MP)");
+  });
+  it("falls back to _Add Training, then RR <year>, then the first sheet", () => {
+    expect(guessRosterSheet(names.filter((n) => !n.includes("(MP)")))).toBe("RR 2026_Add Training");
+    expect(guessRosterSheet(["x", "RR 2025", "RR 2026"])).toBe("RR 2026");
+    expect(guessRosterSheet(["Sheet1", "Sheet2"])).toBe("Sheet1");
+  });
+  it("a newer year wins over an older MP sheet", () => {
+    expect(guessRosterSheet(["RR 2026_Add Training (MP)", "RR 2027"])).toBe("RR 2027");
+  });
+});

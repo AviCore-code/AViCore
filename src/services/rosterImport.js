@@ -61,6 +61,31 @@ function findDateRow(ws, range) {
   return best.count > 0 ? best.r : -1;
 }
 
+// Which sheet the Import panel pre-selects. The workbook carries ~90+ sheets
+// (years of drafts), and the one the company plans from is the MP training
+// version (Capt. Weera, Nov 2026: import "RR 2026_Add Training (MP)"). So,
+// for the latest year present:
+//   1. "RR <year>_Add Training (MP)"
+//   2. "RR <year>_Add Training"
+//   3. "RR <year>"
+// falling back to the first sheet. The person can still change it in the
+// dropdown before anything is imported.
+export function guessRosterSheet(names) {
+  const list = (names || []).map((n) => ({ n, t: String(n).trim() }));
+  const pattern = /^RR\s?(\d{4})(?:\s*_\s*Add Training(?:\s*\((MP)\))?)?$/i;
+  const candidates = list
+    .map(({ n, t }) => {
+      const m = t.match(pattern);
+      if (!m) return null;
+      const isMp = /\(MP\)\s*$/i.test(t);
+      const isAddTraining = /Add Training/i.test(t);
+      return { n, year: Number(m[1]), rank: isMp ? 0 : isAddTraining ? 1 : 2 };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.year - a.year || a.rank - b.rank);
+  return candidates.length ? candidates[0].n : list[0]?.n;
+}
+
 export function listRosterSheetNames(workbook) {
   return workbook.SheetNames || [];
 }
