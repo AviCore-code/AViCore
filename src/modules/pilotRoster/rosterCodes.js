@@ -64,6 +64,16 @@ export const CODE_LEGEND = [
   { code: "FIRE", label: "Fire Fighting", category: "training" },
   { code: "FIRST", label: "First Aid Training", category: "training" },
   { code: "SMS", label: "SMS Training", category: "training" },
+  // Found in "RR 2026_Add Training (MP)" (Nov 2026) and confirmed by Capt.
+  // Weera: G = Ground, DG = Dangerous Goods. CRM, PBN and ESE are the
+  // company's own names for those training items, written out in full on
+  // that sheet (CRM alongside the older "CR"). All are classroom/training
+  // days, so they occupy the pilot 08:00-17:00 like the other courses.
+  { code: "G", label: "Ground Training", category: "training" },
+  { code: "DG", label: "Dangerous Goods Training", category: "training" },
+  { code: "CRM", label: "CRM Training", category: "training" },
+  { code: "PBN", label: "PBN Training", category: "training" },
+  { code: "ESE", label: "ESE Training", category: "training" },
   { code: "INS", label: "Helideck Inspection", category: "inspection" },
   { code: "VL", label: "Vacation Leave", category: "leave" },
   { code: "SL", label: "Sick Leave", category: "leave" }
@@ -259,9 +269,15 @@ export function getCodeInfo(raw) {
   const direct = CODE_LEGEND_MAP.get(code);
   if (direct) return { code, label: direct.label, category: direct.category, style: CODE_STYLE[code] || CATEGORY_STYLE[direct.category] };
 
+  // Retired codes (T, N, ND) still on imported sheets - shown as what the
+  // planner already reads them as, instead of a grey "unknown". The MP sheet
+  // of Nov 2026 still writes N on 600+ days and T on 160+.
+  const legacy = LEGACY_CODES.get(code);
+  if (legacy) return { code, label: legacy.label, category: legacy.category, style: CATEGORY_STYLE[legacy.category], legacy: true };
+
   if (code.includes(",")) {
     const parts = code.split(",").map((p) => p.trim()).filter(Boolean);
-    const label = COMPENSATE_LABELS[code] || parts.map((p) => CODE_LEGEND_MAP.get(p)?.label || p).join(" + ");
+    const label = COMPENSATE_LABELS[code] || parts.map((p) => CODE_LEGEND_MAP.get(p)?.label || LEGACY_CODES.get(p)?.label || p).join(" + ");
 
     // TWO COURSES ON ONE DAY IS NOT A COMPENSATE DAY - IT IS A MISTAKE.
     //

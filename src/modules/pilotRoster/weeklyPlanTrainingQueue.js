@@ -63,13 +63,19 @@ export const ITEM_ROSTER_CODES = {
   // the sim is booked under its own LPC/OPC item. Order matters here - see
   // trainingCodeFor below.
   night: ["NT", "S"],
-  crm: ["CR"],
+  crm: ["CR", "CRM"],
+  // Codes written on the MP training sheet (Nov 2026): a day already booked
+  // as one of these counts as that item being scheduled.
+  ese: ["ESE"],
+  ground: ["G"],
+  dgs: ["DG"],
   huet: ["H"],
   firstAids: ["FIRST"],
   fireFighting: ["FIRE"],
   sms: ["SMS"],
   avsec: ["AVS"],
-  pbn: ["S"],
+  // "S" stays first: a booking made from the board still goes to the sim.
+  pbn: ["S", "PBN"],
   egpwsTcas: ["S"]
 };
 
