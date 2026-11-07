@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.2";
 import { withTrainingThresholdDefaults, withTrainingDisabledDefaults, buildTrainingRecommendations } from "../../../../src/utils/trainingDue.js";
 import { withFtlDefaults } from "../../../../src/utils/ftlLimits.js";
-import { bangkokDay, birthdayPilots, digestMessages, pushBatch, ensureDeliverySnapshot } from "./digest.js";
+import { bangkokDay, digestMessages, pushBatch, ensureDeliverySnapshot } from "./digest.js";
 import {
   buildLineFtlRecommendations,
   recommendationsForAudience,
@@ -90,7 +90,10 @@ Deno.serve(async req => {
       duty.push(...(rows || []));
       if (!rows || rows.length < 1000) break;
     }
-    const birthdays = birthdayPilots(experience, day);
+    // Birthdays are greeted by the separate line-birthday-greetings function at
+    // 07:00 Bangkok (Capt. Weera, 2026-11-07: keep 07:00 only). Sending them
+    // here too gave each pilot two greetings, so the 05:00 digest carries none.
+    const birthdays: any[] = [];
     const ftlRecs = buildLineFtlRecommendations({ experience, duty, limits, asOfDay: day });
     const recs = [...trainingRecs, ...ftlRecs];
     // Keep first-seen dates so an unresolved warning is clearly marked after
