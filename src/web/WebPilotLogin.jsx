@@ -5,7 +5,7 @@ import {
   hasOfflineCredential, OFFLINE_LOGIN_REASONS, CREDENTIAL_TTL_DAYS
 } from "../services/offlineLogin.js";
 import { DEMO_PILOT_CODES } from "../config/demoUsers.js";
-import LoginShell from "./LoginShell.jsx";
+import LoginShell from "./CrewLoginShell.jsx";
 import "./WebApp.css";
 
 const DEMO_SET = new Set((DEMO_PILOT_CODES || []).map((c) => String(c).toUpperCase()));
