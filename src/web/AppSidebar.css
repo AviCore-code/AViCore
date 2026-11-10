@@ -156,7 +156,7 @@
 .admin-shell .app-sidebar-item.active {
   color: #f3fbf9; border-color: #62c3be5c;
   background: linear-gradient(105deg, #30848433, #34697c33);
-  box-shadow: inset 3px 0 0 var(--admin-cyan, #44d8e6), 0 7px 18px #030f1624;
+  box-shadow: inset 3px 0 0 var(--admin-accent, #44d8e6), 0 7px 18px #030f1624;
 }
 .admin-shell .app-sidebar-icon {
   display: grid; place-items: center; width: 28px; height: 28px;

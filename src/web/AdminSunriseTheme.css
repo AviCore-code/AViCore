@@ -1,0 +1,78 @@
+/* Admin surfaces use the sign-in palette. Data sheets retain their own
+   backgrounds and status colors so their screen and print legends still match. */
+.admin-shell {
+  --acw-bg: var(--admin-bg-0);
+  --acw-bg-soft: var(--admin-bg-1);
+  --acw-panel: var(--admin-panel);
+  --acw-border: var(--admin-line);
+  --acw-text: var(--admin-text);
+  --acw-text-dim: var(--admin-muted);
+  --acw-accent: var(--admin-accent);
+  --acw-accent-2: #a85a2b;
+  --acw-accent-soft: #ffbd7324;
+  --acw-accent-border: #ffbd7361;
+  accent-color: var(--admin-accent);
+}
+
+.admin-shell .web-header {
+  --admin-text: #332015;
+  --admin-muted: #70523f;
+  --acw-text-dim: var(--admin-muted);
+  background: #fff4e3;
+}
+
+.admin-shell .admin-web-badge-edit {
+  background: #f2d8b7;
+  border-color: #ddb68a;
+  color: #744219;
+}
+
+.admin-shell .web-header .web-sync-status.online { color: #256b43; }
+.admin-shell .web-header .web-sync-status.offline { color: #9a3026; }
+.admin-shell .web-header .web-sync-status.syncing { color: #8c4b16; }
+
+.admin-shell .app-sidebar {
+  background: linear-gradient(#fff4e3, #edd5bb);
+  border-color: #d9b48d;
+}
+
+.admin-shell .app-sidebar :is(.app-sidebar-label, .app-sidebar-item, .app-sidebar-sync) {
+  color: #5d3b26;
+}
+
+.admin-shell .app-sidebar-item:hover,
+.admin-shell .app-sidebar-item.active {
+  color: #61320f;
+  border-color: #c5915d;
+  background: #f3d7b4;
+}
+
+.admin-shell .app-sidebar-item.active {
+  box-shadow: inset 3px 0 #a45a20;
+}
+
+.admin-shell .app-sidebar-icon,
+.admin-shell .app-sidebar-item.active .app-sidebar-icon {
+  background: #a45a201c;
+  color: #6e3813;
+  box-shadow: none;
+}
+
+.admin-shell .app-sidebar-signout:hover { color: #972e24; }
+
+
+.admin-shell .web-header .web-sync-status.unconfigured { color: #9a3026; }
+.admin-shell .web-header .web-header-planeicon { color: #342012; }
+
+.admin-shell .dashboard-action-primary {
+  background: linear-gradient(135deg, #f8bc7d, #e69a55) !important;
+  border-color: #f2c18c !important;
+  color: #2b1a10 !important;
+  box-shadow: 0 10px 28px #bb754235;
+}
+
+.admin-shell :is(.flightcrews-tab, .training-tab).active {
+  background: #f7b9732c;
+  border-color: #e6b48775;
+  color: #ffdbad;
+}
