@@ -24,6 +24,7 @@ import adminLoginBg from "./admin-login-bg.jpg";
 import "./WebApp.css";
 import "./AdminWebApp.css";
 import "./AppSidebar.css";
+import "./AdminSunriseTheme.css";
 
 // Is this signed-in account allowed into admin? Empty allowlist = allow any
 // signed-in account (no restriction); otherwise only the listed emails.
@@ -217,18 +218,21 @@ export default function AdminWebApp() {
     return (
       <LoginShell className="admin-login" defaultBackground={adminLoginBg}>
         <span className="web-version-badge">v{APP_VERSION}</span>
+        <section className="admin-login-overview" aria-label="Admin workspace features">
+          <p>Offshore Operations</p>
+          <ul>
+            <li><span aria-hidden="true">✈</span> Fleet Overview</li>
+            <li><span aria-hidden="true">▦</span> Roster &amp; Logbook</li>
+            <li><span aria-hidden="true">◷</span> Duty &amp; Fatigue</li>
+            <li><span aria-hidden="true">◇</span> Training</li>
+            <li><span aria-hidden="true">▤</span> Reports &amp; Access</li>
+          </ul>
+        </section>
         <div className="web-login-card admin-login-card">
-          <div className="admin-login-accent" aria-hidden="true" />
           <div className="admin-login-kicker">
             <span>SECURE OPERATIONS CONSOLE</span>
             <b>ADMIN</b>
           </div>
-          {/* Same layout as the Crew sign-in screen (see WebPilotLogin.jsx),
-              which follows the AviCore Flight Planner reference. Admin really
-              does sign in with an email and password - Supabase auth - so unlike
-              Crew this one keeps the EMAIL field from the reference.
-              No offline button here: admin sign-in is never cached on the device
-              (see the note at the top of offlineLogin.js). */}
           <div className="login-brand">
             <span aria-hidden="true">✣</span>
             <div>
@@ -236,8 +240,7 @@ export default function AdminWebApp() {
               <small>ENTERPRISE · V{APP_VERSION}</small>
             </div>
           </div>
-          <p className="login-series">ADMIN · MONITORING &amp; REPORTS</p>
-          <h1>Welcome back<span className="admin-login-dot">.</span></h1>
+          <h1>Welcome back</h1>
           <p className="login-copy">Sign in to monitor operations, crew readiness and enterprise records.</p>
 
           <form onSubmit={handleSignIn}>
@@ -262,7 +265,7 @@ export default function AdminWebApp() {
                   onChange={(e) => { setPassword(e.target.value); setAuthError(""); }}
                 />
                 <button
-                  type="button" className="login-password-toggle" tabIndex={-1}
+                  type="button" className="login-password-toggle"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                   onClick={() => setShowPassword((v) => !v)}
                 >
@@ -272,7 +275,7 @@ export default function AdminWebApp() {
             </label>
             {authError && <p className="login-message">{authError}</p>}
             <button className="login-primary" type="submit" disabled={signingIn || !email.trim() || !password}>
-              <span>{signingIn ? "AUTHENTICATING…" : "ENTER ADMIN CONSOLE"}</span>
+              <span>{signingIn ? "AUTHENTICATING…" : "SIGN IN"}</span>
               <i aria-hidden="true">→</i>
             </button>
           </form>
