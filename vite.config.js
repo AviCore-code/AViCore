@@ -124,6 +124,8 @@ export default defineConfig(({ mode }) => {
           ]
         },
         workbox: {
+          // Keep the Admin office themes available after the first online visit.
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}'],
           navigateFallbackDenylist: [/^\/api\//]
         }
       })

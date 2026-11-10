@@ -16,11 +16,10 @@ import FdtStatistics from "../modules/statistics/FdtStatistics.jsx";
 import CrewLoginMonitor from "./CrewLoginMonitor.jsx";
 import CrewAccess from "./CrewAccess.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
-import LoginShell from "./LoginShell.jsx";
+import LoginShell from "./AdminLoginShell.jsx";
 import { ADMIN_ALLOWED_EMAILS } from "../config/adminAllowlist.js";
 import AppSidebar from "./AppSidebar.jsx";
 import { ADMIN_SECTIONS, ADMIN_SCREEN_KEYS, defaultScreenForSection, sectionForScreen } from "./adminNavigation.js";
-import adminLoginBg from "./admin-login-bg.jpg";
 import "./WebApp.css";
 import "./AdminWebApp.css";
 import "./AppSidebar.css";
@@ -216,18 +215,8 @@ export default function AdminWebApp() {
 
   if (!session) {
     return (
-      <LoginShell className="admin-login" defaultBackground={adminLoginBg}>
+      <LoginShell>
         <span className="web-version-badge">v{APP_VERSION}</span>
-        <section className="admin-login-overview" aria-label="Admin workspace features">
-          <p>Offshore Operations</p>
-          <ul>
-            <li><span aria-hidden="true">✈</span> Fleet Overview</li>
-            <li><span aria-hidden="true">▦</span> Roster &amp; Logbook</li>
-            <li><span aria-hidden="true">◷</span> Duty &amp; Fatigue</li>
-            <li><span aria-hidden="true">◇</span> Training</li>
-            <li><span aria-hidden="true">▤</span> Reports &amp; Access</li>
-          </ul>
-        </section>
         <div className="web-login-card admin-login-card">
           <div className="admin-login-kicker">
             <span>SECURE OPERATIONS CONSOLE</span>
