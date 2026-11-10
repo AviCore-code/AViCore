@@ -368,28 +368,28 @@
 
 /* Offshore Sunrise sign-in */
 .web-login.admin-login {
-  --admin-ink: #332015;
-  --admin-muted: #70523f;
-  --admin-accent: #985019;
+  --admin-ink: #37302e;
+  --admin-muted: #71645f;
+  --admin-accent: #88574c;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(330px, 460px);
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) minmax(330px, 420px);
+  align-items: safe center;
   gap: clamp(24px, 5vw, 80px);
   isolation: isolate;
-  padding: clamp(24px, 5vw, 76px);
-  background: #f1dfca;
+  padding: clamp(24px, 5vh, 54px) clamp(24px, 5vw, 76px);
+  background: #eee8e3;
   color-scheme: light;
 }
 
 .web-login.admin-login::before {
-  inset-inline-end: clamp(330px, 34vw, 510px);
+  inset: 0;
   background-image: var(--login-bg, url("./admin-login-bg.jpg"));
-  background-position: 35% center;
+  background-position: center 62%;
 }
 
 .web-login.admin-login::after {
-  background: linear-gradient(90deg, transparent 48%, #f1dfca 72%),
-    linear-gradient(0deg, #25160fe8, transparent 52%);
+  background: linear-gradient(90deg, transparent 46%, #eee8e326 62%, #eee8e3d9 100%),
+    linear-gradient(0deg, #25160f99, transparent 32%);
 }
 
 .admin-login-overview {
@@ -429,12 +429,15 @@
 
 .admin-login .web-login-card.admin-login-card {
   width: 100%;
-  max-width: 460px;
+  max-width: 420px;
   margin: 0;
-  padding: clamp(22px, 3vw, 38px);
-  border: 1px solid #e2c6a9;
-  border-radius: 24px;
-  background: #fff8ec;
+  padding: clamp(24px, 2.4vw, 32px);
+  gap: 8px;
+  border: 0;
+  border-radius: 20px;
+  background: #fffdfb;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   color: var(--admin-ink);
   box-shadow: 0 24px 60px #3c221f38;
 }
@@ -454,7 +457,7 @@
 .admin-login-kicker b {
   padding: 5px 8px;
   border-radius: 999px;
-  background: #f5e3cb;
+  background: #f3eae5;
   color: var(--admin-accent);
 }
 
@@ -473,7 +476,7 @@
 .admin-login-card .login-owner span,
 .admin-login-card .login-owner small { color: var(--admin-muted); }
 
-.admin-login-card h1 { margin-top: 22px; font-size: clamp(28px, 3vw, 38px); }
+.admin-login-card h1 { margin-top: 16px; font-size: clamp(28px, 3vw, 38px); }
 .admin-login-card form { gap: 14px; }
 .admin-login-field { position: relative; display: flex; }
 .admin-login-field > i {
@@ -489,9 +492,9 @@
 .admin-login-card form input {
   min-height: 48px;
   padding-left: 36px;
-  border: 1px solid #bea185;
+  border: 1px solid #cbbdb5;
   border-radius: 10px;
-  background: #fffdf8;
+  background: #ffffff;
   color: var(--admin-ink);
 }
 
@@ -522,14 +525,14 @@
   padding: 0 16px;
   border: 0;
   border-radius: 10px;
-  background: linear-gradient(110deg, #a25920, #824015);
+  background: #88574c;
   color: #fffaf1;
 }
 
 .admin-login-card .login-primary:hover:not(:disabled) { filter: brightness(1.12); }
 .admin-login-card .login-primary i { font-size: 20px; font-style: normal; }
 .admin-login-card .login-message { background: #fce9e4; border-color: #a52c24; color: #932920; }
-.admin-login-card .login-owner { border-color: #e2c6a9; }
+.admin-login-card .login-owner { border-color: #e6dcd5; }
 
 @media (max-width: 820px) {
   .web-login.admin-login {
@@ -554,9 +557,17 @@
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    width: min(100%, 460px);
+    width: min(100%, 420px);
     min-height: calc(clamp(230px, 70vw, 440px) - 18px);
     padding-bottom: 16px;
   }
 }
 
+
+.admin-login-card input::placeholder { color: #786b65; opacity: 1; }
+.admin-login-card input { caret-color: var(--admin-accent); }
+.admin-login-card ::selection { background: #ead8cb; color: #37302e; }
+
+.admin-login-card .login-copy { margin: 6px 0 18px; }
+.admin-login-card .login-links { margin-top: 10px; }
+.admin-login-card .login-owner { margin-top: 16px; padding-top: 12px; }
