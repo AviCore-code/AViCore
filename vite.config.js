@@ -99,6 +99,8 @@ export default defineConfig(({ mode }) => {
         workbox: {
           // App-shell precache only - see comment above. No navigateFallback
           // data caching, no runtime-caching entries for Supabase/Firebase.
+          // Cache all three Crew photos so theme switching also works offline.
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}'],
           navigateFallbackDenylist: [/^\/api\//]
         }
       }),
