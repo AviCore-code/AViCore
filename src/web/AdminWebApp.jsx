@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import useAppearanceTheme from "./useAppearanceTheme.js";
 import OfflineBar from "../components/OfflineBar.jsx";
 import { startClickSound } from "../utils/clickSound.js";
 import { startOfflineQueue } from "../services/offlineQueue.js";
@@ -24,6 +25,7 @@ import "./WebApp.css";
 import "./AdminWebApp.css";
 import "./AppSidebar.css";
 import "./AdminSunriseTheme.css";
+import "./AppAppearance.css";
 
 // Is this signed-in account allowed into admin? Empty allowlist = allow any
 // signed-in account (no restriction); otherwise only the listed emails.
@@ -103,6 +105,7 @@ function rememberTab(key, value) {
 }
 
 export default function AdminWebApp() {
+  const [appearanceTheme] = useAppearanceTheme("admin");
   const [session, setSession] = useState(undefined); // undefined=loading, null=logged out
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -306,7 +309,7 @@ export default function AdminWebApp() {
   }];
 
   return (
-    <div className="web-app admin-shell">
+    <div className="web-app admin-shell" data-app-theme={appearanceTheme}>
       <OfflineBar />
       <ConflictDialog />
       <div className="web-body">

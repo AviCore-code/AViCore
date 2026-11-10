@@ -1,29 +1,18 @@
-import { useState } from "react";
+import useAppearanceTheme from "./useAppearanceTheme.js";
 import ocean from "./admin-backgrounds/ocean.webp";
 import sunset from "./admin-backgrounds/sunset.webp";
 import night from "./admin-backgrounds/night.webp";
 import "./AdminLoginShell.css";
 
-const STORAGE_KEY = "avicore_admin_login_theme";
 const THEMES = [
   { id: "ocean", name: "Ocean Blue", image: ocean },
   { id: "sunset", name: "Sunset Amber", image: sunset },
   { id: "night", name: "Night Flight", image: night }
 ];
-function savedTheme() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return THEMES.some((theme) => theme.id === saved) ? saved : "ocean";
-  } catch { return "ocean"; }
-}
 // Personal appearance only: never changes the entered credentials or auth state.
 export default function AdminLoginShell({ children }) {
-  const [themeId, setThemeId] = useState(savedTheme);
+  const [themeId, chooseTheme] = useAppearanceTheme("admin");
   const theme = THEMES.find((item) => item.id === themeId);
-  function chooseTheme(id) {
-    setThemeId(id);
-    try { localStorage.setItem(STORAGE_KEY, id); } catch { /* Session-only if storage is blocked. */ }
-  }
   return (
     <div className={`web-login admin-theme-login admin-theme-login--${themeId}`} style={{ "--login-bg": `url("${theme.image}")` }}>
       <section className="admin-theme-login-scene" aria-label="AviCore Admin">

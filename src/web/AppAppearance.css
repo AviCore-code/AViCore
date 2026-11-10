@@ -1,0 +1,93 @@
+/* Screen chrome follows the saved login theme. Report cells and warning colors
+   remain owned by their modules; no photo or blanket table recoloring. */
+@media screen {
+  .web-app[data-app-theme] {
+    --app-bg: #101e31; --app-soft: #182b43; --app-panel: #1c314b;
+    --app-line: #38516c; --app-text: #f0f6ff; --app-muted: #bbcee5;
+    --app-accent: #76c5ff; --app-accent-text: #08243d;
+    --menu-bg: #f0f7ff; --menu-text: #102b4d; --menu-muted: #49617c;
+    --menu-line: #b6cce1; --menu-selected: #d7eaff; --menu-accent: #075ba9;
+    --acw-bg: var(--app-bg); --acw-bg-soft: var(--app-soft);
+    --acw-panel: var(--app-panel); --acw-border: var(--app-line);
+    --acw-text: var(--app-text); --acw-text-dim: var(--app-muted);
+    --acw-accent: var(--app-accent); --acw-accent-2: var(--menu-accent);
+    --acw-accent-soft: var(--app-soft); --acw-accent-border: var(--app-line);
+    --admin-bg-0: var(--app-bg); --admin-bg-1: var(--app-soft);
+    --admin-panel: var(--app-panel); --admin-panel-strong: var(--app-soft);
+    --admin-line: var(--app-line); --admin-line-strong: var(--app-accent);
+    --admin-accent: var(--app-accent); --admin-accent-soft: var(--app-accent);
+    --admin-text: var(--app-text); --admin-muted: var(--app-muted);
+    background: var(--app-bg); color: var(--app-text); color-scheme: dark;
+    accent-color: var(--app-accent); scrollbar-color: var(--app-line) var(--app-bg);
+  }
+  .web-app[data-app-theme="sunset"] {
+    --app-bg: #281d18; --app-soft: #35271f; --app-panel: #443126;
+    --app-line: #715340; --app-text: #fff4e8; --app-muted: #e5c9b2;
+    --app-accent: #f5b77e; --app-accent-text: #392116;
+    --menu-bg: #fff3e5; --menu-text: #482819; --menu-muted: #775442;
+    --menu-line: #d6b79e; --menu-selected: #f4ddc8; --menu-accent: #a84b2b;
+  }
+  .web-app[data-app-theme="night"] {
+    --app-bg: #071323; --app-soft: #0b2036; --app-panel: #102942;
+    --app-line: #35536f; --app-text: #f1f6ff; --app-muted: #b5c8de;
+    --app-accent: #06d3ed; --app-accent-text: #05243c;
+    --menu-bg: #0a1d33; --menu-text: #f1f6ff; --menu-muted: #b5c8de;
+    --menu-line: #35536f; --menu-selected: #153b54; --menu-accent: #06d3ed;
+  }
+  .web-app[data-app-theme] .web-main { background: var(--app-bg); border-color: var(--app-line); }
+  .web-app[data-app-theme] :is(.web-header, .app-sidebar, .admin-subtabs) {
+    --admin-text: var(--menu-text); --admin-muted: var(--menu-muted);
+    --acw-text-dim: var(--menu-muted);
+    background: var(--menu-bg); color: var(--menu-text); border-color: var(--menu-line);
+    color-scheme: light;
+  }
+  .web-app[data-app-theme="night"] :is(.web-header, .app-sidebar, .admin-subtabs) { color-scheme: dark; }
+  .web-app[data-app-theme] :is(.web-header-title, .app-sidebar-item) { color: var(--menu-text); }
+  .web-app[data-app-theme] :is(.web-header-copyright, .app-sidebar-label, .app-sidebar-sync) { color: var(--menu-muted); }
+  .web-app[data-app-theme] :is(.app-sidebar-item:hover, .app-sidebar-item.active) {
+    background: var(--menu-selected); color: var(--menu-accent); border-color: var(--menu-line);
+  }
+  .web-app[data-app-theme] .app-sidebar-item.active { box-shadow: inset 3px 0 var(--menu-accent); }
+  .web-app[data-app-theme] :is(.app-sidebar-icon, .app-sidebar-item.active .app-sidebar-icon) { background: var(--menu-selected); color: var(--menu-accent); box-shadow: none; }
+  .web-app[data-app-theme] .app-sidebar-foot { border-color: var(--menu-line); }
+  .web-app[data-app-theme] .app-sidebar-signout:hover { color: #b53636; }
+  .web-app[data-app-theme] .web-header-planeicon { background: var(--menu-selected); color: var(--menu-accent); box-shadow: none; }
+  .web-app[data-app-theme] :is(.admin-web-badge-edit, .web-header-refresh, .web-header-logout) {
+    background: var(--menu-selected); color: var(--menu-text); border-color: var(--menu-line); box-shadow: none;
+  }
+  .web-app[data-app-theme] .web-tabbar button { color: var(--menu-muted); }
+  .web-app[data-app-theme] .web-tabbar button:hover { background: var(--menu-selected); color: var(--menu-text); }
+  .web-app[data-app-theme] .web-tabbar button.active { background: var(--menu-accent); color: #fff; box-shadow: none; }
+  .web-app[data-app-theme="night"] .web-tabbar button.active { color: #05243c; }
+  .web-app[data-app-theme] .admin-subtabs button { background: var(--menu-bg) !important; color: var(--menu-text) !important; border-color: var(--menu-line); }
+  .web-app[data-app-theme] .admin-subtabs button:is(.active, [aria-current="page"], :hover) {
+    background: var(--menu-selected) !important; color: var(--menu-accent) !important;
+    border-color: var(--menu-accent); box-shadow: inset 0 -2px var(--menu-accent);
+  }
+  .admin-shell[data-app-theme] button:not(.app-sidebar-item):not(.login-primary):not(.login-offline) {
+    background: var(--app-panel); color: var(--app-text); border-color: var(--app-line);
+  }
+  .admin-shell[data-app-theme] button:not(.app-sidebar-item):not(.login-primary):not(.login-offline):hover:not(:disabled) {
+    background: var(--app-soft); color: var(--app-text); border-color: var(--app-accent);
+  }
+  .admin-shell[data-app-theme] .web-header :is(.web-header-refresh, .web-header-logout) {
+    background: var(--menu-selected); color: var(--menu-text); border-color: var(--menu-line);
+  }
+  .web-app[data-app-theme] :is(button.primary, .dashboard-action-primary, .duty-save-btn) {
+    background: var(--app-accent) !important; color: var(--app-accent-text) !important;
+    border-color: var(--app-accent) !important; box-shadow: none;
+  }
+  .admin-shell[data-app-theme] :is(.flightcrews-tab, .training-tab).active {
+    background: var(--app-soft); color: var(--app-accent); border-color: var(--app-accent);
+  }
+  .web-app[data-app-theme] .web-footer { background: var(--app-soft); color: var(--app-muted); border-color: var(--app-line); }
+  .web-app[data-app-theme] :is(button, a):focus-visible { outline: 2px solid var(--app-accent); outline-offset: 3px; }
+  .web-app[data-app-theme] :is(.web-header, .app-sidebar, .admin-subtabs) :is(button, a):focus-visible { outline-color: var(--menu-accent); }
+  .web-app[data-app-theme] ::selection { background: var(--app-accent); color: var(--app-accent-text); }
+  .web-app[data-app-theme] .web-header .web-sync-status.online { color: #23734a; }
+  .web-app[data-app-theme] .web-header .web-sync-status.offline { color: #a52e22; }
+  .web-app[data-app-theme] .web-header .web-sync-status.syncing { color: #8a4b18; }
+  .web-app[data-app-theme="night"] .web-header .web-sync-status.online { color: #86efac; }
+  .web-app[data-app-theme="night"] .web-header .web-sync-status.offline { color: #fda4af; }
+  .web-app[data-app-theme="night"] .web-header .web-sync-status.syncing { color: #fcd34d; }
+}

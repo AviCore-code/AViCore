@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import useAppearanceTheme from "./useAppearanceTheme.js";
 import OfflineBar from "../components/OfflineBar.jsx";
 import { startClickSound } from "../utils/clickSound.js";
 import { startOfflineQueue } from "../services/offlineQueue.js";
@@ -16,6 +17,7 @@ import MyWeeklySchedule from "./MyWeeklySchedule.jsx";
 import CrewSettings from "./CrewSettings.jsx";
 import { applyCrewDisplay } from "./crewDisplay.js";
 import "./WebApp.css";
+import "./AppAppearance.css";
 
 // Browser-based shell for the four pilot self-service pages - same pages,
 // same components, as the PC app and the Android app (see
@@ -83,6 +85,7 @@ function rememberTab(key, value) {
 }
 
 export default function WebApp() {
+  const [appearanceTheme] = useAppearanceTheme("crew");
   const [pairedCode, setPairedCode] = useState(null);
   // A FRESH VISIT always starts on Home; a refresh mid-session returns to the
   // page you were on.
@@ -295,7 +298,7 @@ export default function WebApp() {
   const Active = TABS.find((t) => t.key === tab)?.Component;
 
   return (
-    <div className="web-app">
+    <div className="web-app" data-app-theme={appearanceTheme}>
       <OfflineBar />
       <header className="web-header">
         <div className="web-header-brand">
