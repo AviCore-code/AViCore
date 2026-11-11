@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import useAppearanceTheme from "./useAppearanceTheme.js";
 import OfflineBar from "../components/OfflineBar.jsx";
+import UpdateBar from "../components/UpdateBar.jsx";
 import { startClickSound } from "../utils/clickSound.js";
 import { startOfflineQueue } from "../services/offlineQueue.js";
 import { getPairedPilotCode, clearPairedPilotCode, isConfigured, getSetting, subscribeSyncStatus, pingServer } from "../services/webDatabase.js";
@@ -346,6 +347,7 @@ export default function WebApp() {
             here, and this is where someone decides whether to clear the
             browser. */}
         <OfflineBar />
+        <UpdateBar />
         <WebPilotLogin onPaired={(code) => { setSignedOutNotice(""); handlePaired(code); }} notice={signedOutNotice} />
       </>
     );
@@ -356,6 +358,7 @@ export default function WebApp() {
   return (
     <div className="web-app" data-app-theme={appearanceTheme}>
       <OfflineBar />
+      <UpdateBar />
       {idleSecondsLeft != null && (
         <div className="web-idle-warning" role="alertdialog" aria-live="assertive">
           <span>No activity for a while — signing out in <b>{idleSecondsLeft}s</b>. Anything you are typing will be kept.</span>

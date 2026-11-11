@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import useAppearanceTheme from "./useAppearanceTheme.js";
 import OfflineBar from "../components/OfflineBar.jsx";
+import UpdateBar from "../components/UpdateBar.jsx";
 import { startClickSound } from "../utils/clickSound.js";
 import { startOfflineQueue } from "../services/offlineQueue.js";
 import ConflictDialog from "../components/ConflictDialog.jsx";
@@ -237,6 +238,7 @@ export default function AdminWebApp() {
   if (!session) {
     return (
       <LoginShell>
+        <UpdateBar />
         <span className="web-version-badge">v{APP_VERSION}</span>
         <div className="web-login-card admin-login-card">
           <div className="admin-login-kicker">
@@ -329,6 +331,7 @@ export default function AdminWebApp() {
   return (
     <div className="web-app admin-shell" data-app-theme={appearanceTheme}>
       <OfflineBar />
+      <UpdateBar />
       <ConflictDialog />
       <div className="web-body">
         <AppSidebar

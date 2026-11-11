@@ -78,7 +78,10 @@ export default defineConfig(({ mode }) => {
       // goes straight to the network and fails/warns honestly when
       // offline instead of silently showing stale duty/roster data.
       isWeb && VitePWA({
-        registerType: 'autoUpdate',
+        // 'prompt': a new version waits for the user's Update click
+        // (src/components/UpdateBar.jsx registers sw.js itself).
+        registerType: 'prompt',
+        injectRegister: false,
         includeAssets: ['pwa-crew-32.png', 'pwa-crew-48.png'],
         manifest: {
           id: '/',
@@ -105,7 +108,10 @@ export default defineConfig(({ mode }) => {
         }
       }),
       isAdmin && VitePWA({
-        registerType: 'autoUpdate',
+        // 'prompt': a new version waits for the user's Update click
+        // (src/components/UpdateBar.jsx registers sw.js itself).
+        registerType: 'prompt',
+        injectRegister: false,
         includeAssets: ['pwa-admin-icon.svg'],
         manifest: {
           id: '/',

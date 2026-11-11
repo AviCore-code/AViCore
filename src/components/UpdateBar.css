@@ -1,0 +1,13 @@
+/* "New version available" bar. Pinned to the TOP so it never sits on the
+   OfflineBar, which owns the bottom edge. Never printed. */
+.updbar{position:fixed;top:0;left:0;right:0;z-index:9600;display:flex;align-items:center;gap:10px;padding:8px 14px;padding-top:max(8px,env(safe-area-inset-top));background:#22c55e;color:#052e16;font:12.5px/1.5 system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.25)}
+.updbar-icon{flex:none;width:24px;height:24px;border-radius:50%;background:rgba(5,46,22,.15);display:flex;align-items:center;justify-content:center;font-weight:700}
+.updbar-text{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.35}
+.updbar-th{font-weight:700}
+.updbar-en{font-size:11px;opacity:.8}
+.updbar-go{flex:none;background:#052e16;color:#ecfdf5;border:none;border-radius:8px;padding:6px 16px;font-size:13px;font-weight:700;cursor:pointer}
+.updbar-go:hover:not(:disabled){background:#14532d}
+.updbar-later{flex:none;background:transparent;color:#052e16;border:1px solid rgba(5,46,22,.35);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer}
+.updbar-go:disabled,.updbar-later:disabled{opacity:.6;cursor:default}
+@media (max-width:520px){.updbar-en{display:none}.updbar{gap:8px;padding-left:10px;padding-right:10px}}
+@media print{.updbar{display:none!important}}
