@@ -28,12 +28,29 @@ export function adminUserFormProblem(form) {
   return null;
 }
 
+// Password box with an eye button to show what is being typed. Passwords are
+// stored as one-way hashes on the server, so an EXISTING password can never be
+// shown - only what is entered here, before it is saved.
+function PasswordInput({ value, onChange, visible, onToggle, placeholder }) {
+  return (
+    <span className="admin-users-password">
+      <input type={visible ? "text" : "password"} value={value} onChange={onChange}
+        autoComplete="new-password" placeholder={placeholder} spellCheck={false} />
+      <button type="button" className="admin-users-eye" onClick={onToggle}
+        aria-label={visible ? "Hide password" : "Show password"} title={visible ? "Hide password" : "Show password"}>
+        {visible ? "🙈" : "👁"}
+      </button>
+    </span>
+  );
+}
+
 export default function AdminUsersPanel() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(null);       // null = no form open
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -50,11 +67,13 @@ export default function AdminUsersPanel() {
 
   function openAdd() {
     setMsg(null);
+    setShowPassword(false);
     setForm({ ...EMPTY_FORM });
   }
 
   function openEdit(u) {
     setMsg(null);
+    setShowPassword(false);
     setForm({ userId: u.userId, email: u.email, name: u.name, password: "", confirm: "", adminWeb: u.adminWeb, isYou: u.isYou });
   }
 
@@ -129,11 +148,13 @@ export default function AdminUsersPanel() {
           </label>
           <label className="settings-field">
             <span>{form.userId ? "New password (leave blank to keep the current one)" : "Password"}</span>
-            <input type="password" value={form.password} onChange={set("password")} autoComplete="new-password" placeholder={`At least ${MIN_PASSWORD} characters`} />
+            <PasswordInput value={form.password} onChange={set("password")} placeholder={`At least ${MIN_PASSWORD} characters`}
+              visible={showPassword} onToggle={() => setShowPassword((v) => !v)} />
           </label>
           <label className="settings-field">
             <span>Confirm password</span>
-            <input type="password" value={form.confirm} onChange={set("confirm")} autoComplete="new-password" />
+            <PasswordInput value={form.confirm} onChange={set("confirm")}
+              visible={showPassword} onToggle={() => setShowPassword((v) => !v)} />
           </label>
           <label className="settings-toggle">
             <input type="checkbox" checked={form.adminWeb} onChange={set("adminWeb")} disabled={form.isYou} />
@@ -153,6 +174,16 @@ export default function AdminUsersPanel() {
       )}
 
       {users.length > 0 && (
+        <div className="admin-users-active">
+          <b>Active now ({users.filter((u) => u.adminWeb).length}):</b>{" "}
+          {users.filter((u) => u.adminWeb).map((u) => u.email).join(", ") || "—"}
+          <div className="settings-detail">
+            Passwords cannot be shown: the server keeps only a one-way hash. To give someone a new password, press Edit and enter it.
+          </div>
+        </div>
+      )}
+
+      {users.length > 0 && (
         <table className="settings-devices-table">
           <thead>
             <tr>
@@ -169,8 +200,9 @@ export default function AdminUsersPanel() {
                 <td>{u.email || "—"}{u.isYou ? " (you)" : ""}</td>
                 <td>{u.name || "—"}</td>
                 <td>
-                  <span className={`settings-devices-dot ${u.adminWeb ? "online" : "offline"}`} />
-                  {u.adminWeb ? "On" : "Off"}
+                  <span className={`admin-users-badge ${u.adminWeb ? "active" : "off"}`}>
+                    {u.adminWeb ? "Active" : "Off"}
+                  </span>
                 </td>
                 <td>{formatWhen(u.lastSignInAt)}</td>
                 <td className="admin-users-row-actions">

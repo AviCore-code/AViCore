@@ -302,3 +302,38 @@ input.fatcrit-n:hover,input.fatcrit-t:hover{border-color:#94a3b8}
 .admin-users-row-actions button + button {
   margin-left: 6px;
 }
+.admin-users-password {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.admin-users-password input {
+  flex: 1;
+  min-width: 0;
+}
+.admin-users-eye {
+  flex: none;
+  min-width: 40px;
+  padding: 6px 8px;
+  line-height: 1;
+}
+.admin-users-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.admin-users-badge.active {
+  background: rgba(74, 222, 128, 0.16);
+  color: #16a34a;
+  border: 1px solid rgba(74, 222, 128, 0.5);
+}
+.admin-users-badge.off {
+  background: rgba(100, 116, 139, 0.14);
+  color: #64748b;
+  border: 1px solid rgba(100, 116, 139, 0.35);
+}
+.admin-users-active {
+  margin: 10px 0;
+}
