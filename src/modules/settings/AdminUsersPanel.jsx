@@ -8,7 +8,7 @@ import { listAdminUsers, createAdminUser, updateAdminUser, deleteAdminUser } fro
 // Delete removes the person from AviCore - their login is kept, because the
 // Supabase login pool is shared with another app on the same project.
 
-const MIN_PASSWORD = 8;
+const MIN_PASSWORD = 5;
 const EMPTY_FORM = { userId: null, email: "", name: "", password: "", confirm: "", adminWeb: true };
 
 function formatWhen(iso) {

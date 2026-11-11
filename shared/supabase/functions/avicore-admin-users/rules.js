@@ -1,7 +1,7 @@
 // Pure rules for Admin Setting -> Admin Users, kept apart from index.ts so
 // they can be unit-tested without Deno or a database.
 
-export const MIN_PASSWORD_LENGTH = 8;
+export const MIN_PASSWORD_LENGTH = 5;
 
 export function normalizeEmail(value) {
   return String(value || "").trim().toLowerCase();

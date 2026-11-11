@@ -9,15 +9,16 @@ const members = [
 ];
 
 describe("avicore-admin-users rules", () => {
-  it("requires a valid email and an 8+ character password to create", () => {
+  it("requires a valid email and a 5+ character password to create", () => {
     expect(checkCreate({ email: "bad", password: "12345678" })).toBeTruthy();
-    expect(checkCreate({ email: "a@uoathai.com", password: "short" })).toBeTruthy();
+    expect(checkCreate({ email: "a@uoathai.com", password: "abcd" })).toBeTruthy();
     expect(checkCreate({ email: "a@uoathai.com", password: "longenough" })).toBeNull();
+    expect(checkCreate({ email: "a@uoathai.com", password: "abcde" })).toBeNull();
   });
 
   it("lets an update keep the password when none is given", () => {
     expect(checkUpdate({ userId: "fso1", email: "fso1@uoathai.com" })).toBeNull();
-    expect(checkUpdate({ userId: "fso1", password: "short" })).toBeTruthy();
+    expect(checkUpdate({ userId: "fso1", password: "abcd" })).toBeTruthy();
   });
 
   it("blocks removing or switching off your own access", () => {

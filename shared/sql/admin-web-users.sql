@@ -1,5 +1,4 @@
 -- Admin web access managed from Admin Setting -> Admin Users.
---
 -- Until now the Admin web let in only the emails hard-coded in
 -- src/config/adminAllowlist.js. This adds a per-person switch on the existing
 -- membership row, so admins can be added, changed and removed from the app
