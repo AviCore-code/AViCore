@@ -19,6 +19,7 @@ vi.mock("../../utils/uiSound.js", () => ({ playOk() {}, playError() {}, playClic
 vi.mock("../../utils/clickSound.js", () => ({ playOk() {}, playError() {}, playClick() {} }));
 
 import DutyEntry from "./DutyEntry.jsx";
+import { runBeforeLogout } from "../../web/idleLogout.js";
 
 beforeEach(() => { cleanup(); Object.values(db).forEach((f) => f.mockClear?.()); window.alert = vi.fn(); Element.prototype.scrollIntoView = vi.fn(); });
 
@@ -121,5 +122,27 @@ describe("Daily Duty — Flights / Day first, one row per flight", () => {
     fireEvent.click(screen.getByText("Edit"));
     expect(screen.getByLabelText("Flight 1 type").value).toBe("Ferry Flight");
     expect(screen.getByLabelText("Flight 2 type").value).toBe("Ferry Flight");
+  });
+
+  it("automatic sign-out keeps a half-typed entry as a draft and restores it - without saving it", async () => {
+    const first = await openForm();
+    fireEvent.click(within(picker()).getByText("2"));
+    fireEvent.change(screen.getByLabelText("Flight 1 route"), { target: { value: "VTSH-CPOC-VTSH" } });
+    await runBeforeLogout("idle");
+    first.unmount();
+    expect(db.addDutyEntry).not.toHaveBeenCalled();
+    await openForm();
+    await waitFor(() => expect(screen.getByText(/Restored the entry you were typing/)).toBeTruthy());
+    expect(screen.getByLabelText("Flight 1 route").value).toBe("VTSH-CPOC-VTSH");
+    expect(screen.getByLabelText("Flight 2 route").value).toBe("VTSH-CPOC-VTSH");
+    expect(db.addDutyEntry).not.toHaveBeenCalled();
+  });
+
+  it("an untouched form leaves no draft", async () => {
+    const first = await openForm();
+    await runBeforeLogout("idle");
+    first.unmount();
+    await openForm();
+    expect(screen.queryByText(/Restored the entry/)).toBeNull();
   });
 });

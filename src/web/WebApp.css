@@ -434,3 +434,9 @@ html[data-crew-screen="contrast"] body { filter: contrast(1.15) brightness(1.06)
 .web-login-card .login-owner strong{color:#f4f7fa;font-size:12px;letter-spacing:.05em}
 .web-login-card .login-owner a{display:block;margin-top:2px;font-size:11px;color:#5cc8d7;text-decoration:none}
 .web-login-card .login-owner small{color:#8da2ae;font-size:10px}
+
+/* Automatic sign-out countdown (idleLogout.js) - fixed at the top so it is
+   seen whatever page or scroll position the pilot left the app on. */
+.web-idle-warning { position: fixed; top: env(safe-area-inset-top, 0px); left: 0; right: 0; z-index: 1000; display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px)); background: #92400e; color: #fff; font-size: 14px; box-shadow: 0 4px 16px rgba(0,0,0,.35); }
+.web-idle-warning button { background: #fff; color: #92400e; border: 0; border-radius: 8px; padding: 6px 14px; font-weight: 800; cursor: pointer; }
+.web-login-notice { color: #fde68a; background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.35); border-radius: 8px; padding: 8px 10px; }

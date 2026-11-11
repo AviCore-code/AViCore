@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import useAppearanceTheme from "./useAppearanceTheme.js";
 import OfflineBar from "../components/OfflineBar.jsx";
 import { startClickSound } from "../utils/clickSound.js";
@@ -16,6 +16,7 @@ import MyRoster from "./MyRoster.jsx";
 import MyWeeklySchedule from "./MyWeeklySchedule.jsx";
 import CrewSettings from "./CrewSettings.jsx";
 import { applyCrewDisplay } from "./crewDisplay.js";
+import { ACTIVITY_EVENTS, IDLE_LIMIT_MS, idleState, runBeforeLogout } from "./idleLogout.js";
 import "./WebApp.css";
 import "./AppAppearance.css";
 
@@ -208,6 +209,60 @@ export default function WebApp() {
   // always be silently ignored here. Going back to the Login screen to
   // pick the next pilot is the real, working behavior for this kiosk
   // shortcut - not a fallback.
+  // ---- Automatic sign-out after 10 idle minutes (see idleLogout.js) ----
+  const lastActivityRef = useRef(Date.now());
+  const [idleSecondsLeft, setIdleSecondsLeft] = useState(null);
+  const [signedOutNotice, setSignedOutNotice] = useState("");
+  const autoLoggingOutRef = useRef(false);
+
+  useEffect(() => {
+    if (!pairedCode) return undefined;
+    lastActivityRef.current = Date.now();
+    setIdleSecondsLeft(null);
+    const onActivity = () => { lastActivityRef.current = Date.now(); };
+    ACTIVITY_EVENTS.forEach((ev) => window.addEventListener(ev, onActivity, { passive: true, capture: true }));
+    const tick = () => {
+      const st = idleState(lastActivityRef.current);
+      if (st.expired) { autoLogout(); return; }
+      setIdleSecondsLeft(st.warning ? Math.ceil(st.remaining / 1000) : null);
+    };
+    const timer = setInterval(tick, 1000);
+    // Waking a device that slept past the limit signs out at once.
+    const onVisible = () => { if (document.visibilityState === "visible") tick(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      ACTIVITY_EVENTS.forEach((ev) => window.removeEventListener(ev, onActivity, { capture: true }));
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [pairedCode]);
+
+  // Nobody is at the keyboard, so nothing here may ask a question: keep the
+  // half-typed form as a draft, send queued work if there is a connection
+  // (otherwise it stays queued on this device, as on a normal logout), sign out.
+  async function autoLogout() {
+    if (autoLoggingOutRef.current) return;
+    autoLoggingOutRef.current = true;
+    try {
+      await runBeforeLogout("idle");
+      try {
+        const { flushQueue, isOnline } = await import("../services/offlineQueue.js");
+        if (isOnline()) await flushQueue();
+      } catch { /* sign out regardless */ }
+      await clearPairedPilotCode();
+      setIdleSecondsLeft(null);
+      setSignedOutNotice(`Signed out automatically after ${IDLE_LIMIT_MS / 60000} minutes with no activity. Anything you were typing was kept and will be back when you sign in again.`);
+      setPairedCode("");
+    } finally {
+      autoLoggingOutRef.current = false;
+    }
+  }
+
+  function stayIdleSignedIn() {
+    lastActivityRef.current = Date.now();
+    setIdleSecondsLeft(null);
+  }
+
   async function handleLogout() {
     // Logging out with unsent work is the one way a pilot can lose a duty
     // entry for good: the queue is keyed to the pilot who made it, so after
@@ -248,6 +303,7 @@ export default function WebApp() {
     }
 
     await clearPairedPilotCode();
+    setSignedOutNotice("");
     setPairedCode("");
   }
 
@@ -290,7 +346,7 @@ export default function WebApp() {
             here, and this is where someone decides whether to clear the
             browser. */}
         <OfflineBar />
-        <WebPilotLogin onPaired={handlePaired} />
+        <WebPilotLogin onPaired={(code) => { setSignedOutNotice(""); handlePaired(code); }} notice={signedOutNotice} />
       </>
     );
   }
@@ -300,6 +356,12 @@ export default function WebApp() {
   return (
     <div className="web-app" data-app-theme={appearanceTheme}>
       <OfflineBar />
+      {idleSecondsLeft != null && (
+        <div className="web-idle-warning" role="alertdialog" aria-live="assertive">
+          <span>No activity for a while — signing out in <b>{idleSecondsLeft}s</b>. Anything you are typing will be kept.</span>
+          <button type="button" onClick={stayIdleSignedIn}>Stay signed in</button>
+        </div>
+      )}
       <header className="web-header">
         <div className="web-header-brand">
           {branding?.logo ? (

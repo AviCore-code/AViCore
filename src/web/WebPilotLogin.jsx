@@ -27,7 +27,7 @@ const TEXT = {
 // cannot be fetched it falls back to offline sign-in against credentials this
 // device remembers (see offlineLogin.js), unlike the Android app which is designed
 // for offshore rigs with patchy signal.
-export default function WebPilotLogin({ onPaired }) {
+export default function WebPilotLogin({ onPaired, notice = "" }) {
   // Work queued offline that has not reached the server. Shown HERE because
   // this is the screen someone sees when nobody is signed in - which is
   // exactly when an unsent duty entry is invisible and at risk of being
@@ -280,6 +280,8 @@ export default function WebPilotLogin({ onPaired }) {
             sign-in with a connection.
           </div>
         )}
+
+        {notice && <div className="web-login-status web-login-notice" role="status">{notice}</div>}
 
         {pendingByOwner.length > 0 && (
           <div className="web-login-pending">

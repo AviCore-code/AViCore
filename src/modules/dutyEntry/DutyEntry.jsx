@@ -8,6 +8,7 @@ import { DEFAULT_FTL_LIMITS, withFtlDefaults } from "../../utils/ftlLimits.js";
 import { buildDutyPeriods, periodDutyCreditHours, entryToInterval } from "../../utils/dutyPeriods.js";
 import { decimalToHHMM, formatDateTime, STATUS_LABEL, entryDutyHours } from "../../utils/statusCompute.js";
 import { entryFlightTypes } from "../../utils/flightLegs.js";
+import { registerBeforeLogout, saveDraft, takeDraft } from "../../web/idleLogout.js";
 import "./DutyEntry.css";
 import { todayIso } from "../../utils/dateKeys.js";
 
@@ -332,6 +333,29 @@ export default function DutyEntry() {
   useEffect(() => {
     if (pilotCode) refreshEntries();
     else setEntries([]);
+  }, [pilotCode]);
+
+  // Automatic sign-out after 10 idle minutes (web/idleLogout.js): an entry
+  // still being typed is kept as a draft on this device - not submitted - and
+  // put back here when the same pilot signs in again.
+  const draftRef = useRef(null);
+  draftRef.current = { pilotCode, dutyType, flight, nonFlight, editingId };
+  useEffect(() => registerBeforeLogout(() => {
+    const d = draftRef.current;
+    if (!d?.pilotCode || !hasUnsavedInput(d)) return;
+    saveDraft("duty", d.pilotCode, { dutyType: d.dutyType, flight: d.flight, nonFlight: d.nonFlight, editingId: d.editingId });
+  }), []);
+  useEffect(() => {
+    if (!pilotCode) return;
+    const draft = takeDraft("duty", pilotCode);
+    if (!draft?.data) return;
+    const { dutyType: t, flight: f, nonFlight: n, editingId: id } = draft.data;
+    if (t) setDutyType(t);
+    if (f) setFlight({ ...blankFlight(), ...f });
+    if (n) setNonFlight({ ...blankNonFlight(), ...n });
+    setEditingId(id ?? null);
+    const at = new Date(draft.savedAt);
+    setMsg(`Restored the entry you were typing before the automatic sign-out (${isNaN(at) ? "" : at.toLocaleString()}). It is NOT saved yet — check it and press Save Entry.`);
   }, [pilotCode]);
 
   async function refreshEntries() {
@@ -750,6 +774,16 @@ function PilotPicker({ value, onChange, pilots, placeholder }) {
       )}
     </div>
   );
+}
+
+// Something typed that a Save hasn't stored yet - worth keeping as a draft.
+function hasUnsavedInput({ dutyType, flight, nonFlight, editingId }) {
+  if (editingId != null) return true;
+  if (dutyType === "flight") {
+    return (flight?.legs?.length || 0) > 0 || !!(flight?.schDep || flight?.stop || flight?.totalFlightTime);
+  }
+  const blank = blankNonFlight();
+  return Object.keys(nonFlight || {}).some((k) => k !== "date" && nonFlight[k] && nonFlight[k] !== blank[k]);
 }
 
 // Flights (1-based numbers) whose RS/LS are filled in but don't include the
