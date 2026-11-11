@@ -13,7 +13,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.110.2";
 import { checkAccessChange, checkCreate, checkUpdate, normalizeEmail } from "./rules.js";
 
-const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type", "Access-Control-Allow-Methods": "POST, OPTIONS" };
+// x-avicore-company is sent on every request by the web client (webDatabase.js
+// global header); leaving it out of the allow-list makes the browser's CORS
+// preflight fail, which surfaces as "Failed to send a request to the Edge Function".
+const cors = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-avicore-company", "Access-Control-Allow-Methods": "POST, OPTIONS" };
 const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { ...cors, "Content-Type": "application/json" } });
 const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth: { persistSession: false } });
 
