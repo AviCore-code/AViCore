@@ -284,3 +284,21 @@ input.fatcrit-n:hover,input.fatcrit-t:hover{border-color:#94a3b8}
   .fatcrit-table{min-width:520px}
   .bk-table{min-width:420px}
 }
+
+/* Admin Setting -> Admin Users */
+.admin-users-form {
+  margin-bottom: 12px;
+  font-size: inherit;
+  color: inherit;
+}
+.admin-users-form h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+.admin-users-row-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+.admin-users-row-actions button + button {
+  margin-left: 6px;
+}

@@ -7,6 +7,7 @@ import { ADMIN_LOCK_ENABLED } from "../../config/adminLock.js";
 import { formatDueDate } from "../../utils/trainingDue.js";
 import ServerBackupPanel from "./ServerBackupPanel.jsx";
 import LineSettingsPanel from "./LineSettingsPanel.jsx";
+import AdminUsersPanel from "./AdminUsersPanel.jsx";
 import "./Settings.css";
 
 // Injected by Vite from package.json's version (see vite.config.js). Guarded
@@ -383,6 +384,8 @@ export default function AdminSettingsTab() {
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "10px" }}>
         <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
       </div>
+
+      {isWeb() && <AdminUsersPanel />}
 
       {isWeb() && <LineSettingsPanel />}
 

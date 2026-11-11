@@ -74,6 +74,46 @@ export async function getAdminSession() {
   return data?.session || null;
 }
 
+// Admin web access now lives on the signed-in user's own membership row
+// (company_members.admin_web, sql/admin-web-users.sql), managed from Admin
+// Setting -> Admin Users. Returns true/false, or null when the column is not
+// there yet (SQL not run) so the caller can fall back to the old allowlist.
+export async function getAdminWebAccess(userId) {
+  if (!supabase || !userId) return null;
+  const { data, error } = await supabase
+    .from("company_members")
+    .select("admin_web")
+    .eq("user_id", userId);
+  if (error) return null;
+  return (data || []).some((row) => row.admin_web === true);
+}
+
+async function callAdminUsers(body) {
+  const sb = requireSupabase();
+  const { data, error } = await sb.functions.invoke("avicore-admin-users", { body });
+  if (error) {
+    // functions-js wraps a non-2xx reply; the function's own message is in the body.
+    let message = error.message;
+    try { message = (await error.context.json()).error || message; } catch { /* keep generic */ }
+    throw new Error(message);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+export async function listAdminUsers() {
+  return (await callAdminUsers({ action: "list" })).users || [];
+}
+export async function createAdminUser(user) {
+  return callAdminUsers({ action: "create", user });
+}
+export async function updateAdminUser(user) {
+  return callAdminUsers({ action: "update", user });
+}
+export async function deleteAdminUser(userId) {
+  return callAdminUsers({ action: "delete", userId });
+}
+
 export async function sendLineTestMessage() {
   const sb = requireSupabase();
   const { data, error } = await sb.functions.invoke("line-test-message", { body: {} });

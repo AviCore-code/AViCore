@@ -4,7 +4,7 @@ import OfflineBar from "../components/OfflineBar.jsx";
 import { startClickSound } from "../utils/clickSound.js";
 import { startOfflineQueue } from "../services/offlineQueue.js";
 import ConflictDialog from "../components/ConflictDialog.jsx";
-import { isConfigured, getSetting, signInAdmin, signOutAdmin, getAdminSession, onAdminAuthChange, subscribeSyncStatus, pingServer } from "../services/webDatabase.js";
+import { isConfigured, getSetting, signInAdmin, signOutAdmin, getAdminSession, getAdminWebAccess, onAdminAuthChange, subscribeSyncStatus, pingServer } from "../services/webDatabase.js";
 import Dashboard from "../modules/dashboard/Dashboard.jsx";
 import FlightCrews from "../modules/flightCrews/FlightCrews.jsx";
 import Training from "../modules/trainingDue/Training.jsx";
@@ -33,6 +33,24 @@ function emailAllowed(session) {
   if (!ADMIN_ALLOWED_EMAILS.length) return true;
   const email = (session?.user?.email || "").trim().toLowerCase();
   return ADMIN_ALLOWED_EMAILS.map((e) => e.trim().toLowerCase()).includes(email);
+}
+
+const ACCESS_CACHE_KEY = "avicore_admin_web_ok";
+
+// Admin web access is set per person in Admin Setting -> Admin Users
+// (company_members.admin_web). The hard-coded allowlist is only the fallback
+// for when that can't be read: before sql/admin-web-users.sql is run, or
+// offline - where a yes from earlier in this tab is reused, so a token refresh
+// with no signal doesn't throw an admin out mid-edit.
+async function accountAllowed(session) {
+  const userId = session?.user?.id;
+  const access = await getAdminWebAccess(userId);
+  try {
+    if (access === true) sessionStorage.setItem(ACCESS_CACHE_KEY, userId);
+    if (access === false) sessionStorage.removeItem(ACCESS_CACHE_KEY);
+    if (access === null && sessionStorage.getItem(ACCESS_CACHE_KEY) === userId) return true;
+  } catch { /* storage blocked - decide without the cache */ }
+  return access ?? emailAllowed(session);
 }
 
 // Enterprise Web admin shell (build target "admin" -> dist-admin). Unlike
@@ -122,11 +140,11 @@ export default function AdminWebApp() {
   // Queue runs app-wide, including before sign-in (see WebApp.jsx).
   useEffect(() => startOfflineQueue(), []);
 
-  // Accept a session only if its email is on the allowlist - otherwise sign
-  // it straight back out (a valid Supabase account that just isn't cleared
-  // for admin, e.g. a Crew-side or other-project account) and show why.
+  // Accept a session only if the account has Admin web access - otherwise
+  // sign it straight back out (a valid Supabase account that just isn't
+  // cleared for admin, e.g. a Crew-side or other-project account) and show why.
   async function applySession(s) {
-    if (s && !emailAllowed(s)) {
+    if (s && !(await accountAllowed(s))) {
       setAuthError("This account isn't authorized for the admin site.");
       await signOutAdmin();
       setSession(null);
