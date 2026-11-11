@@ -151,6 +151,10 @@ Deno.serve(async (req) => {
     return json({ error: "Unsupported action" }, 400);
   } catch (error) {
     console.error(error);
-    return json({ error: error instanceof Error ? error.message : String(error) }, 400);
+    // Database errors from supabase-js are plain objects, not Error instances;
+    // String() on them gave the admin "[object Object]" instead of the reason.
+    const e: any = error;
+    const message = e?.message || e?.error_description || e?.msg || (typeof e === "string" ? e : JSON.stringify(e));
+    return json({ error: [message, e?.details, e?.hint].filter(Boolean).join(" - ") }, 400);
   }
 });

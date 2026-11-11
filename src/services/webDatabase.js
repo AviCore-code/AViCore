@@ -88,16 +88,24 @@ export async function getAdminWebAccess(userId) {
   return (data || []).some((row) => row.admin_web === true);
 }
 
+// The function's error can arrive as a string or as an object; never show
+// the admin "[object Object]".
+function errorText(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  return value.message || JSON.stringify(value);
+}
+
 async function callAdminUsers(body) {
   const sb = requireSupabase();
   const { data, error } = await sb.functions.invoke("avicore-admin-users", { body });
   if (error) {
     // functions-js wraps a non-2xx reply; the function's own message is in the body.
     let message = error.message;
-    try { message = (await error.context.json()).error || message; } catch { /* keep generic */ }
+    try { message = errorText((await error.context.json()).error) || message; } catch { /* keep generic */ }
     throw new Error(message);
   }
-  if (data?.error) throw new Error(data.error);
+  if (data?.error) throw new Error(errorText(data.error));
   return data;
 }
 
