@@ -327,8 +327,6 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
       {rosterError && <div className="settings-msg error">Remark column: could not load the roster ({rosterError}). Hours are unaffected.</div>}
       {!loading && !error && visible.length === 0 && <div className="mystatus-empty">{personal ? "No duty records found for you yet." : "No pilots found."}</div>}
 
-      {!personal && <SimTrainingPanel items={histories.flatMap(({ pilot, sims }) => sims.map((sim) => ({ pilot, sim })))} />}
-
       {hasTable && (
         <div className="roster-scroll dutyhist-scroll" ref={scrollRef}>
           <table className="duty-schedule-table dutyhist-table" ref={tableRef} style={{ zoom: scale }}>
@@ -463,6 +461,8 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
           </table>
         </div>
       )}
+
+      {!personal && <SimTrainingPanel items={histories.flatMap(({ pilot, sims }) => sims.map((sim) => ({ pilot, sim })))} />}
     </div>
   );
 }
