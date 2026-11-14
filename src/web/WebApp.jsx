@@ -15,6 +15,7 @@ import MyTrainingStatus from "./MyTrainingStatus.jsx";
 import CrewDashboard from "./CrewDashboard.jsx";
 import MyRoster from "./MyRoster.jsx";
 import MyWeeklySchedule from "./MyWeeklySchedule.jsx";
+import MyDutyHistory from "./MyDutyHistory.jsx";
 import CrewSettings from "./CrewSettings.jsx";
 import { applyCrewDisplay } from "./crewDisplay.js";
 import { ACTIVITY_EVENTS, IDLE_LIMIT_MS, idleState, runBeforeLogout } from "./idleLogout.js";
@@ -37,6 +38,7 @@ const TABS = [
   { key: "home", label: "Home", icon: "🏠", Component: CrewDashboard },
   { key: "duty", label: "Daily Duty Entry", icon: "📝", Component: DutyEntry },
   { key: "status", label: "FDT Monitor", icon: "⏱️", Component: MyStatus },
+  { key: "dutyhistory", label: "Duty & Flight History", icon: "📈", Component: MyDutyHistory },
   { key: "training", label: "Training Monitor", icon: "🎓", Component: MyTrainingStatus },
   { key: "roster", label: "Roster", icon: "🗓️", Component: MyRoster },
   { key: "weekly", label: "Weekly Schedule", icon: "🚁", Component: MyWeeklySchedule },

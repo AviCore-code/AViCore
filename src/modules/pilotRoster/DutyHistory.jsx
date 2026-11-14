@@ -151,12 +151,15 @@ DT left: ${dt}
 
 // loadRows / loadRoster are injectable for tests; the app uses the same
 // loaders as All Status and Duty Schedule.
-export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRoster = listRoster }) {
+// personal: the Crew app's own-pilot view (one row, the signed-in pilot) -
+// no search box and no Captain / Co-pilot group header.
+export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRoster = listRoster, personal = false }) {
   const [rows, setRows] = useState([]);
   const [limits, setLimits] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [range, setRange] = useState(28);
+  // One pilot on a phone or tablet: 14 days keeps the table readable.
+  const [range, setRange] = useState(personal ? 14 : 28);
   const [search, setSearch] = useState("");
   const [fullScreen, setFullScreen] = useState(false);
   const [loadedAt, setLoadedAt] = useState(null);
@@ -275,10 +278,12 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
       <div className="module-header no-print">
         <div>
           <h1>Duty &amp; Flight History</h1>
-          <p>What each pilot has flown (FT) and been on duty (DT) day by day, their rolling totals, and the flight time the limits still allow over the next {AHEAD_DAYS} days — for planning who can be given flying.</p>
+          {personal
+            ? <p>What you have flown (FT) and been on duty (DT) day by day, your rolling totals, and the flight and duty time the limits still allow you over the next {AHEAD_DAYS} days, with your roster.</p>
+            : <p>What each pilot has flown (FT) and been on duty (DT) day by day, their rolling totals, and the flight time the limits still allow over the next {AHEAD_DAYS} days — for planning who can be given flying.</p>}
         </div>
         <div className="header-tools">
-          <input className="roster-search" placeholder="Search pilot name/code..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          {!personal && <input className="roster-search" placeholder="Search pilot name/code..." value={search} onChange={(e) => setSearch(e.target.value)} />}
           <label className="dutyhist-range">
             <span>Show last</span>
             <select value={range} onChange={(e) => setRange(Number(e.target.value))}>
@@ -310,7 +315,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
 
       {error && <div className="settings-msg error">Could not load duty records: {error}</div>}
       {rosterError && <div className="settings-msg error">Remark column: could not load the roster ({rosterError}). Hours are unaffected.</div>}
-      {!loading && !error && visible.length === 0 && <div className="mystatus-empty">No pilots found.</div>}
+      {!loading && !error && visible.length === 0 && <div className="mystatus-empty">{personal ? "No duty records found for you yet." : "No pilots found."}</div>}
 
       {hasTable && (
         <div className="roster-scroll dutyhist-scroll" ref={scrollRef}>
@@ -348,7 +353,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
             <tbody>
               {visible.map(({ pilot, h, remark, rosterDays, preOffRr }, idx) => (
                 <Fragment key={pilot.code}>
-                {(idx === 0 || pilotGroup(visible[idx - 1].pilot) !== pilotGroup(pilot)) && (
+                {!personal && (idx === 0 || pilotGroup(visible[idx - 1].pilot) !== pilotGroup(pilot)) && (
                   <tr className="dutyhist-grouprow">
                     <td colSpan={totalCols}>
                       {GROUP_LABELS[pilotGroup(pilot)]}{" "}

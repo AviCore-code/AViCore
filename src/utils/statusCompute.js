@@ -378,3 +378,19 @@ export async function loadAllPilotStatusRows() {
   rows.sort((a, b) => (a.pilot.name || "").localeCompare(b.pilot.name || ""));
   return { rows, limits };
 }
+
+// One pilot only (the Crew app's own view): same shape as
+// loadAllPilotStatusRows, but reads only that pilot's duty entries.
+export async function loadOnePilotStatusRows(code) {
+  const { listExperience, listDutyEntriesByPilot, getSetting } = await import("../services/desktopDatabase.js");
+  const want = String(code || "").trim().toUpperCase();
+  const [all, savedLimits] = await Promise.all([listExperience(), getSetting("ftl_limits")]);
+  const limits = withFtlDefaults(savedLimits);
+  if (!want) return { rows: [], limits };
+  const pilot = (all || []).find((p) => String(p.code || "").trim().toUpperCase() === want) || { code: want, name: want };
+  const entries = await listDutyEntriesByPilot(pilot.code);
+  const stats = computeStats(entries, limits);
+  const recoveryRest = checkRecoveryRest168(entries, limits);
+  const status = overallStatus(stats, limits, recoveryRest.status);
+  return { rows: [{ pilot, entries, stats, recoveryRest, status }], limits };
+}
