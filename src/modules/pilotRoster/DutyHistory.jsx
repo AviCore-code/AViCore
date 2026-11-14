@@ -233,7 +233,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
       const h = pilotHistory(r.entries, limits, { todayIso, asOf: loadedAt || new Date(), aheadDays: AHEAD_DAYS, rosterDays: days });
       const preOffRr = preOffRrDays(days);
       const sims = simTrips(days, todayIso).map((t) => simReadiness(h, t, limits, days, todayIso));
-      const simMarks = simDayMarks(sims);
+      const simMarks = simDayMarks(sims, days);
       return {
         pilot: r.pilot,
         h,
@@ -319,7 +319,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
         <span><b className="dutyhist-swatch ok" /> Within all limits</span>
         <span>Next {AHEAD_DAYS} days: <b>FT left</b> / DT left / 168h cycle (hours until a 36h Recovery Rest must start; RR ✓ = resting now). Counts recorded duty only.</span>
         <span><b className="dutyhist-swatch exc" /> <b className="dutyhist-offtext">red text on a red cell</b> = roster OFF, SL / VL leave, or a limit reached (not available) · <b className="dutyhist-offtext">Red text</b> only = the RR pair right before a 7-day OFF</span>
-        <span><b className="dutyhist-simtag">SIM d1</b> sim trip (S/T = day 1) · <b className="dutyhist-simtag">Free · S/T −3</b> keep free of duty before S/T (DT 7D must be {60}h on S/T)</span>
+        <span><b className="dutyhist-simtag">S/T</b> positioning to / from the sim · <b className="dutyhist-simtag">S</b> sim training · <b className="dutyhist-simtag">Free · S/T −3</b> keep free of duty before S/T (DT 7D must be {60}h on S/T)</span>
         <span>🖱 Drag the table to move it.</span>
       </div>
 
@@ -419,7 +419,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                     const sim = simMarks?.get(a.iso);
                     const awayDay = !!leave || !!off || ["rest", "off", "leave"].includes(remarkLabel(rosterDays?.get(a.iso))?.category);
                     const simCls = sim ? (sim.kind === "trip" ? " sim-trip" : sim.keepFree && !awayDay ? " sim-keepfree" : " sim-lead") : "";
-                    const simTag = sim ? (sim.kind === "trip" ? `SIM d${sim.n}` : awayDay ? `S/T −${sim.daysTo}` : sim.keepFree ? `Free · S/T −${sim.daysTo}` : `≤${decimalToHHMM(sim.spare)} · S/T −${sim.daysTo}`) : "";
+                    const simTag = sim ? (sim.kind === "trip" ? (sim.code || "SIM") : awayDay ? `S/T −${sim.daysTo}` : sim.keepFree ? `Free · S/T −${sim.daysTo}` : `≤${decimalToHHMM(sim.spare)} · S/T −${sim.daysTo}`) : "";
                     const tip = [why, sim ? simMarkText(sim) : "", aheadTitle(a)].filter(Boolean).join("\n");
                     return (
                     <td key={a.iso} className={`dutyhist-ahead ${a.status}${redText ? " rostered-off" : ""}${redCell ? " rostered-redcell" : ""}${leave ? " rostered-leave" : ""}${simCls}${i === 0 ? " dutyhist-sep" : ""}`}

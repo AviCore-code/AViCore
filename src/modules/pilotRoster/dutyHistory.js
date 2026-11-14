@@ -376,14 +376,15 @@ export function cycleOnDay(cycle, iso, limits) {
 
 // --- Sim training: ready on the travel day? --------------------------------
 //
-// Capt. Weera: the S/T (travel to the simulator) on the roster is DAY 1 of a
-// trip of about 5 days. Over those days the pilot uses about 60h of DT 7D and
+// Capt. Weera: a sim trip on the roster is S/T S S S/T (or S/T S S ... S
+// S/T): S/T = positioning to and from the simulator, S = a sim training day.
+// The first S/T is DAY 1 and the trip runs to the closing S/T - as long as
+// the roster says, not a fixed number of days. Over those days the pilot uses about 60h of DT 7D and
 // 12h of FT 7D, so on the S/T day there must be at least that much left; and
 // there must be a Recovery Rest (RR) right before the S/T day, so the 168h
 // cycle starts fresh for the trip. Looked for over the next 14 days. The app
 // only checks and suggests - the admin and crew scheduler change the roster.
 export const SIM_LOOKAHEAD_DAYS = 14;
-export const SIM_TRIP_DAYS = 5;
 export const SIM_MIN_DT_LEFT = 60;     // DT the trip uses (7D)
 export const SIM_MIN_FT_LEFT = 12;     // FT the trip uses (7D)
 
@@ -392,27 +393,27 @@ const isSimTravel = (raw) => rosterParts(raw).includes("S/T");
 const isSimDay = (raw) => { const p = rosterParts(raw); return p.includes("S") || p.includes("S/T"); };
 
 // Trips whose first S/T falls in tomorrow .. tomorrow+lookahead-1:
-// [{ from, to, days, rosterTo }] - from = the S/T (day 1); to = day
-// SIM_TRIP_DAYS of the trip; rosterTo = where the roster's own S / S/T run
-// ends (shown for reference).
-export function simTrips(rosterDays, todayIso, lookahead = SIM_LOOKAHEAD_DAYS, tripDays = SIM_TRIP_DAYS) {
+// [{ from, to, days }] - from = the outbound S/T (day 1), to = the closing
+// S/T (or the last S if the roster has no S/T home yet).
+export function simTrips(rosterDays, todayIso, lookahead = SIM_LOOKAHEAD_DAYS) {
   const out = [];
   if (!rosterDays) return out;
   for (let i = 1; i <= lookahead; i++) {
     const iso = isoAddDays(todayIso, i);
     if (!isSimTravel(rosterDays.get(iso))) continue;
     if (isSimDay(rosterDays.get(isoAddDays(iso, -1)))) continue;   // inside a trip already
-    let rosterTo = iso;
+    let to = iso;
     let sawSim = false;
     for (;;) {
-      const next = isoAddDays(rosterTo, 1);
+      const next = isoAddDays(to, 1);
       const raw = rosterDays.get(next);
       if (!isSimDay(raw)) break;
-      rosterTo = next;
+      to = next;
       if (rosterParts(raw).includes("S")) sawSim = true;
       else if (sawSim) break;                // the S/T after the sim days: travel home
     }
-    out.push({ from: iso, to: isoAddDays(iso, tripDays - 1), days: tripDays, rosterTo });
+    const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${iso}T00:00:00Z`)) / 86400000) + 1;
+    out.push({ from: iso, to, days });
   }
   return out;
 }
@@ -499,7 +500,7 @@ export function simReadiness(history, trip, limits, rosterDays, todayIso, {
     trip, dtLeft: dt7Left, ftLeft: ft7Left, dtOk, ftOk, dtSpare, ftSpare,
     rrBeforeOk, rrRun, cycle: rr, cycleNeedHours: needH,
     dutyBefore, readyFrom, notes, status,
-    tripText: `S/T ${dayMonRange(trip.from, trip.to)} (${trip.days}d)`,
+    tripText: trip.days > 1 ? `S/T ${dayMonRange(trip.from, trip.to)} (${trip.days}d)` : `S/T ${dayMon(trip.from)}`,
     rrText: rrRun ? `${remarkLabel(rosterDays.get(rrRun.to))?.label || "RR"} ${rrRun.days > 1 ? dayMonRange(rrRun.from, rrRun.to) : dayMon(rrRun.from)}` : restingNow ? "Resting now" : "None"
   };
 }
@@ -509,7 +510,7 @@ export function simReadiness(history, trip, limits, rosterDays, todayIso, {
 //   lead - one of the 7 days before S/T: any duty that day comes off the
 //          DT 7D the trip needs; keepFree when nothing can be spared
 //   trip - day n of the trip (S/T = day 1)
-export function simDayMarks(sims) {
+export function simDayMarks(sims, rosterDays = null) {
   const marks = new Map();
   for (const sim of sims || []) {
     for (let k = 7; k >= 1; k--) {
@@ -522,7 +523,10 @@ export function simDayMarks(sims) {
       });
     }
     for (let n = 1; n <= sim.trip.days; n++) {
-      marks.set(isoAddDays(sim.trip.from, n - 1), { kind: "trip", sim, n });
+      const d = isoAddDays(sim.trip.from, n - 1);
+      const parts = rosterParts(rosterDays?.get(d));
+      const code = parts.includes("S/T") ? "S/T" : parts.includes("S") ? "S" : parts.join(",");
+      marks.set(d, { kind: "trip", sim, n, code });
     }
   }
   return marks;
@@ -531,7 +535,12 @@ export function simDayMarks(sims) {
 export function simMarkText(mark) {
   if (!mark) return "";
   const st = dayMon(mark.sim.trip.from);
-  if (mark.kind === "trip") return `Sim trip day ${mark.n} of ${mark.sim.trip.days} (S/T ${st})`;
+  if (mark.kind === "trip") {
+    const what = mark.code === "S/T"
+      ? (mark.n === 1 ? "S/T - positioning to the sim" : "S/T - positioning back from the sim")
+      : mark.code === "S" ? "S - sim training" : mark.code;
+    return `${what} (trip day ${mark.n} of ${mark.sim.trip.days}, S/T ${st})`;
+  }
   return mark.keepFree
     ? `Keep free for Sim: S/T ${st} in ${mark.daysTo} day(s) - duty today comes off the ${fmtH(SIM_MIN_DT_LEFT)} DT 7D the trip needs`
     : `Sim S/T ${st} in ${mark.daysTo} day(s): keep duty before it within ${fmtH(mark.spare)} DT`;
