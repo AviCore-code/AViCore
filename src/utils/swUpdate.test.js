@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { applyUpdate, watchForUpdates } from "./swUpdate.js";
+import { applyUpdate, watchForUpdates, isNewerVersion, watchServerVersion, forceUpdate } from "./swUpdate.js";
 
 function fakeTarget() {
   const listeners = {};
@@ -75,6 +75,58 @@ describe("applyUpdate", () => {
     sw.fire("controllerchange");
     vi.runAllTimers();
     expect(reload).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+});
+
+describe("server version.json", () => {
+  it("compares versions numerically", () => {
+    expect(isNewerVersion("1.0.326", "1.0.325")).toBe(true);
+    expect(isNewerVersion("1.0.1000", "1.0.999")).toBe(true);
+    expect(isNewerVersion("1.0.325", "1.0.325")).toBe(false);
+    expect(isNewerVersion("1.0.324", "1.0.325")).toBe(false);
+    expect(isNewerVersion("", "1.0.325")).toBe(false);
+    expect(isNewerVersion("abc", "1.0.325")).toBe(false);
+  });
+
+  it("reports a newer deployed version, uncached", async () => {
+    const fetchImpl = vi.fn(async () => ({ ok: true, json: async () => ({ version: "1.0.326" }) }));
+    const onNewer = vi.fn();
+    const stop = watchServerVersion("1.0.325", onNewer, { fetchImpl, doc: fakeTarget() });
+    await flush(); await flush();
+    expect(onNewer).toHaveBeenCalledWith("1.0.326");
+    expect(fetchImpl.mock.calls[0][0]).toMatch(/^\.\/version\.json\?t=\d+$/);
+    expect(fetchImpl.mock.calls[0][1]).toEqual({ cache: "no-store" });
+    stop();
+  });
+
+  it("stays quiet when up to date or offline", async () => {
+    const onNewer = vi.fn();
+    const same = vi.fn(async () => ({ ok: true, json: async () => ({ version: "1.0.325" }) }));
+    const offline = vi.fn(async () => { throw new Error("offline"); });
+    const s1 = watchServerVersion("1.0.325", onNewer, { fetchImpl: same, doc: fakeTarget() });
+    const s2 = watchServerVersion("1.0.325", onNewer, { fetchImpl: offline, doc: fakeTarget() });
+    await flush(); await flush();
+    expect(onNewer).not.toHaveBeenCalled();
+    s1(); s2();
+  });
+
+  it("forceUpdate switches to a worker found on update, else drops the old one and reloads", async () => {
+    vi.useFakeTimers();
+    const reload = vi.fn();
+    const waiting = { postMessage: vi.fn() };
+    const regA = { update: vi.fn(async () => { regA.waiting = waiting; }), waiting: null, unregister: vi.fn() };
+    const swA = { ...fakeTarget(), getRegistration: async () => regA };
+    await forceUpdate({ sw: swA, reload });
+    expect(waiting.postMessage).toHaveBeenCalledWith({ type: "SKIP_WAITING" });
+    expect(regA.unregister).not.toHaveBeenCalled();
+
+    const regB = { update: vi.fn(async () => {}), waiting: null, unregister: vi.fn(async () => true) };
+    const swB = { ...fakeTarget(), getRegistration: async () => regB };
+    await forceUpdate({ sw: swB, reload });
+    expect(regB.unregister).toHaveBeenCalled();
+    vi.runAllTimers();
+    expect(reload).toHaveBeenCalled();
     vi.useRealTimers();
   });
 });

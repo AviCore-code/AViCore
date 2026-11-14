@@ -44,6 +44,18 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      // version.json next to index.html, read by the Update bar
+      // (src/components/UpdateBar.jsx) to tell an open app that a newer
+      // version has been deployed, even when the browser has not noticed the
+      // new service worker yet. Not precached (json is outside globPatterns)
+      // and served no-cache (firebase*.json), so it is always the live one.
+      (isWeb || isAdmin) && {
+        name: 'emit-version-json',
+        apply: 'build',
+        generateBundle() {
+          this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version: pkgVersion }) });
+        }
+      },
       // Capacitor (mobile) and static web hosts (web) both expect the
       // built entry file to be literally <outDir>/index.html. Vite's HTML
       // plugin names the emitted file after the SOURCE file

@@ -49,6 +49,72 @@ export function watchForUpdates(onReady, {
   };
 }
 
+// --- Second signal: the server's version.json ----------------------------
+//
+// The service worker route above depends on the browser noticing the new
+// sw.js, which some do late (an iPhone home-screen app, a tab left open for
+// days). Every web build also writes version.json (vite.config.js); reading it
+// says straight away whether the server holds a newer version than the one
+// running here.
+
+// "1.0.326" > "1.0.325" -> true. Missing or malformed -> false (never nag).
+export function isNewerVersion(server, running) {
+  const parse = (v) => String(v || "").split(".").map((n) => Number(n));
+  const a = parse(server), b = parse(running);
+  if (!server || !running || a.some(Number.isNaN) || b.some(Number.isNaN)) return false;
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a.at(i) || 0, y = b.at(i) || 0;
+    if (x !== y) return x > y;
+  }
+  return false;
+}
+
+// onNewer(serverVersion) when the deployed version is newer than `running`.
+export function watchServerVersion(running, onNewer, {
+  fetchImpl = typeof fetch !== "undefined" ? fetch : undefined,
+  doc = typeof document !== "undefined" ? document : undefined,
+  intervalMs = CHECK_EVERY_MS,
+  url = "./version.json",
+} = {}) {
+  if (!fetchImpl || !running) return () => {};
+  let stopped = false;
+  const check = async () => {
+    try {
+      const res = await fetchImpl(`${url}?t=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const { version } = await res.json();
+      if (!stopped && isNewerVersion(version, running)) onNewer(version);
+    } catch { /* offline or no version.json yet - try again later */ }
+  };
+  check();
+  const timer = setInterval(check, intervalMs);
+  const onVisible = () => { if (doc?.visibilityState === "visible") check(); };
+  doc?.addEventListener("visibilitychange", onVisible);
+  return () => {
+    stopped = true;
+    clearInterval(timer);
+    doc?.removeEventListener("visibilitychange", onVisible);
+  };
+}
+
+// Update when only version.json knew: ask the service worker to fetch the new
+// version; if one then waits, switch to it; otherwise drop the old worker so
+// the reload is guaranteed to come from the network, not the old cache.
+export async function forceUpdate({
+  sw = typeof navigator !== "undefined" ? navigator.serviceWorker : undefined,
+  reload = () => window.location.reload(),
+} = {}) {
+  try {
+    const reg = await sw?.getRegistration?.();
+    if (reg) {
+      await reg.update().catch(() => {});
+      if (reg.waiting) { applyUpdate(reg.waiting, { sw, reload }); return; }
+      await reg.unregister();
+    }
+  } catch { /* fall through to a plain reload */ }
+  reload();
+}
+
 // Activate the waiting version and reload into it.
 export function applyUpdate(worker, {
   sw = typeof navigator !== "undefined" ? navigator.serviceWorker : undefined,
