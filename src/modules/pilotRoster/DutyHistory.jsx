@@ -123,8 +123,8 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
               <tr>
                 <th className="pilot-col" rowSpan={2}>Pilot</th>
                 <th colSpan={days.length} className="dutyhist-group">Past {range} days — FT / DT</th>
-                <th colSpan={FT_WINDOWS.length + DT_WINDOWS.length} className="dutyhist-group dutyhist-sep">Rolling totals (used / max · left)</th>
                 <th colSpan={AHEAD_DAYS} className="dutyhist-group dutyhist-sep">Next {AHEAD_DAYS} days — left: FT / DT / 168h cycle</th>
+                <th colSpan={FT_WINDOWS.length + DT_WINDOWS.length} className="dutyhist-group dutyhist-sep">Rolling totals (used / max · left)</th>
               </tr>
               <tr>
                 {days.map((iso) => {
@@ -135,9 +135,6 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
                     </th>
                   );
                 })}
-                {[...FT_WINDOWS, ...DT_WINDOWS].map((w, i) => (
-                  <th key={w.key} className={i === 0 ? "dutyhist-sep" : ""}>{w.label}</th>
-                ))}
                 {aheadIsos.map((iso, i) => {
                   const d = dayHeader(iso);
                   return (
@@ -146,6 +143,9 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
                     </th>
                   );
                 })}
+                {[...FT_WINDOWS, ...DT_WINDOWS].map((w, i) => (
+                  <th key={w.key} className={i === 0 ? "dutyhist-sep" : ""}>{w.label}</th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -175,19 +175,19 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
                       </td>
                     );
                   })}
-                  {h.totals.map((t, i) => (
-                    <td key={t.key} className={`dutyhist-total ${t.status}${i === 0 ? " dutyhist-sep" : ""}`}
-                      title={`${t.label}: ${decimalToHHMM(t.used)} used${t.max != null ? ` of ${decimalToHHMM(t.max)}, ${decimalToHHMM(Math.max(0, t.left))} left` : ""}`}>
-                      <div className="dutyhist-used">{decimalToHHMM(t.used)}<small>/{t.max != null ? Math.round(t.max) : "—"}</small></div>
-                      {t.left != null && <div className="dutyhist-left">{t.left > 0 ? `${decimalToHHMM(t.left)} left` : "none left"}</div>}
-                    </td>
-                  ))}
                   {h.ahead.map((a, i) => (
                     <td key={a.iso} className={`dutyhist-ahead ${a.status}${i === 0 ? " dutyhist-sep" : ""}`}
                       title={aheadTitle(a)}>
                       <div className={`dutyhist-line ft ${a.ftStatus}`}>{a.left == null ? "—" : decimalToHHMM(a.left)}</div>
                       <div className={`dutyhist-line dt ${a.dtStatus}`}>{a.dtLeft == null ? "—" : decimalToHHMM(a.dtLeft)}</div>
                       <div className={`dutyhist-line rr ${a.cycle.status}`}>{a.cycle.label || "—"}</div>
+                    </td>
+                  ))}
+                  {h.totals.map((t, i) => (
+                    <td key={t.key} className={`dutyhist-total ${t.status}${i === 0 ? " dutyhist-sep" : ""}`}
+                      title={`${t.label}: ${decimalToHHMM(t.used)} used${t.max != null ? ` of ${decimalToHHMM(t.max)}, ${decimalToHHMM(Math.max(0, t.left))} left` : ""}`}>
+                      <div className="dutyhist-used">{decimalToHHMM(t.used)}<small>/{t.max != null ? Math.round(t.max) : "—"}</small></div>
+                      {t.left != null && <div className="dutyhist-left">{t.left > 0 ? `${decimalToHHMM(t.left)} left` : "none left"}</div>}
                     </td>
                   ))}
                 </tr>
