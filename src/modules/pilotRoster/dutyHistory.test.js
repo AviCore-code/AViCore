@@ -215,6 +215,15 @@ describe("168h cycle with the roster's days away", () => {
     expect(cycleOnDayWithRoster(running, "2026-11-17", limits, r)).toMatchObject({ label: "RR due", status: "exc" });
   });
 
+  it("a past roster RR does not override a newer Recovery Rest in the recorded duty (KPO)", () => {
+    // Roster RR 6-7 Nov (past); recorded rest 10 Nov 10:22 -> 12 Nov 07:30 -> deadline 19 Nov 07:30.
+    const r = roster({ "2026-11-06": "RR", "2026-11-07": "RR", "2026-11-13": "DG", "2026-11-14": "O", "2026-11-15": "O" });
+    const kpo = { kind: "running", deadline: new Date(2026, 10, 19, 7, 30, 0) };
+    const res = cycleOnDayWithRoster(kpo, "2026-11-15", limits, r, "2026-11-14");
+    expect(res).toMatchObject({ label: "103h", status: "ok" });
+    expect(res.afterRosterRest).toBeUndefined();
+  });
+
   it("with no roster, behaves exactly as before", () => {
     expect(cycleOnDayWithRoster(running, "2026-11-15", limits, null)).toEqual(cycleOnDay(running, "2026-11-15", limits));
   });

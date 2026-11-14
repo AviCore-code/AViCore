@@ -102,7 +102,7 @@ export function pilotHistory(entries, limits, { todayIso, asOf = new Date(), ahe
     const iso = isoAddDays(todayIso, i);
     const ft = windowLeft(flightByDate, FT_WINDOWS, limits, iso);
     const dt = windowLeft(dutyByDate, DT_WINDOWS, limits, iso);
-    const rr = cycleOnDayWithRoster(cycle, iso, limits, rosterDays);
+    const rr = cycleOnDayWithRoster(cycle, iso, limits, rosterDays, todayIso);
     ahead.push({
       iso,
       left: ft.left, ftStatus: ft.status,           // `left` kept for FT (older callers)
@@ -317,17 +317,24 @@ export function awayRunAt(rosterDays, iso, minDays = RR_MIN_DAYS_OFF) {
 // The 168h status on `iso` once the roster's rest is taken into account:
 // inside a qualifying away-run -> RR ✓; after one (between it and `iso`) ->
 // counted from the morning after the run; otherwise as recorded.
-export function cycleOnDayWithRoster(cycle, iso, limits, rosterDays) {
+// Only roster rest that ends today or later counts: the past is what was
+// actually flown, so a Recovery Rest found in the recorded duty (FDT) wins
+// over an older roster run (KPO: roster RR 6-7 Nov, but the recorded rest
+// 10 Nov 10:22 -> 12 Nov 07:30 restarted the cycle). When both give a
+// deadline, the later one is the true one.
+export function cycleOnDayWithRoster(cycle, iso, limits, rosterDays, todayIso = null) {
   if (!rosterDays) return cycleOnDay(cycle, iso, limits);
   const run = awayRunAt(rosterDays, iso);
   if (run) return { label: "RR ✓", hoursLeft: null, status: "ok", fromRoster: true };
   // The latest qualifying run that ended before this day (look back 14 days).
   for (let k = 1; k <= 14; k++) {
     const d = isoAddDays(iso, -k);
+    if (todayIso && d < todayIso) break;
     const before = awayRunAt(rosterDays, d);
     if (before) {
       const [y, m, dd] = isoAddDays(before.to, 1).split("-").map(Number);
       const deadline = new Date(new Date(y, m - 1, dd, 0, 0, 0, 0).getTime() + (limits?.recoveryRestCycleMaxHours ?? 168) * 3600000);
+      if (cycle?.kind === "running" && cycle.deadline > deadline) break;
       return { ...cycleOnDay({ kind: "running", deadline }, iso, limits), afterRosterRest: before.to };
     }
   }
