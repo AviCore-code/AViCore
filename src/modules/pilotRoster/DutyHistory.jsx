@@ -402,8 +402,11 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                     );
                   })}
                   <td className="dutyhist-remark" title={remark.map((it) => it.text).join("\n") || "No RR / OFF / leave on the roster in the next 7 days"}>
-                    {remark.map((it) => (
-                      <div key={it.from} className="dutyhist-chain">
+                    {/* One running line, items separated by commas, so the row
+                        only grows when the cell is genuinely full. */}
+                    {remark.map((it, n) => (
+                      <span key={it.from} className="dutyhist-chain">
+                        {n > 0 && <span className="dutyhist-comma">, </span>}
                         {it.segments.map((s, i) => (
                           <span key={s.from}>
                             {i > 0 && <span className="dutyhist-arrow" aria-hidden="true">→</span>}
@@ -413,7 +416,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                         {it.segments.length > 1 && (
                           <span className="dutyhist-chain-total">รวม {it.days}{it.continues ? "+" : ""}d</span>
                         )}
-                      </div>
+                      </span>
                     ))}
                   </td>
                   {h.totals.map((t, i) => (
