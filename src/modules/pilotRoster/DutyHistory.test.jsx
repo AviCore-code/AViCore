@@ -82,7 +82,9 @@ describe("DutyHistory remark column", () => {
     render(<DutyHistory loadRows={loader()} loadRoster={roster} />);
     await screen.findByText("CSU");
     const cells = [...rowFor("CSU").querySelectorAll(".dutyhist-ahead")];
-    expect(cells.map((c) => c.classList.contains("rostered-off"))).toEqual([false, false, true, true, true, true, true]);
+    // RR pair before the OFF: red text only; OFF: red text on a red cell.
+    expect(cells.map((c) => c.classList.contains("rostered-off"))).toEqual([false, false, true, true, false, false, false]);
+    expect(cells.map((c) => c.classList.contains("rostered-redcell"))).toEqual([false, false, false, false, true, true, true]);
     expect(cells[2].title).toMatch(/^Roster: RR/);
     expect(cells[4].title).toMatch(/^Roster: OFF/);
   });
@@ -131,13 +133,13 @@ describe("row order by the Next-7-days colours", () => {
     expect(out).toEqual(["ALLGREEN", "MOSTGREEN", "SOMEOFF", "REDCELLS"]);
   });
 
-  it("counts a roster OFF day as red text, not green, even when the hours are fine", () => {
+  it("counts a roster OFF day as a red cell, not green, even when the hours are fine", () => {
     const h = { ahead: [
       { iso: "2026-11-15", status: "ok" }, { iso: "2026-11-16", status: "ok" },
       { iso: "2026-11-17", status: "exc" }, { iso: "2026-11-18", status: "warn" },
     ] };
     const roster = new Map([["2026-11-16", "X"]]);
-    expect(nextWeekScore(h, roster, new Set())).toEqual({ green: 1, off: 1, red: 1 });
+    expect(nextWeekScore(h, roster, new Set())).toEqual({ green: 1, off: 1, red: 2 });
   });
 });
 
@@ -150,7 +152,7 @@ describe("leave days are never counted as flyable", () => {
 });
 
 describe("SL / VL in Next 7 days", () => {
-  it("shows a leave day as a red cell with a leave note; OFF stays red text", async () => {
+  it("shows leave and OFF days as red cells with red text", async () => {
     const d = (n) => isoAddDays(today, n);
     const roster = async () => [
       { pilot_code: "CSU", date: d(1), code: "VL" },
@@ -162,6 +164,7 @@ describe("SL / VL in Next 7 days", () => {
     const cells = [...rowFor("CSU").querySelectorAll(".dutyhist-ahead")];
     expect(cells.slice(0, 3).map((c) => c.classList.contains("rostered-leave"))).toEqual([true, true, false]);
     expect(cells[0].title).toMatch(/^Roster: VL - on leave/);
-    expect(cells[2].classList.contains("rostered-off")).toBe(true);
+    expect(cells.slice(0, 3).map((c) => c.classList.contains("rostered-redcell"))).toEqual([true, true, true]);
+    expect(cells[2].classList.contains("rostered-off")).toBe(false);
   });
 });

@@ -121,5 +121,9 @@
 
 /* SL / VL leave day in Next 7 days: a red cell, same weight as a limit
    reached - the pilot cannot be given flying that day. */
-.dutyhist-ahead.rostered-leave{background:#fecaca!important;box-shadow:inset 0 0 0 1px rgba(185,28,28,.55)}
-.dutyhist-ahead.rostered-leave .dutyhist-line{color:#991b1b!important}
+/* Capt. Weera: OFF, SL / VL and a limit reached - red text on a red cell;
+   the RR pair before a 7-day OFF stays red text only (rostered-off above). */
+.dutyhist-ahead.rostered-redcell,
+.dutyhist-ahead.exc{background:#fecaca!important;box-shadow:inset 0 0 0 1px rgba(185,28,28,.55)}
+.dutyhist-ahead.rostered-redcell .dutyhist-line,
+.dutyhist-ahead.exc .dutyhist-line{color:#b91c1c!important}

@@ -60,7 +60,7 @@ export function nextWeekScore(h, rosterDays, preOffRr) {
     const off = rosterOffLabel(rosterDays?.get(a.iso), a.iso, preOffRr) || away;
     if (off) score.off++;
     else if (a.status === "ok") score.green++;
-    if (a.status === "exc" || cat === "leave") score.red++;   // leave shows as a red cell
+    if (a.status === "exc" || cat === "leave" || cat === "off") score.red++;   // OFF / leave show as a red cell
   }
   return score;
 }
@@ -304,7 +304,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
         <span><b className="dutyhist-swatch exc" /> Over a limit / nothing left</span>
         <span><b className="dutyhist-swatch ok" /> Within all limits</span>
         <span>Next {AHEAD_DAYS} days: <b>FT left</b> / DT left / 168h cycle (hours until a 36h Recovery Rest must start; RR ✓ = resting now). Counts recorded duty only.</span>
-        <span><b className="dutyhist-offtext">Red text</b> = roster OFF, or the RR pair right before a 7-day OFF · <b className="dutyhist-swatch exc" /> red cell = limit reached, or SL / VL leave (not available)</span>
+        <span><b className="dutyhist-swatch exc" /> <b className="dutyhist-offtext">red text on a red cell</b> = roster OFF, SL / VL leave, or a limit reached (not available) · <b className="dutyhist-offtext">Red text</b> only = the RR pair right before a 7-day OFF</span>
         <span>🖱 Drag the table to move it.</span>
       </div>
 
@@ -392,8 +392,13 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                     // just red text (Capt. Weera).
                     const leave = rosterLeaveLabel(rosterDays?.get(a.iso));
                     const why = leave ? `Roster: ${leave} - on leave, not available` : off ? `Roster: ${off} - not available` : "";
+                    // Capt. Weera: VL / SL / OFF (and a limit reached) = red
+                    // text on a red cell; the RR pair before a 7-day OFF = red
+                    // text only.
+                    const redCell = !!leave || off === "OFF";
+                    const redText = off === "RR";
                     return (
-                    <td key={a.iso} className={`dutyhist-ahead ${a.status}${off ? " rostered-off" : ""}${leave ? " rostered-leave" : ""}${i === 0 ? " dutyhist-sep" : ""}`}
+                    <td key={a.iso} className={`dutyhist-ahead ${a.status}${redText ? " rostered-off" : ""}${redCell ? " rostered-redcell" : ""}${leave ? " rostered-leave" : ""}${i === 0 ? " dutyhist-sep" : ""}`}
                       title={why ? `${why}\n${aheadTitle(a)}` : aheadTitle(a)}>
                       <div className={`dutyhist-line ft ${a.ftStatus}`}>{a.left == null ? "—" : decimalToHHMM(a.left)}</div>
                       <div className={`dutyhist-line dt ${a.dtStatus}`}>{a.dtLeft == null ? "—" : decimalToHHMM(a.dtLeft)}</div>
