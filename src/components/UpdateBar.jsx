@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { watchForUpdates, watchServerVersion, applyUpdate, forceUpdate } from "../utils/swUpdate.js";
+import { watchForUpdates, watchServerVersion, applyUpdate, forceUpdate, reloadOnStaleChunk } from "../utils/swUpdate.js";
 import "./UpdateBar.css";
 
 const RUNNING = typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "";
@@ -26,7 +26,8 @@ export default function UpdateBar() {
     if (!import.meta.env.PROD || isNativeApp()) return undefined;   // dev server / APK: nothing to update
     const stopSw = watchForUpdates((w) => { setWorker(w); setHidden(false); });
     const stopVersion = watchServerVersion(RUNNING, (v) => { setServerVersion(v); setHidden(false); });
-    return () => { stopSw(); stopVersion(); };
+    const stopStale = reloadOnStaleChunk();
+    return () => { stopSw(); stopVersion(); stopStale(); };
   }, []);
 
   if ((!worker && !serverVersion) || hidden) return null;

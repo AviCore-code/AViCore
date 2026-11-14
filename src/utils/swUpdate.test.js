@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { applyUpdate, watchForUpdates, isNewerVersion, watchServerVersion, forceUpdate } from "./swUpdate.js";
+import { applyUpdate, watchForUpdates, isNewerVersion, watchServerVersion, forceUpdate, reloadOnStaleChunk } from "./swUpdate.js";
 
 function fakeTarget() {
   const listeners = {};
@@ -128,5 +128,28 @@ describe("server version.json", () => {
     vi.runAllTimers();
     expect(reload).toHaveBeenCalled();
     vi.useRealTimers();
+  });
+});
+
+describe("self-activating worker and stale files", () => {
+  it("reloads at once when the new worker is already active", () => {
+    const { sw } = setup();
+    const reload = vi.fn();
+    applyUpdate({ state: "activated", postMessage: vi.fn() }, { sw, reload });
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("reloads once on a missing lazily-loaded file, never in a loop", () => {
+    const store = new Map();
+    const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
+    const win = fakeTarget();
+    const reload = vi.fn();
+    const stop = reloadOnStaleChunk({ win, storage, reload });
+    const evt = { preventDefault: vi.fn() };
+    win.listeners["vite:preloadError"][0](evt);
+    win.listeners["vite:preloadError"][0](evt);
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(evt.preventDefault).toHaveBeenCalled();
+    stop();
   });
 });

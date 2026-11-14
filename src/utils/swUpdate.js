@@ -115,6 +115,35 @@ export async function forceUpdate({
   reload();
 }
 
+// A page left open on an old build can ask for a lazily loaded file (PDF or
+// Excel export, a module) that the new deployment no longer has. Vite reports
+// that as 'vite:preloadError'; reloading once brings in the new build instead
+// of showing a broken screen. The flag stops a reload loop if the server
+// really is failing.
+const STALE_KEY = "avicore_stale_chunk_reload";
+export function reloadOnStaleChunk({
+  win = typeof window !== "undefined" ? window : undefined,
+  storage = typeof sessionStorage !== "undefined" ? sessionStorage : undefined,
+  reload = () => window.location.reload(),
+} = {}) {
+  if (!win) return () => {};
+  // Forget the earlier attempt only once this page has run cleanly for a
+  // while, so a server that keeps failing cannot cause a reload loop.
+  const settle = setTimeout(() => {
+    try { storage?.removeItem(STALE_KEY); } catch { /* storage blocked */ }
+  }, 10000);
+  const onError = (event) => {
+    try {
+      if (storage?.getItem(STALE_KEY)) return;     // already tried once this tab
+      storage?.setItem(STALE_KEY, "1");
+    } catch { /* storage blocked - still reload once */ }
+    event?.preventDefault?.();
+    reload();
+  };
+  win.addEventListener("vite:preloadError", onError);
+  return () => { clearTimeout(settle); win.removeEventListener("vite:preloadError", onError); };
+}
+
 // Activate the waiting version and reload into it.
 export function applyUpdate(worker, {
   sw = typeof navigator !== "undefined" ? navigator.serviceWorker : undefined,
@@ -123,6 +152,9 @@ export function applyUpdate(worker, {
 } = {}) {
   let done = false;
   const go = () => { if (!done) { done = true; reload(); } };
+  // The worker activates by itself (skipWaiting in vite.config.js), so by
+  // the time Update is pressed it is often already running: just reload.
+  if (worker && worker.state && worker.state !== "installed") { go(); return; }
   sw?.addEventListener("controllerchange", go);
   worker?.postMessage({ type: "SKIP_WAITING" });
   // If the switch is never reported (old browser), reload anyway: the new

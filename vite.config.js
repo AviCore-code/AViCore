@@ -90,8 +90,12 @@ export default defineConfig(({ mode }) => {
       // goes straight to the network and fails/warns honestly when
       // offline instead of silently showing stale duty/roster data.
       isWeb && VitePWA({
-        // 'prompt': a new version waits for the user's Update click
-        // (src/components/UpdateBar.jsx registers sw.js itself).
+        // UpdateBar.jsx registers sw.js itself and offers the Update click.
+        // The worker still ACTIVATES on its own (workbox.skipWaiting below):
+        // a phone running a build from before the Update bar existed has no
+        // button to press, and a worker left waiting there never took over
+        // without uninstalling the app. Pages already open keep their code
+        // (no clientsClaim) until the Update click or the next open.
         registerType: 'prompt',
         injectRegister: false,
         includeAssets: ['pwa-crew-32.png', 'pwa-crew-48.png'],
@@ -116,12 +120,17 @@ export default defineConfig(({ mode }) => {
           // data caching, no runtime-caching entries for Supabase/Firebase.
           // Cache all three Crew photos so theme switching also works offline.
           globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}'],
+          skipWaiting: true,
           navigateFallbackDenylist: [/^\/api\//]
         }
       }),
       isAdmin && VitePWA({
-        // 'prompt': a new version waits for the user's Update click
-        // (src/components/UpdateBar.jsx registers sw.js itself).
+        // UpdateBar.jsx registers sw.js itself and offers the Update click.
+        // The worker still ACTIVATES on its own (workbox.skipWaiting below):
+        // a phone running a build from before the Update bar existed has no
+        // button to press, and a worker left waiting there never took over
+        // without uninstalling the app. Pages already open keep their code
+        // (no clientsClaim) until the Update click or the next open.
         registerType: 'prompt',
         injectRegister: false,
         includeAssets: ['pwa-admin-icon.svg'],
@@ -144,6 +153,7 @@ export default defineConfig(({ mode }) => {
         workbox: {
           // Keep the Admin office themes available after the first online visit.
           globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}'],
+          skipWaiting: true,
           navigateFallbackDenylist: [/^\/api\//]
         }
       })
