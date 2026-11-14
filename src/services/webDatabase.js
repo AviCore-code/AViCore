@@ -661,13 +661,12 @@ async function retireManualDuplicates(sb, pilotCode, entries) {
   return retired;
 }
 
-// FDT Import: the pilot's file REPLACES their Daily Duty for the period it
-// covers (Capt. Weera: "ลบข้อมูล daily duty เก่าออกให้หมด แล้วของใหม่แบบเหมือน
-// เป๊ะ ลงไปเลย"). Every live entry of that pilot dated from the file's first
-// to its last day - whichever file it came from, or typed by hand - is
-// soft-deleted, then the file is written. Entries AFTER the file's last day
-// (duty typed since the FDT was exported) are kept. Soft delete, so nothing is
-// lost for good.
+// FDT Import: the pilot's file REPLACES ALL of their Daily Duty (Capt. Weera:
+// "ลบข้อมูล daily duty เก่าออกให้หมด แล้วของใหม่แบบเหมือนเป๊ะ ลงไปเลย", and
+// on every later import the same - including entries dated after the file's
+// last day). Every live entry of that pilot - any date, any file, typed by
+// hand or on a phone - is soft-deleted, then the file is written. Soft
+// delete, so nothing is lost for good.
 export async function replacePilotDutyFromFile(code, entries) {
   const sb = requireSupabase();
   const pilotCode = normalize(code);
@@ -685,10 +684,8 @@ export async function replacePilotDutyFromFile(code, entries) {
       .update({ deleted_at: now, modified_at: now })
       .eq("pilot_code", pilotCode)
       .is("deleted_at", null)
-      .gte("date", from)
-      .lte("date", to)
       .select("uuid");
-    if (error) throw new Error("replace duty entries (clear " + from + " to " + to + "): " + error.message);
+    if (error) throw new Error("replace duty entries (clear " + pilotCode + "): " + error.message);
     const n = (data || []).length;
     removed += n;
     if (!n) break;
@@ -699,12 +696,10 @@ export async function replacePilotDutyFromFile(code, entries) {
   const { count, error: countError } = await sb.from("Admin_pilot_duty_entries")
     .select("uuid", { count: "exact", head: true })
     .eq("pilot_code", pilotCode)
-    .is("deleted_at", null)
-    .gte("date", from)
-    .lte("date", to);
+    .is("deleted_at", null);
   if (countError) throw new Error("replace duty entries: " + countError.message);
   if (count) {
-    throw new Error(`${count} old Daily Duty entr${count === 1 ? "y" : "ies"} for ${pilotCode} (${from} to ${to}) could not be removed - the database refused the delete. Nothing new was written.`);
+    throw new Error(`${count} old Daily Duty entr${count === 1 ? "y" : "ies"} for ${pilotCode} could not be removed - the database refused the delete. Nothing new was written.`);
   }
 
   const res = await addDutyEntriesMany(code, entries);

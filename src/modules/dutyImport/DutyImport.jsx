@@ -112,7 +112,7 @@ export default function DutyImport() {
       <div className="module-header">
         <div>
           <h1>Import FDT</h1>
-          <p>Upload each pilot's _FDT.xlsx file (DT sheet + Logbook sheet) — the data is added automatically to that pilot's Daily Duty. Each file <b>replaces that pilot's Daily Duty for the dates it covers</b> — everything already there for those dates (from any file or typed by hand) is removed first, then the file is copied exactly. Entries after the file's last date are kept.</p>
+          <p>Upload each pilot's _FDT.xlsx file (DT sheet + Logbook sheet) — the data is added automatically to that pilot's Daily Duty. Each file <b>replaces ALL of that pilot's Daily Duty</b> — every entry already there (any date, from any file, or typed by hand) is removed first, then the file is copied exactly. The same happens on every later import.</p>
         </div>
         <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
       </div>
@@ -165,7 +165,7 @@ export default function DutyImport() {
                       ? `${n.filename} — deleted ${n.removed ?? 0} entries`
                       : <>
                           {n.filename} — Flight {n.flightCount} · Non-Flight {n.nonFlightCount}
-                          {n.replaced ? ` · replaced ${n.removed} old Daily Duty entries (${n.from} → ${n.to})` : ""}
+                          {n.replaced ? ` · removed ${n.removed} old Daily Duty entries, file covers ${n.from} → ${n.to}` : ""}
                         </>}
                   </span>
                 </>

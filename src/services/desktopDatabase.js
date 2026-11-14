@@ -290,8 +290,8 @@ export async function exportLogbookPdf(suggestedName, options = {}) {
   return downloadElementAsPdf(element, suggestedName, { landscape: true, fitToPage });
 }
 
-// FDT Import: replace the pilot's Daily Duty for the file's date range with
-// the file (webDatabase.replacePilotDutyFromFile). The PC and local builds
+// FDT Import: replace ALL of the pilot's Daily Duty with the file
+// (webDatabase.replacePilotDutyFromFile). The PC and local builds
 // have no such call and keep the per-file replace.
 export async function replaceDutyEntriesFromFile(code, entries) {
   if (!window.aviCoreAPI && isWeb()) return (await webDb()).replacePilotDutyFromFile(code, entries);

@@ -52,15 +52,14 @@ const entries = [
 beforeEach(() => { calls.length = 0; state.updateBatches = []; state.leftCount = 0; });
 
 describe("replacePilotDutyFromFile (FDT Import)", () => {
-  it("removes every entry of that pilot in the file's date range, then writes the file", async () => {
+  it("removes EVERY entry of that pilot (any date, any source), then writes the file", async () => {
     state.updateBatches = [[{ uuid: "a" }, { uuid: "b" }, { uuid: "typed-by-hand" }], []];
     const { replacePilotDutyFromFile } = await load();
     const res = await replacePilotDutyFromFile("kpo", entries);
 
-    const clear = calls.find((c) => c.kind === "update" && c.ops.some((o) => o[0] === "gte"));
+    const clear = calls.find((c) => c.kind === "update" && c.ops.some((o) => o[0] === "eq" && o[1] === "pilot_code"));
     expect(clear.ops).toContainEqual(["eq", "pilot_code", "KPO"]);
-    expect(clear.ops).toContainEqual(["gte", "date", "2024-01-03"]);
-    expect(clear.ops).toContainEqual(["lte", "date", "2026-11-13"]);
+    expect(clear.ops.some((o) => o[0] === "gte" || o[0] === "lte")).toBe(false);   // no date limit
     expect(clear.ops.some((o) => o[0] === "eq" && o[1] === "entry_json->>sourceFile")).toBe(false); // any source
     const insert = calls.find((c) => c.kind === "insert");
     expect(insert.rows).toHaveLength(3);
@@ -71,7 +70,7 @@ describe("replacePilotDutyFromFile (FDT Import)", () => {
   it("writes nothing if the database refused to remove the old entries", async () => {
     state.leftCount = 12;
     const { replacePilotDutyFromFile } = await load();
-    await expect(replacePilotDutyFromFile("KPO", entries)).rejects.toThrow(/12 old Daily Duty entries for KPO .* could not be removed/);
+    await expect(replacePilotDutyFromFile("KPO", entries)).rejects.toThrow(/12 old Daily Duty entries for KPO could not be removed/);
     expect(calls.some((c) => c.kind === "insert")).toBe(false);
   });
 });
