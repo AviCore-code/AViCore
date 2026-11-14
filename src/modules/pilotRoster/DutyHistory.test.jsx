@@ -145,6 +145,23 @@ describe("leave days are never counted as flyable", () => {
   it("VL days score as away, not green", () => {
     const h = { ahead: [{ iso: "2026-11-15", status: "ok" }, { iso: "2026-11-16", status: "ok" }, { iso: "2026-11-17", status: "ok" }] };
     const roster = new Map([["2026-11-15", "VL"], ["2026-11-16", "VL"]]);
-    expect(nextWeekScore(h, roster, new Set())).toEqual({ green: 1, off: 2, red: 0 });
+    expect(nextWeekScore(h, roster, new Set())).toEqual({ green: 1, off: 2, red: 2 });
+  });
+});
+
+describe("SL / VL in Next 7 days", () => {
+  it("shows a leave day as a red cell with a leave note; OFF stays red text", async () => {
+    const d = (n) => isoAddDays(today, n);
+    const roster = async () => [
+      { pilot_code: "CSU", date: d(1), code: "VL" },
+      { pilot_code: "CSU", date: d(2), code: "SL" },
+      { pilot_code: "CSU", date: d(3), code: "X" },
+    ];
+    render(<DutyHistory loadRows={loader()} loadRoster={roster} />);
+    await screen.findByText("CSU");
+    const cells = [...rowFor("CSU").querySelectorAll(".dutyhist-ahead")];
+    expect(cells.slice(0, 3).map((c) => c.classList.contains("rostered-leave"))).toEqual([true, true, false]);
+    expect(cells[0].title).toMatch(/^Roster: VL - on leave/);
+    expect(cells[2].classList.contains("rostered-off")).toBe(true);
   });
 });

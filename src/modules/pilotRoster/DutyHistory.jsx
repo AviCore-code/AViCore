@@ -60,7 +60,7 @@ export function nextWeekScore(h, rosterDays, preOffRr) {
     const off = rosterOffLabel(rosterDays?.get(a.iso), a.iso, preOffRr) || away;
     if (off) score.off++;
     else if (a.status === "ok") score.green++;
-    if (a.status === "exc") score.red++;
+    if (a.status === "exc" || cat === "leave") score.red++;   // leave shows as a red cell
   }
   return score;
 }
@@ -79,6 +79,12 @@ export function sortForPlanning(list) {
     || left(b.h.ahead[0]?.left) - left(a.h.ahead[0]?.left)
     || left(b.h.ahead[0]?.dtLeft) - left(a.h.ahead[0]?.dtLeft)
     || String(a.pilot.code || "").localeCompare(String(b.pilot.code || "")));
+}
+
+// "VL" / "SL" (as written on the roster) on a leave day, else null.
+function rosterLeaveLabel(rawCode) {
+  const lab = remarkLabel(rawCode);
+  return lab?.category === "leave" ? lab.label : null;
 }
 
 const ZOOM_MIN = 0.5;
@@ -298,7 +304,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
         <span><b className="dutyhist-swatch exc" /> Over a limit / nothing left</span>
         <span><b className="dutyhist-swatch ok" /> Within all limits</span>
         <span>Next {AHEAD_DAYS} days: <b>FT left</b> / DT left / 168h cycle (hours until a 36h Recovery Rest must start; RR ✓ = resting now). Counts recorded duty only.</span>
-        <span><b className="dutyhist-offtext">Red text</b> = roster OFF, or the RR pair right before a 7-day OFF (not available)</span>
+        <span><b className="dutyhist-offtext">Red text</b> = roster OFF, or the RR pair right before a 7-day OFF · <b className="dutyhist-swatch exc" /> red cell = limit reached, or SL / VL leave (not available)</span>
         <span>🖱 Drag the table to move it.</span>
       </div>
 
@@ -382,9 +388,13 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                     // RR pair and 7-day OFF block) - is shown in red: the hours
                     // may allow flying, but the pilot is not available.
                     const off = rosterOffLabel(rosterDays?.get(a.iso), a.iso, preOffRr);
+                    // SL / VL: the pilot is away on leave - a red CELL, not
+                    // just red text (Capt. Weera).
+                    const leave = rosterLeaveLabel(rosterDays?.get(a.iso));
+                    const why = leave ? `Roster: ${leave} - on leave, not available` : off ? `Roster: ${off} - not available` : "";
                     return (
-                    <td key={a.iso} className={`dutyhist-ahead ${a.status}${off ? " rostered-off" : ""}${i === 0 ? " dutyhist-sep" : ""}`}
-                      title={off ? `Roster: ${off} - not available\n${aheadTitle(a)}` : aheadTitle(a)}>
+                    <td key={a.iso} className={`dutyhist-ahead ${a.status}${off ? " rostered-off" : ""}${leave ? " rostered-leave" : ""}${i === 0 ? " dutyhist-sep" : ""}`}
+                      title={why ? `${why}\n${aheadTitle(a)}` : aheadTitle(a)}>
                       <div className={`dutyhist-line ft ${a.ftStatus}`}>{a.left == null ? "—" : decimalToHHMM(a.left)}</div>
                       <div className={`dutyhist-line dt ${a.dtStatus}`}>{a.dtLeft == null ? "—" : decimalToHHMM(a.dtLeft)}</div>
                       <div className={`dutyhist-line rr ${a.cycle.status}`}>{a.cycle.label || "—"}</div>

@@ -118,3 +118,8 @@
 /* Captain / Co-pilot group header rows */
 .dutyhist-table tbody tr.dutyhist-grouprow td{background:#1e293b!important;color:#fff;text-align:left!important;font-weight:800;font-size:11.5px;letter-spacing:.04em;padding:5px 10px!important;position:sticky;left:0}
 .dutyhist-grouprow-note{font-weight:500;color:#cbd5e1;font-size:10.5px;letter-spacing:0}
+
+/* SL / VL leave day in Next 7 days: a red cell, same weight as a limit
+   reached - the pilot cannot be given flying that day. */
+.dutyhist-ahead.rostered-leave{background:#fecaca!important;box-shadow:inset 0 0 0 1px rgba(185,28,28,.55)}
+.dutyhist-ahead.rostered-leave .dutyhist-line{color:#991b1b!important}
