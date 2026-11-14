@@ -20,7 +20,9 @@ describe('roster Excel replacement',()=>{
   const source=fs.readFileSync(new URL('./webDatabase.js',import.meta.url),'utf8');
   const fn=source.slice(source.indexOf('async function rawImportRosterMany('),source.indexOf('async function rawDeleteRosterEntry('));
   let written=[];const sb={from:(table)=>{expect(table).toBe('Admin_pilot_roster');return {upsert:async(rows)=>{written=rows;return {error:null}}}}};
-  const run=new Function('requireSupabase','getDeviceId','currentCompanyId',fn+'; return rawImportRosterMany;')(()=>sb,()=> 'test',async()=> 'company');
+  // fetchAllRows / rosterRowUuid: helpers the slice now uses to retire older
+  // duplicate rows after a write - none exist here, so nothing is retired.
+  const run=new Function('requireSupabase','getDeviceId','currentCompanyId','fetchAllRows','rosterRowUuid',fn+'; return rawImportRosterMany;')(()=>sb,()=> 'test',async()=> 'company',async()=>[],(c,d)=>`${c}_${d}`);
   await run(parseRosterWorkbook(workbook(),'RR 2026').entries);
   expect(written[0].deleted_at).toBeNull();expect(written[1].deleted_at).toBeTruthy();
   expect(written.every(r=>r.company_id==='company')).toBe(true);
