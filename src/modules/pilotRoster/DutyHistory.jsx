@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { loadAllPilotStatusRows, decimalToHHMM } from "../../utils/statusCompute.js";
 import { listRoster } from "../../services/desktopDatabase.js";
-import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS, rosterRemark, remarkLabel, REMARK_LOOKBACK_DAYS, REMARK_LOOKAHEAD_DAYS } from "./dutyHistory.js";
+import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS, rosterRemark, remarkLabel, preOffRrDays, REMARK_LOOKBACK_DAYS, REMARK_LOOKAHEAD_DAYS } from "./dutyHistory.js";
 import { isoAddDays } from "./weeklyPlanHeadroom.js";
 import "./PilotRoster.css";
 import "./DutyHistory.css";
@@ -23,12 +23,13 @@ function dayHeader(iso) {
 
 const hhmm = (h) => (h > 0 ? decimalToHHMM(h) : "");
 
-// "RR" or "OFF" when the roster has the pilot resting / off that day, else null.
-function rosterOffLabel(rawCode) {
+// "OFF" on a roster OFF day, "RR" only on the RR pair right before a 7-day
+// OFF block (preOffRrDays); anything else null.
+function rosterOffLabel(rawCode, iso, preOffRr) {
   const lab = remarkLabel(rawCode);
   if (!lab) return null;
   if (lab.category === "off") return "OFF";
-  if (lab.label.split(",").includes("RR")) return "RR";
+  if (preOffRr?.has(iso)) return "RR";
   return null;
 }
 
@@ -168,7 +169,8 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
       pilot: r.pilot,
       h: pilotHistory(r.entries, limits, { todayIso, asOf: loadedAt || new Date(), aheadDays: AHEAD_DAYS }),
       remark: rosterRemark(rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase()), todayIso, AHEAD_DAYS),
-      rosterDays: rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase())
+      rosterDays: rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase()),
+      preOffRr: preOffRrDays(rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase()))
     }));
   }, [rows, limits, todayIso, loadedAt, rosterByPilot]);
 
@@ -240,7 +242,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
         <span><b className="dutyhist-swatch exc" /> Over a limit / nothing left</span>
         <span><b className="dutyhist-swatch ok" /> Within all limits</span>
         <span>Next {AHEAD_DAYS} days: <b>FT left</b> / DT left / 168h cycle (hours until a 36h Recovery Rest must start; RR ✓ = resting now). Counts recorded duty only.</span>
-        <span><b className="dutyhist-offtext">Red text</b> = roster RR / OFF day (not available)</span>
+        <span><b className="dutyhist-offtext">Red text</b> = roster OFF, or the RR pair right before a 7-day OFF (not available)</span>
         <span>🖱 Drag the table to move it.</span>
       </div>
 
@@ -282,7 +284,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
               </tr>
             </thead>
             <tbody>
-              {visible.map(({ pilot, h, remark, rosterDays }) => (
+              {visible.map(({ pilot, h, remark, rosterDays, preOffRr }) => (
                 <tr key={pilot.code}>
                   <td className="pilot-col" title={pilot.name}>
                     <div className="dutyhist-code">{pilot.code}</div>
@@ -312,7 +314,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                     // A day the roster already gives away - RR or OFF (the 21/7
                     // RR pair and 7-day OFF block) - is shown in red: the hours
                     // may allow flying, but the pilot is not available.
-                    const off = rosterOffLabel(rosterDays?.get(a.iso));
+                    const off = rosterOffLabel(rosterDays?.get(a.iso), a.iso, preOffRr);
                     return (
                     <td key={a.iso} className={`dutyhist-ahead ${a.status}${off ? " rostered-off" : ""}${i === 0 ? " dutyhist-sep" : ""}`}
                       title={off ? `Roster: ${off} - not available\n${aheadTitle(a)}` : aheadTitle(a)}>

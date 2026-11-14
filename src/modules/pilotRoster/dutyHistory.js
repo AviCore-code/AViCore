@@ -180,6 +180,30 @@ export function rosterRemark(codeByDate, todayIso, aheadDays = 7) {
     }));
 }
 
+// The RR pair that the 21/7 pattern puts immediately before the 7-day OFF
+// block (Capt. Weera: "จัด RR 2 วัน ก่อน พัก 7 วัน"). Only THOSE RR days are
+// flagged in red on the Next-7-days grid - an RR elsewhere in the cycle is an
+// ordinary rest inside the work block, not the start of the pilot's time off.
+// codeByDate: Map iso -> raw roster code. Returns a Set of iso dates.
+export function preOffRrDays(codeByDate, { offMinDays = 7, rrDays = 2 } = {}) {
+  const out = new Set();
+  if (!codeByDate) return out;
+  const isOff = (iso) => remarkLabel(codeByDate.get(iso))?.category === "off";
+  const isRr = (iso) => (remarkLabel(codeByDate.get(iso))?.label || "").split(",").includes("RR");
+  for (const iso of codeByDate.keys()) {
+    if (!isOff(iso) || isOff(isoAddDays(iso, -1))) continue;   // only the first day of an OFF block
+    let len = 0;
+    while (len < offMinDays && isOff(isoAddDays(iso, len))) len++;
+    if (len < offMinDays) continue;                            // a short OFF run is not "พัก 7 วัน"
+    for (let k = 1; k <= rrDays; k++) {
+      const d = isoAddDays(iso, -k);
+      if (!isRr(d)) break;
+      out.add(d);
+    }
+  }
+  return out;
+}
+
 const RANK = { ok: 0, warn: 1, exc: 2 };
 export function worst(statuses) {
   return statuses.reduce((a, b) => (RANK[b] > RANK[a] ? b : a), "ok");

@@ -67,22 +67,21 @@ describe("DutyHistory remark column", () => {
     expect(chips(rows[1])).toEqual([expect.stringMatching(/^VL /)]);
   });
 
-  it("turns the next-7-day cell red on roster RR and OFF days only", async () => {
+  it("reds the OFF days and only the RR pair right before a 7-day OFF", async () => {
     const d = (n) => isoAddDays(today, n);
     const roster = async () => [
-      { pilot_code: "CSU", date: d(1), code: "RR" },
-      { pilot_code: "CSU", date: d(2), code: "RR" },
-      { pilot_code: "CSU", date: d(3), code: "X" },
-      { pilot_code: "CSU", date: d(4), code: "O,X" },
-      { pilot_code: "CSU", date: d(5), code: "O" },
-      { pilot_code: "CSU", date: d(6), code: "VL" },
+      { pilot_code: "CSU", date: d(1), code: "RR" },     // mid-cycle RR: not red
+      { pilot_code: "CSU", date: d(2), code: "O" },
+      { pilot_code: "CSU", date: d(3), code: "RR" },     // RR pair before OFF x7: red
+      { pilot_code: "CSU", date: d(4), code: "RR" },
+      ...[5, 6, 7, 8, 9, 10, 11].map((n) => ({ pilot_code: "CSU", date: d(n), code: "X" })),
     ];
     render(<DutyHistory loadRows={loader()} loadRoster={roster} />);
     await screen.findByText("CSU");
     const cells = [...document.querySelectorAll("tbody tr")[0].querySelectorAll(".dutyhist-ahead")];
-    expect(cells.map((c) => c.classList.contains("rostered-off"))).toEqual([true, true, true, true, false, false, false]);
-    expect(cells[0].title).toMatch(/^Roster: RR/);
-    expect(cells[2].title).toMatch(/^Roster: OFF/);
+    expect(cells.map((c) => c.classList.contains("rostered-off"))).toEqual([false, false, true, true, true, true, true]);
+    expect(cells[2].title).toMatch(/^Roster: RR/);
+    expect(cells[4].title).toMatch(/^Roster: OFF/);
   });
 
   it("keeps the hours on screen when the roster cannot be loaded", async () => {

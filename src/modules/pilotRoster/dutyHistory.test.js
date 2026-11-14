@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pilotHistory, pastDays, nonFlightShort, cycleOnDay, worst, remarkLabel, rosterRemark } from "./dutyHistory.js";
+import { pilotHistory, pastDays, nonFlightShort, cycleOnDay, worst, remarkLabel, rosterRemark, preOffRrDays } from "./dutyHistory.js";
 import { DEFAULT_FTL_LIMITS, withFtlDefaults } from "../../utils/ftlLimits.js";
 
 const limits = withFtlDefaults(DEFAULT_FTL_LIMITS);
@@ -130,5 +130,29 @@ describe("roster remark for the next 7 days", () => {
     for (let d = 15; d <= 21; d++) days[`2026-11-${d}`] = "O";
     expect(rosterRemark(roster(Object.entries(days)), today, 7)).toEqual([]);
     expect(rosterRemark(new Map(), today, 7)).toEqual([]);
+  });
+});
+
+describe("RR pair before the 7-day OFF block", () => {
+  const map = (o) => new Map(Object.entries(o));
+  const off7 = (from) => Object.fromEntries([0, 1, 2, 3, 4, 5, 6].map((i) => [`2026-11-${String(from + i).padStart(2, "0")}`, "X"]));
+
+  it("flags the two RR days immediately before a 7-day OFF", () => {
+    const set = preOffRrDays(map({ "2026-11-15": "RR", "2026-11-16": "RR", ...off7(17) }));
+    expect([...set].sort()).toEqual(["2026-11-15", "2026-11-16"]);
+  });
+
+  it("ignores an RR pair inside the work block and one before a short OFF", () => {
+    const set = preOffRrDays(map({
+      "2026-11-02": "RR", "2026-11-03": "RR", "2026-11-04": "O",       // mid-cycle
+      "2026-11-08": "RR", "2026-11-09": "X", "2026-11-10": "X",        // OFF only 2 days
+    }));
+    expect(set.size).toBe(0);
+  });
+
+  it("works when the OFF block starts with O,X and with a single RR", () => {
+    const days = { "2026-11-16": "RR", ...off7(17) };
+    days["2026-11-17"] = "O,X";
+    expect([...preOffRrDays(map(days))]).toEqual(["2026-11-16"]);
   });
 });
