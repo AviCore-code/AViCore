@@ -1,6 +1,6 @@
 # คู่มือ Duty & Flight History สำหรับ Crew Scheduler
 
-AviCore Admin / Crew v1.0.347 · 14 พ.ย. 2026 · Capt. Weera Juntaklud
+AviCore Admin / Crew v1.0.348 · 15 พ.ย. 2026 · Capt. Weera Juntaklud
 
 ## แท็บนี้ใช้ทำอะไร
 
@@ -24,7 +24,7 @@ Duty & Flight History ตอบคำถามเดียว: **ใน 7 วั
 
 Legend เหนือตาราง: ฟ้า = วันบิน · เทา = duty ไม่บิน · เขียวอ่อน = อยู่ใน limit · เหลือง = ใกล้ลิมิต · **พื้นแดง + ตัวแดง** = เกินลิมิต หรือ roster เป็น OFF / VL / SL · **ตัวแดงอย่างเดียว** = RR สองวันก่อน OFF 7 วัน · ป้ายม่วง **S/T** / **S** = วันในทริป Sim · ป้ายม่วง **Free · S/T −n** = วันก่อนเดินทางไป Sim ที่ต้องว่างจาก duty
 
-เหนือตารางมีแผง **Sim training — next 14 days** (ดูหัวข้อ Sim training ด้านล่าง) กดหัวแผงเพื่อย่อ/ขยาย
+ใต้ตารางมีแผง **Sim training — next 14 days** (ดูหัวข้อ Sim training ด้านล่าง) กดหัวแผงเพื่อย่อ/ขยาย
 
 ## ลำดับแถว: ใครอยู่บนสุด
 
@@ -110,7 +110,7 @@ Recovery Rest = พักอย่างน้อย **36 ชั่วโมง*
 
 ## Sim training — เตรียมนักบินก่อนไป Sim
 
-แผง **Sim training — next 14 days** เหนือตาราง แสดงนักบินทุกคนที่ roster มี **S/T** ใน 14 วันข้างหน้า และตรวจว่าพร้อมไป Sim หรือยัง แอปแค่ตรวจและแนะนำ การแก้ roster เป็นของ crew scheduler
+แผง **Sim training — next 14 days** ใต้ตาราง แสดงนักบินทุกคนที่ roster มี **S/T** ใน 14 วันข้างหน้า และตรวจว่าพร้อมไป Sim หรือยัง แอปแค่ตรวจและแนะนำ การแก้ roster เป็นของ crew scheduler
 
 ### ทริป Sim ใน roster
 
