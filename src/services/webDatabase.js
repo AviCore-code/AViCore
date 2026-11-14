@@ -800,6 +800,31 @@ export async function listImportedFdtFiles() {
   return [...groups.values()];
 }
 
+// The one row the app itself writes for a pilot's day (import, cell edits,
+// training booking all go through rawImportRosterMany).
+export const rosterRowUuid = (pilotCode, date) => `${String(pilotCode || "").trim().toUpperCase()}_${date}`;
+
+// One row per pilot per day. The table can also hold OLDER rows for the same
+// day under another uuid (another device's sync, an earlier import scheme);
+// the board used to show whichever came last, so a fresh import could look as
+// if it had not overwritten anything. The app's own row wins; otherwise the
+// most recently modified one.
+export function dedupeRosterRows(rows) {
+  const best = new Map();
+  for (const r of rows || []) {
+    const code = String(r.pilot_code || "").trim().toUpperCase();
+    if (!code || !r.date) continue;
+    const key = `${code}|${r.date}`;
+    const own = r.uuid === rosterRowUuid(code, r.date);
+    const cur = best.get(key);
+    const better = !cur
+      || (own && !cur.own)
+      || (own === cur.own && String(r.modified_at || "") > String(cur.row.modified_at || ""));
+    if (better) best.set(key, { own, row: { ...r, pilot_code: code } });
+  }
+  return [...best.values()].map((b) => b.row).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+}
+
 async function rawListRoster(query) {
   const sb = requireSupabase();
   const { from, to } = query || {};
@@ -807,13 +832,15 @@ async function rawListRoster(query) {
   // is ~7300 rows. The training planner reads 12-24 months at a stretch; an
   // unpaged read would return the first 1000 and the planner would treat every
   // unseen day as "not a duty day", silently refusing to book training.
+  // Ordered by date AND uuid: ~20 rows share each date, and paging on a
+  // non-unique order lets a row slip between two pages and vanish.
   const data = await fetchAllRows(() => {
-    let q = sb.from("Admin_pilot_roster").select("pilot_code, pilot_name, base, date, code").is("deleted_at", null);
+    let q = sb.from("Admin_pilot_roster").select("uuid, pilot_code, pilot_name, base, date, code, modified_at").is("deleted_at", null);
     if (from) q = q.gte("date", from);
     if (to) q = q.lte("date", to);
-    return q.order("date", { ascending: true });
+    return q.order("date", { ascending: true }).order("uuid", { ascending: true });
   }).catch((error) => { throw new Error("list roster: " + error.message); });
-  return data || [];
+  return dedupeRosterRows(data).map(({ uuid: _u, modified_at: _m, ...row }) => row);
 }
 
 async function rawListRosterPilots() {
@@ -855,7 +882,67 @@ async function rawImportRosterMany(entries) {
   if (!rows.length) return { ok: true, count: 0 };
   const { error } = await sb.from("Admin_pilot_roster").upsert(rows, { onConflict: "uuid" });
   if (error) throw new Error("import roster: " + error.message);
-  return { ok: true, count: rows.length };
+  const retired = await retireDuplicateRosterRows(sb, rows, now);
+  return { ok: true, count: rows.length, retired };
+}
+
+// Roster Import: the sheet REPLACES the roster for its date range (Capt.
+// Weera: "ควรจะ delete ของเก่าให้หมด และ copy ของใหม่ แบบเหมือนเลย"). Every
+// live row in [from, to] - any pilot, any uuid, including pilots no longer on
+// the sheet - is soft-deleted, then the sheet is written. Days outside the
+// range are untouched. Soft delete, so nothing is lost for good (server
+// backup / deleted_at can bring it back).
+async function rawReplaceRosterRange(entries, range) {
+  const sb = requireSupabase();
+  const dates = (entries || []).map((e) => e.date).filter(Boolean).sort();
+  const from = range?.from || dates[0];
+  const to = range?.to || dates.at(-1);
+  if (!from || !to) return { ok: true, count: 0, removed: 0 };
+  const now = new Date().toISOString();
+
+  const live = await fetchAllRows(() => sb
+    .from("Admin_pilot_roster").select("uuid")
+    .is("deleted_at", null)
+    .gte("date", from).lte("date", to)
+    .order("date", { ascending: true }).order("uuid", { ascending: true }));
+  const uuids = (live || []).map((r) => r.uuid);
+  for (let i = 0; i < uuids.length; i += 200) {
+    const { error } = await sb.from("Admin_pilot_roster")
+      .update({ deleted_at: now, modified_at: now })
+      .in("uuid", uuids.slice(i, i + 200));
+    if (error) throw new Error("import roster (clear old " + from + " to " + to + "): " + error.message);
+  }
+
+  // Blank cells need no write now - the range is already empty.
+  const filled = (entries || []).filter((e) => !e.clearExisting && String(e.code || "").trim());
+  const res = filled.length ? await rawImportRosterMany(filled) : { ok: true, count: 0 };
+  return { ok: true, count: res.count, removed: uuids.length, from, to };
+}
+
+// After a write, any OTHER live row for the same pilot and day (a different
+// uuid - see dedupeRosterRows) is soft-deleted, so what was just imported or
+// typed is the only value left for that day. Returns how many were retired.
+async function retireDuplicateRosterRows(sb, rows, now) {
+  const keys = new Set(rows.map((r) => `${r.pilot_code}|${r.date}`));
+  const dates = rows.map((r) => r.date).sort();
+  const live = await fetchAllRows(() => sb
+    .from("Admin_pilot_roster").select("uuid, pilot_code, date")
+    .is("deleted_at", null)
+    .gte("date", dates[0]).lte("date", dates.at(-1))
+    .order("date", { ascending: true }).order("uuid", { ascending: true }));
+  const stale = (live || [])
+    .filter((r) => {
+      const code = String(r.pilot_code || "").trim().toUpperCase();
+      return keys.has(`${code}|${r.date}`) && r.uuid !== rosterRowUuid(code, r.date);
+    })
+    .map((r) => r.uuid);
+  for (let i = 0; i < stale.length; i += 200) {
+    const { error } = await sb.from("Admin_pilot_roster")
+      .update({ deleted_at: now, modified_at: now })
+      .in("uuid", stale.slice(i, i + 200));
+    if (error) throw new Error("import roster (remove old duplicates): " + error.message);
+  }
+  return stale.length;
 }
 
 async function rawDeleteRosterEntry(query) {
@@ -1434,6 +1521,10 @@ export const importRosterMany = queueableWrite(
   "importRosterMany", rawImportRosterMany,
   (entries) => `Roster — ${(entries || []).length} วัน`,
   { document: "roster" }
+);
+export const replaceRosterRange = queueableWrite(
+  "replaceRosterRange", rawReplaceRosterRange,
+  (entries, range) => `Roster import ${range?.from || ""} → ${range?.to || ""} — ${(entries || []).length} วัน`
 );
 export const deleteRosterEntry = queueableWrite(
   "deleteRosterEntry", rawDeleteRosterEntry,

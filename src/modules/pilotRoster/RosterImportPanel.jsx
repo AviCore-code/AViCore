@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { readRosterWorkbookFile, parseRosterWorkbook, listRosterSheetNames, guessRosterSheet } from "../../services/rosterImport.js";
-import { importRosterMany } from "../../services/desktopDatabase.js";
+import { replaceRosterRange } from "../../services/desktopDatabase.js";
 import "./PilotRoster.css";
 
 export default function RosterImportPanel({ onImported, onCancel }) {
@@ -54,11 +54,11 @@ export default function RosterImportPanel({ onImported, onCancel }) {
     if (!preview) return;
     setImporting(true);
     try {
-      const result = await importRosterMany(preview.entries);
-      const cleared = preview.entries.filter((e) => e.clearExisting).length;
+      const result = await replaceRosterRange(preview.entries, preview.dateRange);
+      const filled = preview.entries.filter((e) => !e.clearExisting).length;
       setMsg({ ok: true, text: result?.queued
-        ? `Saved on this device; waiting to sync ${preview.entries.length} cells, including ${cleared} cleared assignments.`
-        : `Imported ${preview.pilots.length} pilot(s), ${preview.entries.length} daily cells (${cleared} cleared assignments).` });
+        ? `Saved on this device; waiting to sync. ${preview.dateRange.from} → ${preview.dateRange.to} will be replaced with this sheet.`
+        : `Replaced ${preview.dateRange.from} → ${preview.dateRange.to}: removed ${result?.removed ?? 0} old cell(s), wrote ${filled} from "${preview.sheetName}" (${preview.pilots.length} pilots).` });
       setPreview(null);
       await onImported?.();
     } catch (err) {
@@ -74,7 +74,7 @@ export default function RosterImportPanel({ onImported, onCancel }) {
         <div>
           <h2 style={{ margin: 0, fontSize: "16px" }}>Import Duty Schedule from Excel</h2>
           <p style={{ margin: "4px 0 0", color: "#94a3b8", fontSize: "12.5px" }}>
-            Loads one sheet from the company's roster workbook — "RR 2026_Add Training (MP)" is picked by default; choose another below if needed. Blank cells clear existing assignments for the pilots and dates in this sheet. Days outside the sheet are unchanged.
+            Loads one sheet from the company's roster workbook — "RR 2026_Add Training (MP)" is picked by default; choose another below if needed. <b>The sheet replaces the roster for its whole date range</b>: everything already there for those dates (every pilot) is removed first, then the sheet is copied exactly. Days outside the sheet are unchanged.
           </p>
         </div>
         <div style={{ display: "flex", gap: "8px" }}>
@@ -105,7 +105,7 @@ export default function RosterImportPanel({ onImported, onCancel }) {
           <h2>Import preview — {preview.pilots.length} pilot(s), {preview.entries.length} daily entries</h2>
           <p style={{ margin: "0 0 12px", color: "#94a3b8", fontSize: "12.5px" }}>
             Date range: {preview.dateRange.from} → {preview.dateRange.to}
-            {" · "}{preview.entries.filter((e) => e.clearExisting).length} blank cells will clear existing assignments.
+            {" · "}everything currently on the roster for these dates will be replaced by this sheet.
           </p>
           <div className="roster-preview-list">
             {preview.pilots.map((p) => (

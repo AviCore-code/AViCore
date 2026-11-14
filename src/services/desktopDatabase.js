@@ -379,6 +379,14 @@ export async function listRosterPilots() {
   return [...byCode.values()];
 }
 
+// Roster Import: replace everything in the sheet's date range with the sheet
+// (see webDatabase.rawReplaceRosterRange). The PC and local builds have no
+// such call, so they fall back to the cell-by-cell write.
+export async function replaceRosterRange(entries, range) {
+  if (!window.aviCoreAPI && isWeb()) return (await webDb()).replaceRosterRange(entries, range);
+  return importRosterMany(entries);
+}
+
 export async function importRosterMany(entries) {
   if (window.aviCoreAPI) return window.aviCoreAPI.importRosterMany(entries);
   if (isWeb()) return (await webDb()).importRosterMany(entries);
