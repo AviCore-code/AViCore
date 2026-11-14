@@ -22,6 +22,19 @@ function dayHeader(iso) {
 
 const hhmm = (h) => (h > 0 ? decimalToHHMM(h) : "");
 
+function aheadTitle(a) {
+  const ft = a.left == null ? "—" : decimalToHHMM(a.left);
+  const dt = a.dtLeft == null ? "—" : decimalToHHMM(a.dtLeft);
+  const rr = a.cycle.hoursLeft != null
+    ? (a.cycle.hoursLeft > 0 ? `${Math.floor(a.cycle.hoursLeft)}h left before a Recovery Rest (36h, 2 nights) must start` : "Recovery Rest is due")
+    : a.cycle.label === "RR ✓" ? "in a Recovery Rest now - a new 168h cycle starts at the next report"
+    : a.cycle.label === "no RR" ? "no Recovery Rest found in the duty records" : "no duty records";
+  return `${a.iso}
+FT left: ${ft}
+DT left: ${dt}
+168h cycle: ${rr}`;
+}
+
 // loadRows is injectable for tests; the app uses the same loader as All Status.
 export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
   const [rows, setRows] = useState([]);
@@ -96,7 +109,8 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
         <span><b className="dutyhist-swatch nonflight" /> Non-flight duty (DSB / NSB / GT …) with DT</span>
         <span><b className="dutyhist-swatch warn" /> Near a limit</span>
         <span><b className="dutyhist-swatch exc" /> Over a limit / nothing left</span>
-        <span>"Left" and the next-{AHEAD_DAYS}-day FT count recorded flights only.</span>
+        <span><b className="dutyhist-swatch ok" /> Within all limits</span>
+        <span>Next {AHEAD_DAYS} days: <b>FT left</b> / DT left / 168h cycle (hours until a 36h Recovery Rest must start; RR ✓ = resting now). Counts recorded duty only.</span>
       </div>
 
       {error && <div className="settings-msg error">Could not load duty records: {error}</div>}
@@ -110,7 +124,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
                 <th className="pilot-col" rowSpan={2}>Pilot</th>
                 <th colSpan={days.length} className="dutyhist-group">Past {range} days — FT / DT</th>
                 <th colSpan={FT_WINDOWS.length + DT_WINDOWS.length} className="dutyhist-group dutyhist-sep">Rolling totals (used / max · left)</th>
-                <th colSpan={AHEAD_DAYS} className="dutyhist-group dutyhist-sep">FT left — next {AHEAD_DAYS} days</th>
+                <th colSpan={AHEAD_DAYS} className="dutyhist-group dutyhist-sep">Next {AHEAD_DAYS} days — left: FT / DT / 168h cycle</th>
               </tr>
               <tr>
                 {days.map((iso) => {
@@ -170,8 +184,10 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
                   ))}
                   {h.ahead.map((a, i) => (
                     <td key={a.iso} className={`dutyhist-ahead ${a.status}${i === 0 ? " dutyhist-sep" : ""}`}
-                      title={`${a.iso}: up to ${a.left == null ? "—" : decimalToHHMM(a.left)} flight time allowed`}>
-                      {a.left == null ? "—" : decimalToHHMM(a.left)}
+                      title={aheadTitle(a)}>
+                      <div className={`dutyhist-line ft ${a.ftStatus}`}>{a.left == null ? "—" : decimalToHHMM(a.left)}</div>
+                      <div className={`dutyhist-line dt ${a.dtStatus}`}>{a.dtLeft == null ? "—" : decimalToHHMM(a.dtLeft)}</div>
+                      <div className={`dutyhist-line rr ${a.cycle.status}`}>{a.cycle.label || "—"}</div>
                     </td>
                   ))}
                 </tr>

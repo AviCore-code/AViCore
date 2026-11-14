@@ -13,7 +13,7 @@
 // allow once older flights have dropped out of each window.
 
 import { computeStats, entryFlightHours, classify } from "../../utils/statusCompute.js";
-import { buildDutyPeriods, periodDutyCreditHours } from "../../utils/dutyPeriods.js";
+import { buildDutyPeriods, periodDutyCreditHours, checkRecoveryRest168 } from "../../utils/dutyPeriods.js";
 import { isoAddDays, rollingSum } from "./weeklyPlanHeadroom.js";
 
 export const FT_WINDOWS = [
@@ -92,24 +92,77 @@ export function pilotHistory(entries, limits, { todayIso, asOf = new Date(), ahe
     };
   });
 
-  // Flight time still allowed on each coming day: the tightest of the
-  // 7/28/365-day windows, counting recorded flights only.
+  const cycle = cycleDeadline(entries || [], limits, asOf);
+
+  // For each coming day: flight time and duty time still allowed (the
+  // tightest window of each, recorded history only) and the 168h cycle.
   const ahead = [];
   for (let i = 1; i <= aheadDays; i++) {
     const iso = isoAddDays(todayIso, i);
-    let left = Infinity;
-    let warn = false;
-    for (const w of FT_WINDOWS) {
-      const limit = limits?.[w.key];
-      if (limit?.max == null) continue;
-      const used = rollingSum(flightByDate, iso, w.days);
-      left = Math.min(left, limit.max - used);
-      if (limit.warn != null && used >= limit.warn) warn = true;
-    }
-    if (left === Infinity) left = null;
-    const status = left == null ? "ok" : left <= 0 ? "exc" : warn ? "warn" : "ok";
-    ahead.push({ iso, left: left == null ? null : Math.max(0, left), status });
+    const ft = windowLeft(flightByDate, FT_WINDOWS, limits, iso);
+    const dt = windowLeft(dutyByDate, DT_WINDOWS, limits, iso);
+    const rr = cycleOnDay(cycle, iso, limits);
+    ahead.push({
+      iso,
+      left: ft.left, ftStatus: ft.status,           // `left` kept for FT (older callers)
+      dtLeft: dt.left, dtStatus: dt.status,
+      cycle: rr,
+      status: worst([ft.status, dt.status, rr.status])
+    });
   }
 
-  return { day, totals, ahead };
+  return { day, totals, ahead, cycle };
+}
+
+const RANK = { ok: 0, warn: 1, exc: 2 };
+export function worst(statuses) {
+  return statuses.reduce((a, b) => (RANK[b] > RANK[a] ? b : a), "ok");
+}
+
+// Hours still allowed on `iso` across a set of rolling windows: the smallest
+// (max - used) of them, with ok / warn (past the caution line) / exc (none left).
+function windowLeft(byDate, windows, limits, iso) {
+  let left = Infinity;
+  let warn = false;
+  for (const w of windows) {
+    const limit = limits?.[w.key];
+    if (limit?.max == null) continue;
+    const used = rollingSum(byDate, iso, w.days);
+    left = Math.min(left, limit.max - used);
+    if (limit.warn != null && used >= limit.warn) warn = true;
+  }
+  if (left === Infinity) return { left: null, status: "ok" };
+  return { left: Math.max(0, left), status: left <= 0 ? "exc" : warn ? "warn" : "ok" };
+}
+
+// The 168h Duty Cycle (OPS-CM-01 7.12.4) from the same check FDT Monitor runs:
+// a 36h / 2-local-night Recovery Rest must START within 168h of the end of the
+// last one. Returns one of:
+//   { kind: "none" }                      no duty records - nothing to say
+//   { kind: "resting" }                   in a qualifying Recovery Rest now;
+//                                         the next cycle starts at the next report
+//   { kind: "unknown" }                   records exist but no Recovery Rest in them
+//   { kind: "running", deadline: Date }   the rest must start before `deadline`
+export function cycleDeadline(entries, limits, asOf) {
+  if (!entries.length) return { kind: "none" };
+  const rr = checkRecoveryRest168(entries, limits, asOf);
+  if (rr.ongoing) return { kind: "resting" };
+  if (!rr.lastQualifyingRestEnd) return { kind: "unknown" };
+  const maxH = limits?.recoveryRestCycleMaxHours ?? 168;
+  return { kind: "running", deadline: new Date(rr.lastQualifyingRestEnd.getTime() + maxH * 3600000) };
+}
+
+// Hours left in the cycle at the START of `iso`, if the pilot keeps working.
+// warn once fewer hours remain than a Recovery Rest itself needs (36h): the
+// rest has to begin that day or the next.
+export function cycleOnDay(cycle, iso, limits) {
+  if (cycle.kind === "none") return { label: "", hoursLeft: null, status: "ok" };
+  if (cycle.kind === "resting") return { label: "RR ✓", hoursLeft: null, status: "ok" };
+  if (cycle.kind === "unknown") return { label: "no RR", hoursLeft: null, status: "warn" };
+  const [y, m, d] = iso.split("-").map(Number);
+  const dayStart = new Date(y, m - 1, d, 0, 0, 0, 0);
+  const hoursLeft = (cycle.deadline - dayStart) / 3600000;
+  const restH = limits?.recoveryRestMinHours ?? 36;
+  const status = hoursLeft <= 0 ? "exc" : hoursLeft < restH ? "warn" : "ok";
+  return { label: hoursLeft <= 0 ? "RR due" : `${Math.floor(hoursLeft)}h`, hoursLeft, status };
 }
