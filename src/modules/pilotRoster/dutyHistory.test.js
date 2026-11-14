@@ -114,7 +114,8 @@ describe("roster remark for the next 7 days", () => {
     const days = { "2026-11-15": "RR", "2026-11-16": "RR" };
     for (let d = 17; d <= 23; d++) days[`2026-11-${d}`] = "X";
     const r = rosterRemark(roster(Object.entries(days)), today, 7);
-    expect(r.map((b) => b.text)).toEqual(["RR 15/11–16/11 (2d)", "OFF 17/11–23/11 (7d)"]);
+    expect(r.map((b) => b.text)).toEqual(["RR 15/11–16/11 (2d) → OFF 17/11–23/11 (7d) · รวม 9d"]);
+    expect(r[0].segments.map((x) => x.label)).toEqual(["RR", "OFF"]);
   });
 
   it("includes a leave block that started before the window", () => {
@@ -142,17 +143,40 @@ describe("RR pair before the 7-day OFF block", () => {
     expect([...set].sort()).toEqual(["2026-11-15", "2026-11-16"]);
   });
 
-  it("ignores an RR pair inside the work block and one before a short OFF", () => {
-    const set = preOffRrDays(map({
-      "2026-11-02": "RR", "2026-11-03": "RR", "2026-11-04": "O",       // mid-cycle
-      "2026-11-08": "RR", "2026-11-09": "X", "2026-11-10": "X",        // OFF only 2 days
-    }));
+  it("ignores an RR pair inside the work block", () => {
+    const set = preOffRrDays(map({ "2026-11-02": "RR", "2026-11-03": "RR", "2026-11-04": "O" }));
     expect(set.size).toBe(0);
+  });
+
+  it("still flags the RR pair when OT made the OFF block shorter than 7 days", () => {
+    const set = preOffRrDays(map({ "2026-11-08": "RR", "2026-11-09": "RR", "2026-11-10": "X", "2026-11-11": "X", "2026-11-12": "O" }));
+    expect([...set].sort()).toEqual(["2026-11-08", "2026-11-09"]);
   });
 
   it("works when the OFF block starts with O,X and with a single RR", () => {
     const days = { "2026-11-16": "RR", ...off7(17) };
     days["2026-11-17"] = "O,X";
     expect([...preOffRrDays(map(days))]).toEqual(["2026-11-16"]);
+  });
+});
+
+describe("remark chains of time away", () => {
+  const map = (o) => new Map(Object.entries(o));
+  const run = (code, fromDay, n) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`2026-11-${String(fromDay + i).padStart(2, "0")}`, code]));
+
+  it("RR 2 -> OFF 7 -> VL reads as one chain with a total", () => {
+    const r = rosterRemark(map({ ...run("RR", 15, 2), ...run("X", 17, 7), ...run("VL", 24, 4) }), today, 7);
+    expect(r).toHaveLength(1);
+    expect(r[0].text).toBe("RR 15/11–16/11 (2d) → OFF 17/11–23/11 (7d) → VL 24/11–27/11 (4d) · รวม 13d");
+  });
+
+  it("VL -> OFF -> VL, with the OFF shortened by OT, shows the real lengths", () => {
+    const r = rosterRemark(map({ ...run("VL", 13, 3), ...run("X", 16, 4), ...run("VL", 20, 2), ...run("O", 22, 3) }), today, 7);
+    expect(r[0].text).toBe("VL 13/11–15/11 (3d) → OFF 16/11–19/11 (4d) → VL 20/11–21/11 (2d) · รวม 9d");
+  });
+
+  it("keeps training apart from a time-off chain", () => {
+    const r = rosterRemark(map({ ...run("S", 15, 2), ...run("RR", 17, 2), ...run("X", 19, 7) }), today, 7);
+    expect(r.map((it) => it.text)).toEqual(["S 15/11–16/11 (2d)", "RR 17/11–18/11 (2d) → OFF 19/11–25/11 (7d) · รวม 9d"]);
   });
 });

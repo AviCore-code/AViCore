@@ -125,7 +125,7 @@ export function pilotHistory(entries, limits, { todayIso, asOf = new Date(), ahe
 
 // How far either side of the window to look, so a block's real length shows.
 export const REMARK_LOOKBACK_DAYS = 13;
-export const REMARK_LOOKAHEAD_DAYS = 21;
+export const REMARK_LOOKAHEAD_DAYS = 35;
 
 // Codes no longer offered but still on older imported months (rosterCodes.js
 // LEGACY_CODES): N / ND read as duty days, T as training.
@@ -153,13 +153,29 @@ const ddmm = (iso) => { const [, m, d] = iso.split("-").map(Number); return `${d
 // codeByDate: Map iso -> raw roster code for ONE pilot.
 // Returns [{ label, category, from, to, days, text }] for blocks overlapping
 // tomorrow .. tomorrow+aheadDays-1.
+// Time away from the line: these run together into ONE chain, segment by
+// segment - RR 2 -> OFF 7 -> VL, or VL -> OFF -> VL. The OFF part is often
+// shorter than 7 days when the pilot takes OT, so a segment is shown at its
+// real length, never assumed. Training days are not time off and stay
+// separate items.
+const AWAY = new Set(["rest", "off", "leave"]);
+
+const segText = (s) => (s.days === 1 ? `${s.label} ${ddmm(s.from)}` : `${s.label} ${ddmm(s.from)}–${ddmm(s.to)} (${s.days}d)`);
+
+// Returns the items that touch tomorrow .. tomorrow+aheadDays-1:
+//   [{ segments:[{label, category, from, to, days, text}], from, to, days,
+//     away: bool, continues: bool, text }]
+// `continues` = the chain runs past the end of the roster read, so its
+// length is "at least".
 export function rosterRemark(codeByDate, todayIso, aheadDays = 7) {
   const first = isoAddDays(todayIso, 1 - REMARK_LOOKBACK_DAYS);
   const total = REMARK_LOOKBACK_DAYS + REMARK_LOOKAHEAD_DAYS;
+  const last = isoAddDays(first, total - 1);
   const winStart = isoAddDays(todayIso, 1);
   const winEnd = isoAddDays(todayIso, aheadDays);
 
-  const blocks = [];
+  // 1. Runs of the same label on consecutive days.
+  const segs = [];
   let cur = null;
   for (let i = 0; i < total; i++) {
     const iso = isoAddDays(first, i);
@@ -169,23 +185,43 @@ export function rosterRemark(codeByDate, todayIso, aheadDays = 7) {
       cur.days++;
     } else {
       cur = lab ? { ...lab, from: iso, to: iso, days: 1 } : null;
-      if (cur) blocks.push(cur);
+      if (cur) segs.push(cur);
     }
   }
-  return blocks
-    .filter((b) => b.to >= winStart && b.from <= winEnd)
-    .map((b) => ({
-      ...b,
-      text: b.days === 1 ? `${b.label} ${ddmm(b.from)}` : `${b.label} ${ddmm(b.from)}–${ddmm(b.to)} (${b.days}d)`
-    }));
+
+  // 2. Back-to-back time-away runs join into one chain.
+  const items = [];
+  for (const s of segs) {
+    const prev = items.at(-1);
+    const joins = prev?.away && AWAY.has(s.category) && isoAddDays(prev.to, 1) === s.from;
+    if (joins) {
+      prev.segments.push(s);
+      prev.to = s.to;
+      prev.days += s.days;
+    } else {
+      items.push({ segments: [s], from: s.from, to: s.to, days: s.days, away: AWAY.has(s.category) });
+    }
+  }
+
+  return items
+    .filter((it) => it.to >= winStart && it.from <= winEnd)
+    .map((it) => {
+      const segments = it.segments.map((s) => ({ ...s, text: segText(s) }));
+      const continues = it.to === last;
+      const total = segments.length > 1 ? ` · รวม ${it.days}${continues ? "+" : ""}d` : "";
+      return { ...it, segments, continues, text: segments.map((s) => s.text).join(" → ") + total };
+    });
 }
 
 // The RR pair that the 21/7 pattern puts immediately before the 7-day OFF
 // block (Capt. Weera: "จัด RR 2 วัน ก่อน พัก 7 วัน"). Only THOSE RR days are
 // flagged in red on the Next-7-days grid - an RR elsewhere in the cycle is an
 // ordinary rest inside the work block, not the start of the pilot's time off.
+// The OFF block is not required to be a full 7 days: a pilot who takes OT
+// has a shorter OFF, and the RR pair before it is still the start of time
+// off. A mid-cycle RR is followed by duty (O), not OFF, so it never matches.
 // codeByDate: Map iso -> raw roster code. Returns a Set of iso dates.
-export function preOffRrDays(codeByDate, { offMinDays = 7, rrDays = 2 } = {}) {
+export function preOffRrDays(codeByDate, { offMinDays = 1, rrDays = 2 } = {}) {
   const out = new Set();
   if (!codeByDate) return out;
   const isOff = (iso) => remarkLabel(codeByDate.get(iso))?.category === "off";

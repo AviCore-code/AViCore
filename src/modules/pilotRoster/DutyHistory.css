@@ -106,3 +106,11 @@
 .dutyhist-ahead.rostered-off .dutyhist-line.exc{color:#dc2626!important}
 .dutyhist-ahead.rostered-off{box-shadow:inset 0 0 0 1px rgba(220,38,38,.45)}
 .dutyhist-offtext{color:#f87171}
+
+/* Remark: one line per chain of time away (RR -> OFF -> VL ...), segments
+   joined by arrows, total days at the end. */
+.dutyhist-remark{max-width:300px!important}
+.dutyhist-chain{display:flex;flex-wrap:wrap;align-items:center;gap:1px 0;margin:1px 0}
+.dutyhist-chain + .dutyhist-chain{border-top:1px dashed rgba(100,116,139,.35);padding-top:2px}
+.dutyhist-arrow{color:#64748b;font-size:10px;margin:0 2px}
+.dutyhist-chain-total{font-size:10px;font-weight:700;color:#334155;margin-left:4px}

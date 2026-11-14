@@ -324,9 +324,19 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                     </td>
                     );
                   })}
-                  <td className="dutyhist-remark" title={remark.map((b) => b.text).join("\n") || "No RR / OFF / leave on the roster in the next 7 days"}>
-                    {remark.map((b) => (
-                      <span key={`${b.label}-${b.from}`} className={`dutyhist-chip ${b.category}`}>{b.text}</span>
+                  <td className="dutyhist-remark" title={remark.map((it) => it.text).join("\n") || "No RR / OFF / leave on the roster in the next 7 days"}>
+                    {remark.map((it) => (
+                      <div key={it.from} className="dutyhist-chain">
+                        {it.segments.map((s, i) => (
+                          <span key={s.from}>
+                            {i > 0 && <span className="dutyhist-arrow" aria-hidden="true">→</span>}
+                            <span className={`dutyhist-chip ${s.category}`}>{s.text}</span>
+                          </span>
+                        ))}
+                        {it.segments.length > 1 && (
+                          <span className="dutyhist-chain-total">รวม {it.days}{it.continues ? "+" : ""}d</span>
+                        )}
+                      </div>
                     ))}
                   </td>
                   {h.totals.map((t, i) => (
