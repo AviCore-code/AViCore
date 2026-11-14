@@ -140,3 +140,11 @@ describe("row order by the Next-7-days colours", () => {
     expect(nextWeekScore(h, roster, new Set())).toEqual({ green: 1, off: 1, red: 1 });
   });
 });
+
+describe("leave days are never counted as flyable", () => {
+  it("VL days score as away, not green", () => {
+    const h = { ahead: [{ iso: "2026-11-15", status: "ok" }, { iso: "2026-11-16", status: "ok" }, { iso: "2026-11-17", status: "ok" }] };
+    const roster = new Map([["2026-11-15", "VL"], ["2026-11-16", "VL"]]);
+    expect(nextWeekScore(h, roster, new Set())).toEqual({ green: 1, off: 2, red: 0 });
+  });
+});

@@ -190,3 +190,32 @@ describe("remark dates use a 3-letter month", () => {
     expect(r[0].text).toBe("OFF 19 Nov–4 Dec (16d)");
   });
 });
+
+import { awayRunAt, cycleOnDayWithRoster } from "./dutyHistory.js";
+
+describe("168h cycle with the roster's days away", () => {
+  const roster = (o) => new Map(Object.entries(o));
+  const running = { kind: "running", deadline: new Date(2026, 10, 16, 12, 0, 0) }; // RR due 16 Nov 12:00
+
+  it("2+ days of VL / SL / OFF / RR in a row count as a Recovery Rest", () => {
+    const r = roster({ "2026-11-16": "VL", "2026-11-17": "SL", "2026-11-18": "X" });
+    expect(awayRunAt(r, "2026-11-17")).toEqual({ from: "2026-11-16", to: "2026-11-18", days: 3 });
+    expect(cycleOnDayWithRoster(running, "2026-11-16", limits, r)).toMatchObject({ label: "RR ✓", status: "ok", fromRoster: true });
+  });
+
+  it("a new 168h cycle starts the morning after the rest", () => {
+    const r = roster({ "2026-11-16": "VL", "2026-11-17": "VL" });
+    // cycle from 18 Nov 00:00: on 19 Nov 00:00, 144h left
+    expect(cycleOnDayWithRoster(running, "2026-11-19", limits, r)).toMatchObject({ label: "144h", status: "ok" });
+  });
+
+  it("a single day off is short of a Recovery Rest: the cycle runs on", () => {
+    const r = roster({ "2026-11-15": "VL", "2026-11-16": "O" });
+    expect(awayRunAt(r, "2026-11-15")).toBeNull();
+    expect(cycleOnDayWithRoster(running, "2026-11-17", limits, r)).toMatchObject({ label: "RR due", status: "exc" });
+  });
+
+  it("with no roster, behaves exactly as before", () => {
+    expect(cycleOnDayWithRoster(running, "2026-11-15", limits, null)).toEqual(cycleOnDay(running, "2026-11-15", limits));
+  });
+});

@@ -53,7 +53,11 @@ export function pilotGroup(pilot) {
 export function nextWeekScore(h, rosterDays, preOffRr) {
   const score = { green: 0, off: 0, red: 0 };
   for (const a of h?.ahead || []) {
-    const off = rosterOffLabel(rosterDays?.get(a.iso), a.iso, preOffRr);
+    // Any day the roster has the pilot away (RR, R, OFF, VL, SL...) is not a
+    // day that can be flown, whatever its colour - it never counts as green.
+    const cat = remarkLabel(rosterDays?.get(a.iso))?.category;
+    const away = cat === "rest" || cat === "off" || cat === "leave";
+    const off = rosterOffLabel(rosterDays?.get(a.iso), a.iso, preOffRr) || away;
     if (off) score.off++;
     else if (a.status === "ok") score.green++;
     if (a.status === "exc") score.red++;
@@ -130,6 +134,7 @@ function aheadTitle(a) {
   const dt = a.dtLeft == null ? "—" : decimalToHHMM(a.dtLeft);
   const rr = a.cycle.hoursLeft != null
     ? (a.cycle.hoursLeft > 0 ? `${Math.floor(a.cycle.hoursLeft)}h left before a Recovery Rest (36h, 2 nights) must start` : "Recovery Rest is due")
+    : a.cycle.fromRoster ? "roster days off / leave (2+ days) count as a Recovery Rest - a new 168h cycle starts after them"
     : a.cycle.label === "RR ✓" ? "in a Recovery Rest now - a new 168h cycle starts at the next report"
     : a.cycle.label === "no RR" ? "no Recovery Rest found in the duty records" : "no duty records";
   return `${a.iso}
@@ -211,7 +216,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
     if (!limits) return [];
     return rows.map((r) => {
       const days = rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase());
-      const h = pilotHistory(r.entries, limits, { todayIso, asOf: loadedAt || new Date(), aheadDays: AHEAD_DAYS });
+      const h = pilotHistory(r.entries, limits, { todayIso, asOf: loadedAt || new Date(), aheadDays: AHEAD_DAYS, rosterDays: days });
       const preOffRr = preOffRrDays(days);
       return {
         pilot: r.pilot,

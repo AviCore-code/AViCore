@@ -50,7 +50,7 @@ export function nonFlightShort(type) {
 }
 
 // One pilot's history. entries: that pilot's duty entries (any dates).
-export function pilotHistory(entries, limits, { todayIso, asOf = new Date(), aheadDays = 7 }) {
+export function pilotHistory(entries, limits, { todayIso, asOf = new Date(), aheadDays = 7, rosterDays = null }) {
   const flightByDate = new Map();
   const nonFlightTypes = new Map();     // iso -> Set of non-flight types
   for (const e of entries || []) {
@@ -102,7 +102,7 @@ export function pilotHistory(entries, limits, { todayIso, asOf = new Date(), ahe
     const iso = isoAddDays(todayIso, i);
     const ft = windowLeft(flightByDate, FT_WINDOWS, limits, iso);
     const dt = windowLeft(dutyByDate, DT_WINDOWS, limits, iso);
-    const rr = cycleOnDay(cycle, iso, limits);
+    const rr = cycleOnDayWithRoster(cycle, iso, limits, rosterDays);
     ahead.push({
       iso,
       left: ft.left, ftStatus: ft.status,           // `left` kept for FT (older callers)
@@ -283,6 +283,55 @@ export function cycleDeadline(entries, limits, asOf) {
   if (!rr.lastQualifyingRestEnd) return { kind: "unknown" };
   const maxH = limits?.recoveryRestCycleMaxHours ?? 168;
   return { kind: "running", deadline: new Date(rr.lastQualifyingRestEnd.getTime() + maxH * 3600000) };
+}
+
+// --- The roster's days away count as rest for the 168h cycle --------------
+//
+// Capt. Weera: VL, SL and the like are not duty - they are time off; and when
+// a run of days off meets the Recovery Rest condition it IS a Recovery Rest.
+// The recorded-duty check above only sees the past, so the coming week is
+// read from the roster:
+//   * a run of 2+ consecutive days that are not duty (RR, R, OFF/X, VL, SL…)
+//     covers at least 36h and two local nights -> a Recovery Rest: those days
+//     show "RR ✓" and a fresh 168h cycle starts the morning after the run;
+//   * a single day off is short of 36h + 2 nights: the cycle runs on.
+// Day-level, like the rest of the roster - it flags the week, it does not
+// replace FDT Monitor's exact clock-time check on recorded duty.
+export const RR_MIN_DAYS_OFF = 2;
+
+function isAwayDay(rosterDays, iso) {
+  const cat = remarkLabel(rosterDays?.get(iso))?.category;
+  return cat === "rest" || cat === "off" || cat === "leave";
+}
+
+// The qualifying away-run that contains `iso`, as { from, to }, else null.
+export function awayRunAt(rosterDays, iso, minDays = RR_MIN_DAYS_OFF) {
+  if (!rosterDays || !isAwayDay(rosterDays, iso)) return null;
+  let from = iso, to = iso;
+  while (isAwayDay(rosterDays, isoAddDays(from, -1))) from = isoAddDays(from, -1);
+  while (isAwayDay(rosterDays, isoAddDays(to, 1))) to = isoAddDays(to, 1);
+  const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000) + 1;
+  return days >= minDays ? { from, to, days } : null;
+}
+
+// The 168h status on `iso` once the roster's rest is taken into account:
+// inside a qualifying away-run -> RR ✓; after one (between it and `iso`) ->
+// counted from the morning after the run; otherwise as recorded.
+export function cycleOnDayWithRoster(cycle, iso, limits, rosterDays) {
+  if (!rosterDays) return cycleOnDay(cycle, iso, limits);
+  const run = awayRunAt(rosterDays, iso);
+  if (run) return { label: "RR ✓", hoursLeft: null, status: "ok", fromRoster: true };
+  // The latest qualifying run that ended before this day (look back 14 days).
+  for (let k = 1; k <= 14; k++) {
+    const d = isoAddDays(iso, -k);
+    const before = awayRunAt(rosterDays, d);
+    if (before) {
+      const [y, m, dd] = isoAddDays(before.to, 1).split("-").map(Number);
+      const deadline = new Date(new Date(y, m - 1, dd, 0, 0, 0, 0).getTime() + (limits?.recoveryRestCycleMaxHours ?? 168) * 3600000);
+      return { ...cycleOnDay({ kind: "running", deadline }, iso, limits), afterRosterRest: before.to };
+    }
+  }
+  return cycleOnDay(cycle, iso, limits);
 }
 
 // Hours left in the cycle at the START of `iso`, if the pilot keeps working.
