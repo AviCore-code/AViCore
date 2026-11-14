@@ -9,6 +9,10 @@ import { DEFAULT_FTL_LIMITS, withFtlDefaults } from "../../utils/ftlLimits.js";
 
 afterEach(cleanup);
 
+// The row of one pilot (rows are sorted for planning and grouped, so never by index).
+const rowFor = (code) => [...document.querySelectorAll("tbody tr:not(.dutyhist-grouprow)")]
+  .find((tr) => tr.querySelector(".dutyhist-code")?.textContent === code);
+
 const today = localIso(new Date());
 const yesterday = isoAddDays(today, -1);
 
@@ -35,7 +39,7 @@ describe("DutyHistory", () => {
     expect(dayCells).toContain("3:20");                      // flight day cell
     expect(dayCells).toContain("DSB");                       // standby day cell
     expect(screen.getAllByText("FT 7D").length).toBe(1);
-    expect(document.querySelectorAll("tbody tr")[0].querySelectorAll(".dutyhist-ahead")).toHaveLength(7);
+    expect(rowFor("CSU").querySelectorAll(".dutyhist-ahead")).toHaveLength(7);
   });
 
   it("filters by pilot and changes the range", async () => {
@@ -44,7 +48,7 @@ describe("DutyHistory", () => {
     fireEvent.change(screen.getByPlaceholderText(/Search pilot/), { target: { value: "kch" } });
     expect(screen.queryByText("CSU")).toBeNull();
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "7" } });
-    expect(document.querySelectorAll("tbody tr")[0].querySelectorAll(".dutyhist-day")).toHaveLength(7);
+    expect(rowFor("KCH").querySelectorAll(".dutyhist-day")).toHaveLength(7);
   });
 });
 
@@ -60,11 +64,10 @@ describe("DutyHistory remark column", () => {
     ];
     render(<DutyHistory loadRows={loader()} loadRoster={roster} />);
     await screen.findByText("CSU");
-    const rows = document.querySelectorAll("tbody tr");
     const chips = (row) => [...row.querySelectorAll(".dutyhist-chip")].map((c) => c.textContent);
-    expect(chips(rows[0])[0]).toMatch(/^RR .*\(2d\)$/);
-    expect(chips(rows[0])[1]).toMatch(/^OFF .*\(7d\)$/);
-    expect(chips(rows[1])).toEqual([expect.stringMatching(/^VL /)]);
+    expect(chips(rowFor("CSU"))[0]).toMatch(/^RR .*\(2d\)$/);
+    expect(chips(rowFor("CSU"))[1]).toMatch(/^OFF .*\(7d\)$/);
+    expect(chips(rowFor("KCH"))).toEqual([expect.stringMatching(/^VL /)]);
   });
 
   it("reds the OFF days and only the RR pair right before a 7-day OFF", async () => {
@@ -78,7 +81,7 @@ describe("DutyHistory remark column", () => {
     ];
     render(<DutyHistory loadRows={loader()} loadRoster={roster} />);
     await screen.findByText("CSU");
-    const cells = [...document.querySelectorAll("tbody tr")[0].querySelectorAll(".dutyhist-ahead")];
+    const cells = [...rowFor("CSU").querySelectorAll(".dutyhist-ahead")];
     expect(cells.map((c) => c.classList.contains("rostered-off"))).toEqual([false, false, true, true, true, true, true]);
     expect(cells[2].title).toMatch(/^Roster: RR/);
     expect(cells[4].title).toMatch(/^Roster: OFF/);
@@ -88,5 +91,27 @@ describe("DutyHistory remark column", () => {
     render(<DutyHistory loadRows={loader()} loadRoster={async () => { throw new Error("offline"); }} />);
     expect(await screen.findByText("CSU")).toBeTruthy();
     expect(screen.getByText(/could not load the roster \(offline\)/)).toBeTruthy();
+  });
+});
+
+import { sortForPlanning } from "./DutyHistory.jsx";
+
+describe("row order for planning", () => {
+  const item = (code, position, ft, dt) => ({ pilot: { code, position }, h: { ahead: [{ left: ft, dtLeft: dt }] } });
+
+  it("Captains first, then Co-pilots, then no position; most FT then DT left on top", () => {
+    const out = sortForPlanning([
+      item("FO1", "FO", 30, 50), item("CPT1", "Captain", 10, 40), item("NOPOS", undefined, 34, 60),
+      item("SFO1", "SFO", 30, 55), item("CPT2", "Captain", 25, 20),
+    ]).map((x) => x.pilot.code);
+    expect(out).toEqual(["CPT2", "CPT1", "SFO1", "FO1", "NOPOS"]);
+  });
+
+  it("shows a header row per group in the table", async () => {
+    render(<DutyHistory loadRows={loader()} loadRoster={async () => []} />);
+    await screen.findByText("CSU");
+    const headers = [...document.querySelectorAll(".dutyhist-grouprow")].map((r) => r.textContent);
+    expect(headers).toHaveLength(1);
+    expect(headers[0]).toMatch(/^Position not set \(2\)/);
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { loadAllPilotStatusRows, decimalToHHMM } from "../../utils/statusCompute.js";
 import { listRoster } from "../../services/desktopDatabase.js";
 import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS, rosterRemark, remarkLabel, preOffRrDays, REMARK_LOOKBACK_DAYS, REMARK_LOOKAHEAD_DAYS } from "./dutyHistory.js";
@@ -31,6 +31,28 @@ function rosterOffLabel(rawCode, iso, preOffRr) {
   if (lab.category === "off") return "OFF";
   if (preOffRr?.has(iso)) return "RR";
   return null;
+}
+
+// Row order for planning (Capt. Weera): Captains, then Co-pilots (SFO / FO),
+// then anyone with no Position on their Pilot Experience profile; inside each
+// group the pilot with the MOST flight time left tomorrow comes first, then
+// the most duty time left - the first names on the list are the ones who can
+// be given the most flying.
+const RANK_GROUP = { Captain: 0, SFO: 1, FO: 1 };
+export const GROUP_LABELS = ["Captain", "Co-pilot", "Position not set"];
+
+export function pilotGroup(pilot) {
+  const position = pilot?.position || pilot?.profile?.position || pilot?.record_json?.profile?.position;
+  return RANK_GROUP[position] ?? 2;
+}
+
+export function sortForPlanning(list) {
+  const left = (v) => (v == null ? -1 : v);
+  return [...(list || [])].sort((a, b) =>
+    pilotGroup(a.pilot) - pilotGroup(b.pilot)
+    || left(b.h.ahead[0]?.left) - left(a.h.ahead[0]?.left)
+    || left(b.h.ahead[0]?.dtLeft) - left(a.h.ahead[0]?.dtLeft)
+    || String(a.pilot.code || "").localeCompare(String(b.pilot.code || "")));
 }
 
 const ZOOM_MIN = 0.5;
@@ -175,9 +197,10 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
   }, [rows, limits, todayIso, loadedAt, rosterByPilot]);
 
   const q = search.trim().toLowerCase();
-  const visible = q
+  const visible = sortForPlanning(q
     ? histories.filter(({ pilot }) => `${pilot.code} ${pilot.name}`.toLowerCase().includes(q))
-    : histories;
+    : histories);
+  const totalCols = 1 + range + AHEAD_DAYS + 1 + FT_WINDOWS.length + DT_WINDOWS.length;
   const hasTable = visible.length > 0;
 
   // Fit: the table's natural (unzoomed) width against the space available.
@@ -284,8 +307,19 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
               </tr>
             </thead>
             <tbody>
-              {visible.map(({ pilot, h, remark, rosterDays, preOffRr }) => (
-                <tr key={pilot.code}>
+              {visible.map(({ pilot, h, remark, rosterDays, preOffRr }, idx) => (
+                <Fragment key={pilot.code}>
+                {(idx === 0 || pilotGroup(visible[idx - 1].pilot) !== pilotGroup(pilot)) && (
+                  <tr className="dutyhist-grouprow">
+                    <td colSpan={totalCols}>
+                      {GROUP_LABELS[pilotGroup(pilot)]}{" "}
+                      <span className="dutyhist-grouprow-note">
+                        ({visible.filter((v) => pilotGroup(v.pilot) === pilotGroup(pilot)).length}) · most FT / DT left tomorrow first
+                      </span>
+                    </td>
+                  </tr>
+                )}
+                <tr>
                   <td className="pilot-col" title={pilot.name}>
                     <div className="dutyhist-code">{pilot.code}</div>
                     <div className="dutyhist-name">{pilot.name}</div>
@@ -347,6 +381,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                     </td>
                   ))}
                 </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>
