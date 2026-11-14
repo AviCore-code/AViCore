@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { loadAllPilotStatusRows, decimalToHHMM } from "../../utils/statusCompute.js";
 import { listRoster } from "../../services/desktopDatabase.js";
-import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS, rosterRemark, remarkLabel, preOffRrDays, REMARK_LOOKBACK_DAYS, REMARK_LOOKAHEAD_DAYS } from "./dutyHistory.js";
+import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS, rosterRemark, remarkLabel, preOffRrDays, simTrips, simReadiness, REMARK_LOOKBACK_DAYS, REMARK_LOOKAHEAD_DAYS } from "./dutyHistory.js";
+import SimTrainingPanel from "./SimTrainingPanel.jsx";
 import { isoAddDays } from "./weeklyPlanHeadroom.js";
 import "./PilotRoster.css";
 import "./DutyHistory.css";
@@ -233,7 +234,8 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
         remark: rosterRemark(days, todayIso, AHEAD_DAYS),
         rosterDays: days,
         preOffRr,
-        score: nextWeekScore(h, days, preOffRr)
+        score: nextWeekScore(h, days, preOffRr),
+        sims: simTrips(days, todayIso).map((t) => simReadiness(h, t, limits, days, todayIso))
       };
     });
   }, [rows, limits, todayIso, loadedAt, rosterByPilot]);
@@ -316,6 +318,8 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
       {error && <div className="settings-msg error">Could not load duty records: {error}</div>}
       {rosterError && <div className="settings-msg error">Remark column: could not load the roster ({rosterError}). Hours are unaffected.</div>}
       {!loading && !error && visible.length === 0 && <div className="mystatus-empty">{personal ? "No duty records found for you yet." : "No pilots found."}</div>}
+
+      {!personal && <SimTrainingPanel items={histories.flatMap(({ pilot, sims }) => sims.map((sim) => ({ pilot, sim })))} />}
 
       {hasTable && (
         <div className="roster-scroll dutyhist-scroll" ref={scrollRef}>

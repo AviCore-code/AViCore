@@ -112,7 +112,24 @@ export function pilotHistory(entries, limits, { todayIso, asOf = new Date(), ahe
     });
   }
 
-  return { day, totals, ahead, cycle };
+  // Hours left in EACH window at the start of `iso` (recorded duty only) -
+  // used by the sim-training check, which needs the per-window figures.
+  const leftOn = (iso) => ({
+    ft: perWindowLeft(flightByDate, FT_WINDOWS, limits, iso),
+    dt: perWindowLeft(dutyByDate, DT_WINDOWS, limits, iso)
+  });
+
+  return { day, totals, ahead, cycle, leftOn };
+}
+
+function perWindowLeft(byDate, windows, limits, iso) {
+  const out = {};
+  for (const w of windows) {
+    const limit = limits?.[w.key];
+    if (limit?.max == null) continue;
+    out[w.key] = limit.max - rollingSum(byDate, iso, w.days);
+  }
+  return out;
 }
 
 // --- Remark: what the published roster says about the coming week ---------
@@ -354,4 +371,126 @@ export function cycleOnDay(cycle, iso, limits) {
   const restH = limits?.recoveryRestMinHours ?? 36;
   const status = hoursLeft <= 0 ? "exc" : hoursLeft < restH ? "warn" : "ok";
   return { label: hoursLeft <= 0 ? "RR due" : `${Math.floor(hoursLeft)}h`, hoursLeft, status };
+}
+
+
+// --- Sim training: ready on the travel day? --------------------------------
+//
+// Capt. Weera: a pilot going to the simulator must arrive with at least 60h
+// of DUTY and 12h of FLIGHT time still allowed, and the 168h cycle must last
+// the whole trip. The roster marks the trip: "S/T" = the travel day (the
+// first S/T starts the trip), "S" = sim days, a closing S/T = travel home.
+// Looked for over the next 14 days. The app only checks and suggests - the
+// admin and crew scheduler change the roster.
+export const SIM_LOOKAHEAD_DAYS = 14;
+export const SIM_MIN_DT_LEFT = 60;
+export const SIM_MIN_FT_LEFT = 12;
+
+const rosterParts = (raw) => String(raw || "").toUpperCase().split(",").map((p) => p.trim()).filter(Boolean);
+const isSimTravel = (raw) => rosterParts(raw).includes("S/T");
+const isSimDay = (raw) => { const p = rosterParts(raw); return p.includes("S") || p.includes("S/T"); };
+
+// Trips that START in tomorrow .. tomorrow+lookahead-1:
+// [{ from, to, days }] - from = the first S/T, to = the last S / S/T day of
+// the run (the closing S/T included).
+export function simTrips(rosterDays, todayIso, lookahead = SIM_LOOKAHEAD_DAYS) {
+  const out = [];
+  if (!rosterDays) return out;
+  for (let i = 1; i <= lookahead; i++) {
+    const iso = isoAddDays(todayIso, i);
+    if (!isSimTravel(rosterDays.get(iso))) continue;
+    if (isSimDay(rosterDays.get(isoAddDays(iso, -1)))) continue;   // inside a trip already
+    let to = iso;
+    let sawSim = false;
+    for (;;) {
+      const next = isoAddDays(to, 1);
+      const raw = rosterDays.get(next);
+      if (!isSimDay(raw)) break;
+      to = next;
+      if (rosterParts(raw).includes("S")) sawSim = true;
+      else if (sawSim) break;                // the S/T after the sim days: travel home
+    }
+    const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${iso}T00:00:00Z`)) / 86400000) + 1;
+    out.push({ from: iso, to, days });
+  }
+  return out;
+}
+
+const fmtH = (h) => {
+  const neg = h < 0;
+  const m = Math.round(Math.abs(h) * 60);
+  return `${neg ? "-" : ""}${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+};
+
+// One trip checked against what the pilot has recorded plus the roster.
+// history: pilotHistory(...) result (needs leftOn + cycle).
+export function simReadiness(history, trip, limits, rosterDays, todayIso, {
+  minDt = SIM_MIN_DT_LEFT, minFt = SIM_MIN_FT_LEFT
+} = {}) {
+  const { ft, dt } = history.leftOn(trip.from);
+  const minOf = (o) => { const v = Object.values(o); return v.length ? Math.min(...v) : null; };
+  const dtLeft = minOf(dt);
+  const ftLeft = minOf(ft);
+  const dtOk = dtLeft == null || dtLeft >= minDt;
+  const ftOk = ftLeft == null || ftLeft >= minFt;
+
+  // 168h at the START of the travel day must cover every day of the trip.
+  const rr = cycleOnDayWithRoster(history.cycle, trip.from, limits, rosterDays, todayIso);
+  const needH = trip.days * 24;
+  const cycleOk = rr.hoursLeft == null ? rr.status === "ok" : rr.hoursLeft >= needH;
+
+  // Duty on the roster in the 7 days before travel (from tomorrow): every
+  // hour of it comes off the DT 7D figure the trip needs.
+  const dutyBefore = [];
+  for (let k = 7; k >= 1; k--) {
+    const d = isoAddDays(trip.from, -k);
+    if (d <= todayIso) continue;
+    const raw = rosterDays?.get(d);
+    if (!raw) continue;
+    const cat = remarkLabel(raw)?.category;
+    if (cat === "rest" || cat === "off" || cat === "leave") continue;
+    dutyBefore.push({ iso: d, code: String(raw).trim() });
+  }
+
+  // Flight / duty time that can still be added before travel and keep the
+  // trip's minimum (the tightest window).
+  const dtSpare = dtLeft == null ? null : dtLeft - minDt;
+  const ftSpare = ftLeft == null ? null : ftLeft - minFt;
+
+  // First day (from travel, up to 21 days on) the recorded duty alone would
+  // leave enough - "ready from" - for when the trip could move.
+  let readyFrom = null;
+  if (!dtOk || !ftOk) {
+    for (let k = 1; k <= 21; k++) {
+      const d = isoAddDays(trip.from, k);
+      const l = history.leftOn(d);
+      const dOk = (minOf(l.dt) ?? Infinity) >= minDt;
+      const fOk = (minOf(l.ft) ?? Infinity) >= minFt;
+      if (dOk && fOk) { readyFrom = d; break; }
+    }
+  }
+  const dutyText = dutyBefore.map((x) => `${dayMon(x.iso)} ${x.code}`).join(", ");
+
+  const notes = [];
+  if (!dtOk) notes.push(`DT left ${fmtH(dtLeft)} on ${dayMon(trip.from)} - needs ${fmtH(minDt)}, short ${fmtH(minDt - dtLeft)} from duty already flown`);
+  if (!ftOk) notes.push(`FT left ${fmtH(ftLeft)} on ${dayMon(trip.from)} - needs ${fmtH(minFt)}, short ${fmtH(minFt - ftLeft)} from flying already done`);
+  if (readyFrom) notes.push(`Enough DT/FT from ${dayMon(readyFrom)} on recorded duty alone`);
+  if (!cycleOk) {
+    notes.push(rr.hoursLeft == null
+      ? "168h: no Recovery Rest on record - check Daily Duty"
+      : `168h: ${Math.max(0, Math.floor(rr.hoursLeft))}h left at travel, the trip needs ${needH}h - give a Recovery Rest (2+ days off) right before S/T`);
+  }
+  if (dutyBefore.length && (!dtOk || (dtSpare != null && dtSpare <= 0))) {
+    notes.push(`Roster duty ${dutyText} in the 7 days before travel takes DT ${dtOk ? "below" : "further below"} ${fmtH(minDt)}`);
+  } else if (dutyBefore.length) {
+    notes.push(`Roster duty ${dutyText} before travel: keep it within ${fmtH(dtSpare)} DT${ftSpare != null ? ` and ${fmtH(ftSpare)} FT` : ""}`);
+  }
+
+  const status = !dtOk || !ftOk || !cycleOk ? "exc" : notes.length ? "warn" : "ok";
+  return {
+    trip, dtLeft, ftLeft, dtOk, ftOk, dtSpare, ftSpare,
+    cycle: rr, cycleNeedHours: needH, cycleOk,
+    dutyBefore, readyFrom, notes, status,
+    tripText: trip.days > 1 ? `S/T ${dayMonRange(trip.from, trip.to)} (${trip.days}d)` : `S/T ${dayMon(trip.from)}`
+  };
 }
