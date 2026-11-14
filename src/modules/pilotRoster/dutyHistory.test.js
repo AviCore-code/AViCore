@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pilotHistory, pastDays, nonFlightShort, cycleOnDay, worst } from "./dutyHistory.js";
+import { pilotHistory, pastDays, nonFlightShort, cycleOnDay, worst, remarkLabel, rosterRemark } from "./dutyHistory.js";
 import { DEFAULT_FTL_LIMITS, withFtlDefaults } from "../../utils/ftlLimits.js";
 
 const limits = withFtlDefaults(DEFAULT_FTL_LIMITS);
@@ -93,5 +93,42 @@ describe("next-7-day DT left and 168h cycle", () => {
     expect(worst(["ok", "warn", "ok"])).toBe("warn");
     expect(worst(["ok", "exc", "warn"])).toBe("exc");
     expect(worst(["ok", "ok", "ok"])).toBe("ok");
+  });
+});
+
+describe("roster remark for the next 7 days", () => {
+  const roster = (pairs) => new Map(pairs);
+  // today = 2026-11-14 -> window 15..21 Nov
+
+  it("labels non-duty codes; plain duty days are not mentioned", () => {
+    expect(remarkLabel("O")).toBeNull();
+    expect(remarkLabel("N")).toBeNull();
+    expect(remarkLabel("X")).toEqual({ label: "OFF", category: "off" });
+    expect(remarkLabel("O,X")).toEqual({ label: "OFF", category: "off" });
+    expect(remarkLabel("rr")).toEqual({ label: "RR", category: "rest" });
+    expect(remarkLabel("VL")).toEqual({ label: "VL", category: "leave" });
+    expect(remarkLabel("S")).toEqual({ label: "S", category: "training" });
+  });
+
+  it("groups RR RR then a 7-day OFF block, showing each block's full length", () => {
+    const days = { "2026-11-15": "RR", "2026-11-16": "RR" };
+    for (let d = 17; d <= 23; d++) days[`2026-11-${d}`] = "X";
+    const r = rosterRemark(roster(Object.entries(days)), today, 7);
+    expect(r.map((b) => b.text)).toEqual(["RR 15/11–16/11 (2d)", "OFF 17/11–23/11 (7d)"]);
+  });
+
+  it("includes a leave block that started before the window", () => {
+    const days = {};
+    for (let d = 10; d <= 16; d++) days[`2026-11-${d}`] = "VL";
+    days["2026-11-20"] = "SL";
+    const r = rosterRemark(roster(Object.entries(days)), today, 7);
+    expect(r.map((b) => b.text)).toEqual(["VL 10/11–16/11 (7d)", "SL 20/11"]);
+  });
+
+  it("is empty when the pilot is on duty all week or the roster is blank", () => {
+    const days = {};
+    for (let d = 15; d <= 21; d++) days[`2026-11-${d}`] = "O";
+    expect(rosterRemark(roster(Object.entries(days)), today, 7)).toEqual([]);
+    expect(rosterRemark(new Map(), today, 7)).toEqual([]);
   });
 });

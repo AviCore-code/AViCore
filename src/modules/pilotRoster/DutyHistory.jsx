@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { loadAllPilotStatusRows, decimalToHHMM } from "../../utils/statusCompute.js";
-import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS } from "./dutyHistory.js";
+import { listRoster } from "../../services/desktopDatabase.js";
+import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS, rosterRemark, REMARK_LOOKBACK_DAYS, REMARK_LOOKAHEAD_DAYS } from "./dutyHistory.js";
 import { isoAddDays } from "./weeklyPlanHeadroom.js";
 import "./PilotRoster.css";
 import "./DutyHistory.css";
@@ -83,8 +84,9 @@ DT left: ${dt}
 168h cycle: ${rr}`;
 }
 
-// loadRows is injectable for tests; the app uses the same loader as All Status.
-export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
+// loadRows / loadRoster are injectable for tests; the app uses the same
+// loaders as All Status and Duty Schedule.
+export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRoster = listRoster }) {
   const [rows, setRows] = useState([]);
   const [limits, setLimits] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -93,6 +95,8 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
   const [search, setSearch] = useState("");
   const [fullScreen, setFullScreen] = useState(false);
   const [loadedAt, setLoadedAt] = useState(null);
+  const [roster, setRoster] = useState([]);
+  const [rosterError, setRosterError] = useState("");
   // "fit" scales the whole table to the screen width (like zooming out), so
   // the past days, next 7 days and totals are in view together; a number is a
   // fixed zoom set with -/+.
@@ -105,10 +109,22 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
     setLoading(true);
     setError("");
     try {
-      const res = await loadRows();
+      const now = new Date();
+      const today = localIso(now);
+      // The roster only feeds the Remark column, so a failure there must not
+      // blank the hours: it is loaded alongside and reported on its own.
+      const [res, rosterRows] = await Promise.all([
+        loadRows(),
+        loadRoster({
+          from: isoAddDays(today, 1 - REMARK_LOOKBACK_DAYS),
+          to: isoAddDays(today, REMARK_LOOKAHEAD_DAYS)
+        }).then((list) => { setRosterError(""); return list || []; })
+          .catch((err) => { setRosterError(err.message || String(err)); return []; })
+      ]);
       setRows(res.rows);
       setLimits(res.limits);
-      setLoadedAt(new Date());
+      setRoster(rosterRows);
+      setLoadedAt(now);
     } catch (err) {
       setError(err.message || String(err));
     } finally {
@@ -125,13 +141,26 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
     [todayIso]
   );
 
+  // pilot code -> (date -> roster code), from the published monthly roster.
+  const rosterByPilot = useMemo(() => {
+    const map = new Map();
+    for (const row of roster) {
+      const code = String(row.pilot_code || row.pilotCode || "").trim().toUpperCase();
+      if (!code || !row.date) continue;
+      if (!map.has(code)) map.set(code, new Map());
+      map.get(code).set(row.date, row.code);
+    }
+    return map;
+  }, [roster]);
+
   const histories = useMemo(() => {
     if (!limits) return [];
     return rows.map((r) => ({
       pilot: r.pilot,
-      h: pilotHistory(r.entries, limits, { todayIso, asOf: loadedAt || new Date(), aheadDays: AHEAD_DAYS })
+      h: pilotHistory(r.entries, limits, { todayIso, asOf: loadedAt || new Date(), aheadDays: AHEAD_DAYS }),
+      remark: rosterRemark(rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase()), todayIso, AHEAD_DAYS)
     }));
-  }, [rows, limits, todayIso, loadedAt]);
+  }, [rows, limits, todayIso, loadedAt, rosterByPilot]);
 
   const q = search.trim().toLowerCase();
   const visible = q
@@ -205,6 +234,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
       </div>
 
       {error && <div className="settings-msg error">Could not load duty records: {error}</div>}
+      {rosterError && <div className="settings-msg error">Remark column: could not load the roster ({rosterError}). Hours are unaffected.</div>}
       {!loading && !error && visible.length === 0 && <div className="mystatus-empty">No pilots found.</div>}
 
       {hasTable && (
@@ -214,7 +244,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
               <tr>
                 <th className="pilot-col dutyhist-pilot-head" rowSpan={2}>Pilot</th>
                 <th colSpan={days.length} className="dutyhist-group past">Past {range} days — FT / DT</th>
-                <th colSpan={AHEAD_DAYS} className="dutyhist-group ahead dutyhist-sep">Next {AHEAD_DAYS} days — left: FT / DT / 168h cycle</th>
+                <th colSpan={AHEAD_DAYS + 1} className="dutyhist-group ahead dutyhist-sep">Next {AHEAD_DAYS} days — left: FT / DT / 168h cycle</th>
                 <th colSpan={FT_WINDOWS.length + DT_WINDOWS.length} className="dutyhist-group totals dutyhist-sep">Rolling totals (used / max · left)</th>
               </tr>
               <tr>
@@ -234,13 +264,14 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
                     </th>
                   );
                 })}
+                <th className="ahead dutyhist-remark-head" title="From the published roster (Pilot Roster - Duty Schedule)">Remark (roster)</th>
                 {[...FT_WINDOWS, ...DT_WINDOWS].map((w, i) => (
                   <th key={w.key} className={`totals${i === 0 ? " dutyhist-sep" : ""}`}>{w.label}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {visible.map(({ pilot, h }) => (
+              {visible.map(({ pilot, h, remark }) => (
                 <tr key={pilot.code}>
                   <td className="pilot-col" title={pilot.name}>
                     <div className="dutyhist-code">{pilot.code}</div>
@@ -274,6 +305,11 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
                       <div className={`dutyhist-line rr ${a.cycle.status}`}>{a.cycle.label || "—"}</div>
                     </td>
                   ))}
+                  <td className="dutyhist-remark" title={remark.map((b) => b.text).join("\n") || "No RR / OFF / leave on the roster in the next 7 days"}>
+                    {remark.map((b) => (
+                      <span key={`${b.label}-${b.from}`} className={`dutyhist-chip ${b.category}`}>{b.text}</span>
+                    ))}
+                  </td>
                   {h.totals.map((t, i) => (
                     <td key={t.key} className={`dutyhist-total ${t.status}${i === 0 ? " dutyhist-sep" : ""}`}
                       title={`${t.label}: ${decimalToHHMM(t.used)} used${t.max != null ? ` of ${decimalToHHMM(t.max)}, ${decimalToHHMM(Math.max(0, t.left))} left` : ""}`}>

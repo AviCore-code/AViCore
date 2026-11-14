@@ -15,6 +15,7 @@
 import { computeStats, entryFlightHours, classify } from "../../utils/statusCompute.js";
 import { buildDutyPeriods, periodDutyCreditHours, checkRecoveryRest168 } from "../../utils/dutyPeriods.js";
 import { isoAddDays, rollingSum } from "./weeklyPlanHeadroom.js";
+import { CODE_LEGEND_MAP } from "./rosterCodes.js";
 
 export const FT_WINDOWS = [
   { key: "ft7d", days: 7, label: "FT 7D" },
@@ -112,6 +113,71 @@ export function pilotHistory(entries, limits, { todayIso, asOf = new Date(), ahe
   }
 
   return { day, totals, ahead, cycle };
+}
+
+// --- Remark: what the published roster says about the coming week ---------
+//
+// The Next-7-days numbers say what the LIMITS allow; the roster says whether
+// the pilot is even there. Lists every block of non-duty days (RR, OFF, leave,
+// training...) that touches the next 7 days, with the block's FULL length -
+// an OFF block that started yesterday and runs past the window still reads
+// "OFF 13–19/11 (7d)", which is how the 21/7 pattern is talked about.
+
+// How far either side of the window to look, so a block's real length shows.
+export const REMARK_LOOKBACK_DAYS = 13;
+export const REMARK_LOOKAHEAD_DAYS = 21;
+
+// Codes no longer offered but still on older imported months (rosterCodes.js
+// LEGACY_CODES): N / ND read as duty days, T as training.
+const RETIRED_CODES = { N: { category: "duty" }, ND: { category: "duty" }, T: { category: "training" } };
+
+const REMARK_CATEGORY = { rest: "rest", off: "off", leave: "leave", training: "training", inspection: "training" };
+
+// A roster cell -> { label, category } for the remark, or null for a plain
+// duty day (O). "X" is shown as OFF (the word everyone uses); "O,X" is a
+// compensate day OFF, so any X wins.
+export function remarkLabel(raw) {
+  const text = String(raw || "").trim().toUpperCase();
+  if (!text) return null;
+  const parts = text.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.includes("X")) return { label: "OFF", category: "off" };
+  const info = parts.map((p) => ({ p, c: CODE_LEGEND_MAP.get(p) || RETIRED_CODES[p] }));
+  const notDuty = info.filter(({ c }) => !c || c.category !== "duty");
+  if (!notDuty.length) return null;
+  const category = notDuty.map(({ c }) => REMARK_CATEGORY[c?.category]).find(Boolean) || "other";
+  return { label: notDuty.map(({ p }) => p).join(","), category };
+}
+
+const ddmm = (iso) => { const [, m, d] = iso.split("-").map(Number); return `${d}/${m}`; };
+
+// codeByDate: Map iso -> raw roster code for ONE pilot.
+// Returns [{ label, category, from, to, days, text }] for blocks overlapping
+// tomorrow .. tomorrow+aheadDays-1.
+export function rosterRemark(codeByDate, todayIso, aheadDays = 7) {
+  const first = isoAddDays(todayIso, 1 - REMARK_LOOKBACK_DAYS);
+  const total = REMARK_LOOKBACK_DAYS + REMARK_LOOKAHEAD_DAYS;
+  const winStart = isoAddDays(todayIso, 1);
+  const winEnd = isoAddDays(todayIso, aheadDays);
+
+  const blocks = [];
+  let cur = null;
+  for (let i = 0; i < total; i++) {
+    const iso = isoAddDays(first, i);
+    const lab = remarkLabel(codeByDate?.get(iso));
+    if (lab && cur && cur.label === lab.label && cur.to === isoAddDays(iso, -1)) {
+      cur.to = iso;
+      cur.days++;
+    } else {
+      cur = lab ? { ...lab, from: iso, to: iso, days: 1 } : null;
+      if (cur) blocks.push(cur);
+    }
+  }
+  return blocks
+    .filter((b) => b.to >= winStart && b.from <= winEnd)
+    .map((b) => ({
+      ...b,
+      text: b.days === 1 ? `${b.label} ${ddmm(b.from)}` : `${b.label} ${ddmm(b.from)}–${ddmm(b.to)} (${b.days}d)`
+    }));
 }
 
 const RANK = { ok: 0, warn: 1, exc: 2 };

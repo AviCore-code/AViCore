@@ -28,7 +28,7 @@ function loader() {
 
 describe("DutyHistory", () => {
   it("shows each pilot's past days, totals and next-7-day FT left", async () => {
-    render(<DutyHistory loadRows={loader()} />);
+    render(<DutyHistory loadRows={loader()} loadRoster={async () => []} />);
     expect(await screen.findByText("CSU")).toBeTruthy();
     expect(screen.getByText("KCH")).toBeTruthy();
     const dayCells = [...document.querySelectorAll(".dutyhist-ft")].map((el) => el.textContent);
@@ -39,11 +39,37 @@ describe("DutyHistory", () => {
   });
 
   it("filters by pilot and changes the range", async () => {
-    render(<DutyHistory loadRows={loader()} />);
+    render(<DutyHistory loadRows={loader()} loadRoster={async () => []} />);
     await screen.findByText("CSU");
     fireEvent.change(screen.getByPlaceholderText(/Search pilot/), { target: { value: "kch" } });
     expect(screen.queryByText("CSU")).toBeNull();
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "7" } });
     expect(document.querySelectorAll("tbody tr")[0].querySelectorAll(".dutyhist-day")).toHaveLength(7);
+  });
+});
+
+describe("DutyHistory remark column", () => {
+  it("shows the roster's RR / OFF / leave blocks for the next 7 days", async () => {
+    const d = (n) => isoAddDays(today, n);
+    const roster = async () => [
+      { pilot_code: "CSU", date: d(1), code: "RR" },
+      { pilot_code: "CSU", date: d(2), code: "RR" },
+      ...[3, 4, 5, 6, 7, 8, 9].map((n) => ({ pilot_code: "CSU", date: d(n), code: "X" })),
+      { pilot_code: "KCH", date: d(2), code: "VL" },
+      { pilot_code: "KCH", date: d(3), code: "O" },
+    ];
+    render(<DutyHistory loadRows={loader()} loadRoster={roster} />);
+    await screen.findByText("CSU");
+    const rows = document.querySelectorAll("tbody tr");
+    const chips = (row) => [...row.querySelectorAll(".dutyhist-chip")].map((c) => c.textContent);
+    expect(chips(rows[0])[0]).toMatch(/^RR .*\(2d\)$/);
+    expect(chips(rows[0])[1]).toMatch(/^OFF .*\(7d\)$/);
+    expect(chips(rows[1])).toEqual([expect.stringMatching(/^VL /)]);
+  });
+
+  it("keeps the hours on screen when the roster cannot be loaded", async () => {
+    render(<DutyHistory loadRows={loader()} loadRoster={async () => { throw new Error("offline"); }} />);
+    expect(await screen.findByText("CSU")).toBeTruthy();
+    expect(screen.getByText(/could not load the roster \(offline\)/)).toBeTruthy();
   });
 });
