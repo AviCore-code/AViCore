@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { loadAllPilotStatusRows, decimalToHHMM } from "../../utils/statusCompute.js";
 import { listRoster } from "../../services/desktopDatabase.js";
-import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS, rosterRemark, REMARK_LOOKBACK_DAYS, REMARK_LOOKAHEAD_DAYS } from "./dutyHistory.js";
+import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS, rosterRemark, remarkLabel, REMARK_LOOKBACK_DAYS, REMARK_LOOKAHEAD_DAYS } from "./dutyHistory.js";
 import { isoAddDays } from "./weeklyPlanHeadroom.js";
 import "./PilotRoster.css";
 import "./DutyHistory.css";
@@ -22,6 +22,15 @@ function dayHeader(iso) {
 }
 
 const hhmm = (h) => (h > 0 ? decimalToHHMM(h) : "");
+
+// "RR" or "OFF" when the roster has the pilot resting / off that day, else null.
+function rosterOffLabel(rawCode) {
+  const lab = remarkLabel(rawCode);
+  if (!lab) return null;
+  if (lab.category === "off") return "OFF";
+  if (lab.label.split(",").includes("RR")) return "RR";
+  return null;
+}
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 1.2;
@@ -158,7 +167,8 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
     return rows.map((r) => ({
       pilot: r.pilot,
       h: pilotHistory(r.entries, limits, { todayIso, asOf: loadedAt || new Date(), aheadDays: AHEAD_DAYS }),
-      remark: rosterRemark(rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase()), todayIso, AHEAD_DAYS)
+      remark: rosterRemark(rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase()), todayIso, AHEAD_DAYS),
+      rosterDays: rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase())
     }));
   }, [rows, limits, todayIso, loadedAt, rosterByPilot]);
 
@@ -230,6 +240,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
         <span><b className="dutyhist-swatch exc" /> Over a limit / nothing left</span>
         <span><b className="dutyhist-swatch ok" /> Within all limits</span>
         <span>Next {AHEAD_DAYS} days: <b>FT left</b> / DT left / 168h cycle (hours until a 36h Recovery Rest must start; RR ✓ = resting now). Counts recorded duty only.</span>
+        <span><b className="dutyhist-offtext">Red text</b> = roster RR / OFF day (not available)</span>
         <span>🖱 Drag the table to move it.</span>
       </div>
 
@@ -271,7 +282,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
               </tr>
             </thead>
             <tbody>
-              {visible.map(({ pilot, h, remark }) => (
+              {visible.map(({ pilot, h, remark, rosterDays }) => (
                 <tr key={pilot.code}>
                   <td className="pilot-col" title={pilot.name}>
                     <div className="dutyhist-code">{pilot.code}</div>
@@ -297,14 +308,20 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                       </td>
                     );
                   })}
-                  {h.ahead.map((a, i) => (
-                    <td key={a.iso} className={`dutyhist-ahead ${a.status}${i === 0 ? " dutyhist-sep" : ""}`}
-                      title={aheadTitle(a)}>
+                  {h.ahead.map((a, i) => {
+                    // A day the roster already gives away - RR or OFF (the 21/7
+                    // RR pair and 7-day OFF block) - is shown in red: the hours
+                    // may allow flying, but the pilot is not available.
+                    const off = rosterOffLabel(rosterDays?.get(a.iso));
+                    return (
+                    <td key={a.iso} className={`dutyhist-ahead ${a.status}${off ? " rostered-off" : ""}${i === 0 ? " dutyhist-sep" : ""}`}
+                      title={off ? `Roster: ${off} - not available\n${aheadTitle(a)}` : aheadTitle(a)}>
                       <div className={`dutyhist-line ft ${a.ftStatus}`}>{a.left == null ? "—" : decimalToHHMM(a.left)}</div>
                       <div className={`dutyhist-line dt ${a.dtStatus}`}>{a.dtLeft == null ? "—" : decimalToHHMM(a.dtLeft)}</div>
                       <div className={`dutyhist-line rr ${a.cycle.status}`}>{a.cycle.label || "—"}</div>
                     </td>
-                  ))}
+                    );
+                  })}
                   <td className="dutyhist-remark" title={remark.map((b) => b.text).join("\n") || "No RR / OFF / leave on the roster in the next 7 days"}>
                     {remark.map((b) => (
                       <span key={`${b.label}-${b.from}`} className={`dutyhist-chip ${b.category}`}>{b.text}</span>

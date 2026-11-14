@@ -67,6 +67,24 @@ describe("DutyHistory remark column", () => {
     expect(chips(rows[1])).toEqual([expect.stringMatching(/^VL /)]);
   });
 
+  it("turns the next-7-day cell red on roster RR and OFF days only", async () => {
+    const d = (n) => isoAddDays(today, n);
+    const roster = async () => [
+      { pilot_code: "CSU", date: d(1), code: "RR" },
+      { pilot_code: "CSU", date: d(2), code: "RR" },
+      { pilot_code: "CSU", date: d(3), code: "X" },
+      { pilot_code: "CSU", date: d(4), code: "O,X" },
+      { pilot_code: "CSU", date: d(5), code: "O" },
+      { pilot_code: "CSU", date: d(6), code: "VL" },
+    ];
+    render(<DutyHistory loadRows={loader()} loadRoster={roster} />);
+    await screen.findByText("CSU");
+    const cells = [...document.querySelectorAll("tbody tr")[0].querySelectorAll(".dutyhist-ahead")];
+    expect(cells.map((c) => c.classList.contains("rostered-off"))).toEqual([true, true, true, true, false, false, false]);
+    expect(cells[0].title).toMatch(/^Roster: RR/);
+    expect(cells[2].title).toMatch(/^Roster: OFF/);
+  });
+
   it("keeps the hours on screen when the roster cannot be loaded", async () => {
     render(<DutyHistory loadRows={loader()} loadRoster={async () => { throw new Error("offline"); }} />);
     expect(await screen.findByText("CSU")).toBeTruthy();
