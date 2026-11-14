@@ -150,3 +150,12 @@
 .dutyhist-page .simplan .simplan-head{background:#e0e7ff!important;border:0!important;border-radius:0!important;box-shadow:none!important;color:#1e1b4b!important;min-height:0!important;padding:8px 12px!important;font:inherit!important;transform:none!important}
 .dutyhist-page .simplan .simplan-head .simplan-title{color:#1e1b4b!important}
 .dutyhist-page .simplan .simplan-head .simplan-sub,.dutyhist-page .simplan .simplan-head .simplan-toggle{color:#3730a3!important}
+
+/* Next 7 days: the run-up to a sim trip and the trip itself */
+.dutyhist-simtag{font-size:8.5px;font-weight:800;letter-spacing:.02em;color:#5b21b6;background:#ede9fe;border-radius:4px;padding:0 3px;margin:-1px 0 1px;white-space:nowrap}
+.dutyhist-ahead.sim-lead{box-shadow:inset 0 0 0 2px rgba(124,58,237,.45)}
+.dutyhist-ahead.sim-keepfree{background:#f5f3ff!important;box-shadow:inset 0 0 0 2px #7c3aed}
+.dutyhist-ahead.sim-keepfree .dutyhist-line{color:#5b21b6!important}
+.dutyhist-ahead.sim-trip{background:#ddd6fe!important;box-shadow:inset 0 0 0 2px #6d28d9}
+.dutyhist-ahead.sim-trip .dutyhist-line{color:#4c1d95!important}
+.dutyhist-ahead.sim-trip .dutyhist-simtag{background:#6d28d9;color:#fff}

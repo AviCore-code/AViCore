@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { loadAllPilotStatusRows, decimalToHHMM } from "../../utils/statusCompute.js";
 import { listRoster } from "../../services/desktopDatabase.js";
-import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS, rosterRemark, remarkLabel, preOffRrDays, simTrips, simReadiness, REMARK_LOOKBACK_DAYS, REMARK_LOOKAHEAD_DAYS } from "./dutyHistory.js";
+import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS, rosterRemark, remarkLabel, preOffRrDays, simTrips, simReadiness, simDayMarks, simMarkText, REMARK_LOOKBACK_DAYS, REMARK_LOOKAHEAD_DAYS } from "./dutyHistory.js";
 import SimTrainingPanel from "./SimTrainingPanel.jsx";
 import { isoAddDays } from "./weeklyPlanHeadroom.js";
 import "./PilotRoster.css";
@@ -51,9 +51,13 @@ export function pilotGroup(pilot) {
 //   green - within every limit AND not a roster RR/OFF day (can be flown)
 //   off   - roster RR/OFF day (red text: not available)
 //   red   - a limit already reached (red cell)
-export function nextWeekScore(h, rosterDays, preOffRr) {
+export function nextWeekScore(h, rosterDays, preOffRr, simMarks = null) {
   const score = { green: 0, off: 0, red: 0 };
   for (const a of h?.ahead || []) {
+    // A sim trip day, or a day before S/T that must stay free of duty, is not
+    // a day to give flying either.
+    const sim = simMarks?.get(a.iso);
+    if (sim && (sim.kind === "trip" || sim.keepFree)) { score.off++; if (a.status === "exc") score.red++; continue; }
     // Any day the roster has the pilot away (RR, R, OFF, VL, SL...) is not a
     // day that can be flown, whatever its colour - it never counts as green.
     const cat = remarkLabel(rosterDays?.get(a.iso))?.category;
@@ -228,14 +232,17 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
       const days = rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase());
       const h = pilotHistory(r.entries, limits, { todayIso, asOf: loadedAt || new Date(), aheadDays: AHEAD_DAYS, rosterDays: days });
       const preOffRr = preOffRrDays(days);
+      const sims = simTrips(days, todayIso).map((t) => simReadiness(h, t, limits, days, todayIso));
+      const simMarks = simDayMarks(sims);
       return {
         pilot: r.pilot,
         h,
         remark: rosterRemark(days, todayIso, AHEAD_DAYS),
         rosterDays: days,
         preOffRr,
-        score: nextWeekScore(h, days, preOffRr),
-        sims: simTrips(days, todayIso).map((t) => simReadiness(h, t, limits, days, todayIso))
+        sims,
+        simMarks,
+        score: nextWeekScore(h, days, preOffRr, simMarks)
       };
     });
   }, [rows, limits, todayIso, loadedAt, rosterByPilot]);
@@ -312,6 +319,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
         <span><b className="dutyhist-swatch ok" /> Within all limits</span>
         <span>Next {AHEAD_DAYS} days: <b>FT left</b> / DT left / 168h cycle (hours until a 36h Recovery Rest must start; RR ✓ = resting now). Counts recorded duty only.</span>
         <span><b className="dutyhist-swatch exc" /> <b className="dutyhist-offtext">red text on a red cell</b> = roster OFF, SL / VL leave, or a limit reached (not available) · <b className="dutyhist-offtext">Red text</b> only = the RR pair right before a 7-day OFF</span>
+        <span><b className="dutyhist-simtag">SIM d1</b> sim trip (S/T = day 1) · <b className="dutyhist-simtag">Free · S/T −3</b> keep free of duty before S/T (DT 7D must be {60}h on S/T)</span>
         <span>🖱 Drag the table to move it.</span>
       </div>
 
@@ -355,7 +363,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
               </tr>
             </thead>
             <tbody>
-              {visible.map(({ pilot, h, remark, rosterDays, preOffRr }, idx) => (
+              {visible.map(({ pilot, h, remark, rosterDays, preOffRr, simMarks }, idx) => (
                 <Fragment key={pilot.code}>
                 {!personal && (idx === 0 || pilotGroup(visible[idx - 1].pilot) !== pilotGroup(pilot)) && (
                   <tr className="dutyhist-grouprow">
@@ -406,9 +414,17 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                     // text only.
                     const redCell = !!leave || off === "OFF";
                     const redText = off === "RR";
+                    // Sim training (Capt. Weera): the 7 days before S/T and
+                    // the trip itself are marked, so the run-up is planned.
+                    const sim = simMarks?.get(a.iso);
+                    const awayDay = !!leave || !!off || ["rest", "off", "leave"].includes(remarkLabel(rosterDays?.get(a.iso))?.category);
+                    const simCls = sim ? (sim.kind === "trip" ? " sim-trip" : sim.keepFree && !awayDay ? " sim-keepfree" : " sim-lead") : "";
+                    const simTag = sim ? (sim.kind === "trip" ? `SIM d${sim.n}` : awayDay ? `S/T −${sim.daysTo}` : sim.keepFree ? `Free · S/T −${sim.daysTo}` : `≤${decimalToHHMM(sim.spare)} · S/T −${sim.daysTo}`) : "";
+                    const tip = [why, sim ? simMarkText(sim) : "", aheadTitle(a)].filter(Boolean).join("\n");
                     return (
-                    <td key={a.iso} className={`dutyhist-ahead ${a.status}${redText ? " rostered-off" : ""}${redCell ? " rostered-redcell" : ""}${leave ? " rostered-leave" : ""}${i === 0 ? " dutyhist-sep" : ""}`}
-                      title={why ? `${why}\n${aheadTitle(a)}` : aheadTitle(a)}>
+                    <td key={a.iso} className={`dutyhist-ahead ${a.status}${redText ? " rostered-off" : ""}${redCell ? " rostered-redcell" : ""}${leave ? " rostered-leave" : ""}${simCls}${i === 0 ? " dutyhist-sep" : ""}`}
+                      title={tip}>
+                      {simTag && <div className="dutyhist-simtag">{simTag}</div>}
                       <div className={`dutyhist-line ft ${a.ftStatus}`}>{a.left == null ? "—" : decimalToHHMM(a.left)}</div>
                       <div className={`dutyhist-line dt ${a.dtStatus}`}>{a.dtLeft == null ? "—" : decimalToHHMM(a.dtLeft)}</div>
                       <div className={`dutyhist-line rr ${a.cycle.status}`}>{a.cycle.label || "—"}</div>
