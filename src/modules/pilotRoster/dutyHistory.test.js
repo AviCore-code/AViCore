@@ -114,7 +114,7 @@ describe("roster remark for the next 7 days", () => {
     const days = { "2026-11-15": "RR", "2026-11-16": "RR" };
     for (let d = 17; d <= 23; d++) days[`2026-11-${d}`] = "X";
     const r = rosterRemark(roster(Object.entries(days)), today, 7);
-    expect(r.map((b) => b.text)).toEqual(["RR 15/11–16/11 (2d) → OFF 17/11–23/11 (7d) · รวม 9d"]);
+    expect(r.map((b) => b.text)).toEqual(["RR 15–16 Nov (2d) → OFF 17–23 Nov (7d) · รวม 9d"]);
     expect(r[0].segments.map((x) => x.label)).toEqual(["RR", "OFF"]);
   });
 
@@ -123,7 +123,7 @@ describe("roster remark for the next 7 days", () => {
     for (let d = 10; d <= 16; d++) days[`2026-11-${d}`] = "VL";
     days["2026-11-20"] = "SL";
     const r = rosterRemark(roster(Object.entries(days)), today, 7);
-    expect(r.map((b) => b.text)).toEqual(["VL 10/11–16/11 (7d)", "SL 20/11"]);
+    expect(r.map((b) => b.text)).toEqual(["VL 10–16 Nov (7d)", "SL 20 Nov"]);
   });
 
   it("is empty when the pilot is on duty all week or the roster is blank", () => {
@@ -167,16 +167,26 @@ describe("remark chains of time away", () => {
   it("RR 2 -> OFF 7 -> VL reads as one chain with a total", () => {
     const r = rosterRemark(map({ ...run("RR", 15, 2), ...run("X", 17, 7), ...run("VL", 24, 4) }), today, 7);
     expect(r).toHaveLength(1);
-    expect(r[0].text).toBe("RR 15/11–16/11 (2d) → OFF 17/11–23/11 (7d) → VL 24/11–27/11 (4d) · รวม 13d");
+    expect(r[0].text).toBe("RR 15–16 Nov (2d) → OFF 17–23 Nov (7d) → VL 24–27 Nov (4d) · รวม 13d");
   });
 
   it("VL -> OFF -> VL, with the OFF shortened by OT, shows the real lengths", () => {
     const r = rosterRemark(map({ ...run("VL", 13, 3), ...run("X", 16, 4), ...run("VL", 20, 2), ...run("O", 22, 3) }), today, 7);
-    expect(r[0].text).toBe("VL 13/11–15/11 (3d) → OFF 16/11–19/11 (4d) → VL 20/11–21/11 (2d) · รวม 9d");
+    expect(r[0].text).toBe("VL 13–15 Nov (3d) → OFF 16–19 Nov (4d) → VL 20–21 Nov (2d) · รวม 9d");
   });
 
   it("keeps training apart from a time-off chain", () => {
     const r = rosterRemark(map({ ...run("S", 15, 2), ...run("RR", 17, 2), ...run("X", 19, 7) }), today, 7);
-    expect(r.map((it) => it.text)).toEqual(["S 15/11–16/11 (2d)", "RR 17/11–18/11 (2d) → OFF 19/11–25/11 (7d) · รวม 9d"]);
+    expect(r.map((it) => it.text)).toEqual(["S 15–16 Nov (2d)", "RR 17–18 Nov (2d) → OFF 19–25 Nov (7d) · รวม 9d"]);
+  });
+});
+
+describe("remark dates use a 3-letter month", () => {
+  it("writes a range across two months in full", () => {
+    const days = {};
+    for (let d = 19; d <= 30; d++) days[`2026-11-${d}`] = "X";
+    for (let d = 1; d <= 4; d++) days[`2026-12-0${d}`] = "X";
+    const r = rosterRemark(new Map(Object.entries(days)), today, 7);
+    expect(r[0].text).toBe("OFF 19 Nov–4 Dec (16d)");
   });
 });

@@ -148,7 +148,14 @@ export function remarkLabel(raw) {
   return { label: notDuty.map(({ p }) => p).join(","), category };
 }
 
-const ddmm = (iso) => { const [, m, d] = iso.split("-").map(Number); return `${d}/${m}`; };
+// Dates in the Remark read "15 Nov", never "15/11" (Capt. Weera: month as 3
+// letters, not a number). A range in one month shares it: "15–16 Nov".
+const MONTH3 = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const dayMon = (iso) => { const [, m, d] = iso.split("-").map(Number); return `${d} ${MONTH3.at(m - 1)}`; };
+const dayMonRange = (from, to) => {
+  if (from.slice(0, 7) === to.slice(0, 7)) return `${Number(from.slice(8))}–${dayMon(to)}`;
+  return `${dayMon(from)}–${dayMon(to)}`;
+};
 
 // codeByDate: Map iso -> raw roster code for ONE pilot.
 // Returns [{ label, category, from, to, days, text }] for blocks overlapping
@@ -160,7 +167,7 @@ const ddmm = (iso) => { const [, m, d] = iso.split("-").map(Number); return `${d
 // separate items.
 const AWAY = new Set(["rest", "off", "leave"]);
 
-const segText = (s) => (s.days === 1 ? `${s.label} ${ddmm(s.from)}` : `${s.label} ${ddmm(s.from)}–${ddmm(s.to)} (${s.days}d)`);
+const segText = (s) => (s.days === 1 ? `${s.label} ${dayMon(s.from)}` : `${s.label} ${dayMonRange(s.from, s.to)} (${s.days}d)`);
 
 // Returns the items that touch tomorrow .. tomorrow+aheadDays-1:
 //   [{ segments:[{label, category, from, to, days, text}], from, to, days,
