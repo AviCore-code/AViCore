@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { parseAllFdtFiles } from "../../services/fdtImport.js";
-import { addDutyEntriesMany, removeDutyEntriesBySourceFile, listImportedFdtFiles } from "../../services/desktopDatabase.js";
+import { replaceDutyEntriesFromFile, removeDutyEntriesBySourceFile, listImportedFdtFiles } from "../../services/desktopDatabase.js";
 import "./DutyImport.css";
 
 export function visibleImportedFiles(files = []) {
@@ -73,12 +73,13 @@ export default function DutyImport() {
         const tagged = aircraftType.trim()
           ? entries.map((e) => (e.dutyType === "flight" ? { ...e, aircraftType: aircraftType.trim() } : e))
           : entries;
-        const dbResult = await addDutyEntriesMany(code, tagged);
+        const dbResult = await replaceDutyEntriesFromFile(code, tagged);
         const flightCount = entries.filter((e) => e.dutyType === "flight").length;
         const nonFlightCount = entries.length - flightCount;
         newNotices.push({
           filename: result.filename, code, flightCount, nonFlightCount,
-          replaced: dbResult?.replaced > 0, ok: true
+          replaced: dbResult?.removed > 0, removed: dbResult?.removed ?? 0,
+          from: dbResult?.from, to: dbResult?.to, ok: true
         });
       } catch (err) {
         newNotices.push({ filename: result.filename, error: err.message, ok: false });
@@ -111,7 +112,7 @@ export default function DutyImport() {
       <div className="module-header">
         <div>
           <h1>Import FDT</h1>
-          <p>Upload each pilot's _FDT.xlsx file (DT sheet + Logbook sheet) — the data is added automatically to that pilot's Daily Duty. Re-uploading a file with the same name automatically replaces its previous data.</p>
+          <p>Upload each pilot's _FDT.xlsx file (DT sheet + Logbook sheet) — the data is added automatically to that pilot's Daily Duty. Each file <b>replaces that pilot's Daily Duty for the dates it covers</b> — everything already there for those dates (from any file or typed by hand) is removed first, then the file is copied exactly. Entries after the file's last date are kept.</p>
         </div>
         <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
       </div>
@@ -164,7 +165,7 @@ export default function DutyImport() {
                       ? `${n.filename} — deleted ${n.removed ?? 0} entries`
                       : <>
                           {n.filename} — Flight {n.flightCount} · Non-Flight {n.nonFlightCount}
-                          {n.replaced ? " · replaced this file's previous data" : ""}
+                          {n.replaced ? ` · replaced ${n.removed} old Daily Duty entries (${n.from} → ${n.to})` : ""}
                         </>}
                   </span>
                 </>

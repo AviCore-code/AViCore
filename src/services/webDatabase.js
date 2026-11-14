@@ -661,6 +661,56 @@ async function retireManualDuplicates(sb, pilotCode, entries) {
   return retired;
 }
 
+// FDT Import: the pilot's file REPLACES their Daily Duty for the period it
+// covers (Capt. Weera: "ลบข้อมูล daily duty เก่าออกให้หมด แล้วของใหม่แบบเหมือน
+// เป๊ะ ลงไปเลย"). Every live entry of that pilot dated from the file's first
+// to its last day - whichever file it came from, or typed by hand - is
+// soft-deleted, then the file is written. Entries AFTER the file's last day
+// (duty typed since the FDT was exported) are kept. Soft delete, so nothing is
+// lost for good.
+export async function replacePilotDutyFromFile(code, entries) {
+  const sb = requireSupabase();
+  const pilotCode = normalize(code);
+  const dates = (entries || []).map((e) => e.date).filter(Boolean).sort();
+  if (!pilotCode || !dates.length) return { ok: true, count: 0, removed: 0 };
+  const from = dates[0];
+  const to = dates.at(-1);
+
+  // Looped: an UPDATE ... RETURNING is capped like a SELECT, so one call can
+  // leave rows behind on a long history (see removeDutyEntriesBySourceFile).
+  let removed = 0;
+  for (let pass = 0; pass < 100; pass++) {
+    const now = new Date().toISOString();
+    const { data, error } = await sb.from("Admin_pilot_duty_entries")
+      .update({ deleted_at: now, modified_at: now })
+      .eq("pilot_code", pilotCode)
+      .is("deleted_at", null)
+      .gte("date", from)
+      .lte("date", to)
+      .select("uuid");
+    if (error) throw new Error("replace duty entries (clear " + from + " to " + to + "): " + error.message);
+    const n = (data || []).length;
+    removed += n;
+    if (!n) break;
+  }
+
+  // An UPDATE that row-level security filters out returns no error and no
+  // rows - check nothing is left before writing, or old and new would both count.
+  const { count, error: countError } = await sb.from("Admin_pilot_duty_entries")
+    .select("uuid", { count: "exact", head: true })
+    .eq("pilot_code", pilotCode)
+    .is("deleted_at", null)
+    .gte("date", from)
+    .lte("date", to);
+  if (countError) throw new Error("replace duty entries: " + countError.message);
+  if (count) {
+    throw new Error(`${count} old Daily Duty entr${count === 1 ? "y" : "ies"} for ${pilotCode} (${from} to ${to}) could not be removed - the database refused the delete. Nothing new was written.`);
+  }
+
+  const res = await addDutyEntriesMany(code, entries);
+  return { ok: true, count: res?.count ?? 0, removed, from, to };
+}
+
 export async function addDutyEntriesMany(code, entries) {
   const sb = requireSupabase();
   const companyId = await currentCompanyId();
