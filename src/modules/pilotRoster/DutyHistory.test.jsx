@@ -115,3 +115,28 @@ describe("row order for planning", () => {
     expect(headers[0]).toMatch(/^Position not set \(2\)/);
   });
 });
+
+import { nextWeekScore } from "./DutyHistory.jsx";
+
+describe("row order by the Next-7-days colours", () => {
+  const item = (code, score, ft = 10) => ({ pilot: { code, position: "Captain" }, score, h: { ahead: [{ left: ft, dtLeft: 20 }] } });
+
+  it("most green first, then green with red-text days, then red cells", () => {
+    const out = sortForPlanning([
+      item("REDCELLS", { green: 2, off: 0, red: 5 }),
+      item("ALLGREEN", { green: 7, off: 0, red: 0 }),
+      item("SOMEOFF", { green: 4, off: 3, red: 0 }),
+      item("MOSTGREEN", { green: 6, off: 1, red: 0 }),
+    ]).map((x) => x.pilot.code);
+    expect(out).toEqual(["ALLGREEN", "MOSTGREEN", "SOMEOFF", "REDCELLS"]);
+  });
+
+  it("counts a roster OFF day as red text, not green, even when the hours are fine", () => {
+    const h = { ahead: [
+      { iso: "2026-11-15", status: "ok" }, { iso: "2026-11-16", status: "ok" },
+      { iso: "2026-11-17", status: "exc" }, { iso: "2026-11-18", status: "warn" },
+    ] };
+    const roster = new Map([["2026-11-16", "X"]]);
+    expect(nextWeekScore(h, roster, new Set())).toEqual({ green: 1, off: 1, red: 1 });
+  });
+});

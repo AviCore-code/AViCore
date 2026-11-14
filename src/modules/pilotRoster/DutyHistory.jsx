@@ -46,10 +46,32 @@ export function pilotGroup(pilot) {
   return RANK_GROUP[position] ?? 2;
 }
 
+// How the Next-7-days cells of one pilot look, counted:
+//   green - within every limit AND not a roster RR/OFF day (can be flown)
+//   off   - roster RR/OFF day (red text: not available)
+//   red   - a limit already reached (red cell)
+export function nextWeekScore(h, rosterDays, preOffRr) {
+  const score = { green: 0, off: 0, red: 0 };
+  for (const a of h?.ahead || []) {
+    const off = rosterOffLabel(rosterDays?.get(a.iso), a.iso, preOffRr);
+    if (off) score.off++;
+    else if (a.status === "ok") score.green++;
+    if (a.status === "exc") score.red++;
+  }
+  return score;
+}
+
+// Inside each group (Capt. Weera): the pilot with the most GREEN days in the
+// next 7 comes first; then those with some green and red-text roster days;
+// red cells last. Ties: fewer red cells, then most FT left tomorrow, then most
+// DT left.
 export function sortForPlanning(list) {
   const left = (v) => (v == null ? -1 : v);
+  const sc = (x) => x.score || { green: 0, off: 0, red: 0 };
   return [...(list || [])].sort((a, b) =>
     pilotGroup(a.pilot) - pilotGroup(b.pilot)
+    || sc(b).green - sc(a).green
+    || sc(a).red - sc(b).red
     || left(b.h.ahead[0]?.left) - left(a.h.ahead[0]?.left)
     || left(b.h.ahead[0]?.dtLeft) - left(a.h.ahead[0]?.dtLeft)
     || String(a.pilot.code || "").localeCompare(String(b.pilot.code || "")));
@@ -187,13 +209,19 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
 
   const histories = useMemo(() => {
     if (!limits) return [];
-    return rows.map((r) => ({
-      pilot: r.pilot,
-      h: pilotHistory(r.entries, limits, { todayIso, asOf: loadedAt || new Date(), aheadDays: AHEAD_DAYS }),
-      remark: rosterRemark(rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase()), todayIso, AHEAD_DAYS),
-      rosterDays: rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase()),
-      preOffRr: preOffRrDays(rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase()))
-    }));
+    return rows.map((r) => {
+      const days = rosterByPilot.get(String(r.pilot.code || "").trim().toUpperCase());
+      const h = pilotHistory(r.entries, limits, { todayIso, asOf: loadedAt || new Date(), aheadDays: AHEAD_DAYS });
+      const preOffRr = preOffRrDays(days);
+      return {
+        pilot: r.pilot,
+        h,
+        remark: rosterRemark(days, todayIso, AHEAD_DAYS),
+        rosterDays: days,
+        preOffRr,
+        score: nextWeekScore(h, days, preOffRr)
+      };
+    });
   }, [rows, limits, todayIso, loadedAt, rosterByPilot]);
 
   const q = search.trim().toLowerCase();
@@ -314,7 +342,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                     <td colSpan={totalCols}>
                       {GROUP_LABELS[pilotGroup(pilot)]}{" "}
                       <span className="dutyhist-grouprow-note">
-                        ({visible.filter((v) => pilotGroup(v.pilot) === pilotGroup(pilot)).length}) · most FT / DT left tomorrow first
+                        ({visible.filter((v) => pilotGroup(v.pilot) === pilotGroup(pilot)).length}) · most green days in the next 7 first
                       </span>
                     </td>
                   </tr>
