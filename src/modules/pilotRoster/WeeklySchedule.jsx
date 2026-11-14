@@ -87,6 +87,8 @@ const ROSTER_WRITEBACK_LOG_MAX = 200;
 // the review list ("ไม่เห็นมีช่องให้ติ๊กว่าจะ crosscheck ให้ หรือทำเองโดย
 // แอดมิน... อยากได้ปุ่ม/ช่องติ๊กแบบถาวร"). ON by default; switching it off
 // goes back to exactly the old behaviour (blank seats only, no suggestions).
+// OFF unless someone ticks it (Capt. Weera, Nov 2026): the roster comes in
+// exactly as imported and training is not arranged automatically for now.
 const WRITEBACK_ENABLED_SETTING_KEY = "roster_writeback_enabled";
 
 // combineAircraftRows returns rows carrying totalDecimal; the OPS-CM-01
@@ -143,7 +145,7 @@ export default function WeeklySchedule() {
   // The standing on/off tick - true means "work out suggestions when I plan",
   // false means "leave the roster alone, I'll crosscheck and book it myself"
   // with nothing computed at all. Persisted, so it holds across sessions.
-  const [writebackEnabled, setWritebackEnabled] = useState(true);
+  const [writebackEnabled, setWritebackEnabled] = useState(false);
   // Duty already recorded in Daily Duty, and the company's FTL limits - both
   // needed so the plan's rolling 7/14/28-day totals continue from reality
   // rather than starting at zero each week.
@@ -201,8 +203,8 @@ export default function WeeklySchedule() {
       .then((log) => setWritebackLog(Array.isArray(log) ? log : []))
       .catch(() => setWritebackLog([]));
     getSetting(WRITEBACK_ENABLED_SETTING_KEY)
-      .then((v) => setWritebackEnabled(v === false ? false : true)) // unset = on, by default
-      .catch(() => setWritebackEnabled(true));
+      .then((v) => setWritebackEnabled(v === true)) // unset = off, by default
+      .catch(() => setWritebackEnabled(false));
   }, []);
 
   // The standing tick, saved as soon as it's changed - not tied to Save/the

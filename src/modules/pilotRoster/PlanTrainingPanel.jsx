@@ -19,17 +19,18 @@ import { todayIso } from "../../utils/dateKeys.js";
 // dates. The rules live in rosterTrainingPlanner.js and are documented as Rule
 // 5e in docs/WEEKLY-SCHEDULE-RULES.md; this file is only the screen.
 //
-// ONE PRESS, no preview and no confirm: Capt. Weera - "ใส่เลยครับ ไม่ต้อง
-// preview" (and earlier, "เขียน ลง อัตโนมัติ และ เจ้าหน้าที่เข้าไปแก้ไขได้").
-// An earlier version of this panel asked for a Preview first; that was removed
-// on instruction.
+// LOCKED FOR NOW - preview first, write only on confirm. Capt. Weera, Nov
+// 2026: the roster is imported exactly as the company's workbook has it, and
+// training is not to be arranged automatically yet ("import roster ก็ copy มา
+// ตามนั้นเลย ยังไม่ต้องไปจัด training แบบ auto"). So the button only works out
+// the plan and shows it; nothing reaches the roster until "Write N days to
+// roster" is pressed. (It used to write in one press - "ใส่เลยครับ ไม่ต้อง
+// preview" - and can go back to that by calling handleConfirmWrite straight
+// after the plan.)
 //
-// What makes that safe to do in one press is the planner's own restraint
-// rather than a dialog: it only ever writes on a plain duty day, so nothing it
-// does can overwrite a Recovery Rest, a rest day, a day off, leave, or
-// training somebody already entered. The worst case is training on a working
-// day the chief pilot would rather have used differently - and every cell
-// stays editable by hand, exactly as before.
+// The planner itself is unchanged and still only ever targets a plain duty
+// day, so even a confirmed write cannot overwrite a Recovery Rest, a rest day,
+// a day off, leave, or training somebody already entered.
 //
 // The result list stays on screen afterwards, because the "could not fit" half
 // of it is the part that needs a human.
@@ -57,14 +58,16 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
   const [horizonKey, setHorizonKey] = useState("12");
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);   // { planned, skipped, written }
+  const [pending, setPending] = useState(null); // a worked-out plan not yet written
   const [msg, setMsg] = useState(null);
 
   const horizon = HORIZONS.find((h) => h.key === horizonKey) || HORIZONS[0];
 
-  // Works out the plan AND writes it, in one press.
-  async function handlePlanAndWrite() {
+  // Works out the plan and shows it. Writes nothing (see the note at the top).
+  async function handlePlanPreview() {
     setMsg(null);
     setResult(null);
+    setPending(null);
     setBusy(true);
     try {
       const today = isoToday();
@@ -152,21 +155,36 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
         return;
       }
 
-      // Straight to the write. No confirm: what keeps this safe is that the
-      // planner only ever targets plain duty days, so it cannot overwrite rest,
-      // days off, leave, or training already entered.
-      const n = plan.entries.length;
-      const courses = plan.planned.length;
-      await importRosterMany(plan.entries);
-
-      setResult({ ...plan, today, throughIso, written: n });
+      setResult({ ...plan, today, throughIso, written: 0 });
+      setPending({ ...plan, today, throughIso });
       setMsg({
         ok: true,
-        text: `Written ${n} training day(s) across ${courses} course(s) onto the roster. Edit any cell as usual.`
+        text: `Preview only - nothing has been written. ${plan.entries.length} training day(s) across ${plan.planned.length} course(s) would go onto the roster.`
+      });
+    } catch (err) {
+      setMsg({ ok: false, text: "Could not plan training: " + err.message });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // The only place this panel writes to the roster.
+  async function handleConfirmWrite() {
+    if (!pending?.entries?.length) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const n = pending.entries.length;
+      await importRosterMany(pending.entries);
+      setResult({ ...pending, written: n });
+      setPending(null);
+      setMsg({
+        ok: true,
+        text: `Written ${n} training day(s) across ${pending.planned.length} course(s) onto the roster. Edit any cell as usual.`
       });
       await onGenerated?.();
     } catch (err) {
-      setMsg({ ok: false, text: "Could not plan training: " + err.message });
+      setMsg({ ok: false, text: "Could not write the plan: " + err.message });
     } finally {
       setBusy(false);
     }
@@ -194,9 +212,10 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
       </div>
 
       <p className="roster-note" style={{ margin: "0 0 10px" }}>
-        Reads every monitored course from Training Monitor and writes it onto
-        the roster before it falls due — simulator items 1–3 months ahead,
-        other courses 1–2 months ahead. Writes <b>only on plain Duty
+        Reads every monitored course from Training Monitor and plans it onto
+        the roster before it falls due. <b>Preview first</b> — nothing is
+        written until you press <b>Write … to roster</b>. Simulator items go
+        1–3 months ahead, other courses 1–2 months ahead. Writes <b>only on plain Duty
         (<code>O</code>) days</b>; never on <code>RR</code>, <code>R</code>,{" "}
         <code>X</code>, leave, or a day that already has training. Every cell
         stays editable by hand afterwards.
@@ -207,7 +226,7 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
           Plan ahead:{" "}
           <select
             value={horizonKey}
-            onChange={(e) => { setHorizonKey(e.target.value); setResult(null); setMsg(null); }}
+            onChange={(e) => { setHorizonKey(e.target.value); setResult(null); setPending(null); setMsg(null); }}
             disabled={busy}
           >
             {HORIZONS.map((h) => (
@@ -215,9 +234,19 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
             ))}
           </select>
         </label>
-        <button className="primary" onClick={handlePlanAndWrite} disabled={busy}>
-          {busy ? "Planning and writing…" : "Plan and write to roster"}
+        <button onClick={handlePlanPreview} disabled={busy}>
+          {busy && !pending ? "Planning…" : "Preview plan"}
         </button>
+        {pending?.entries?.length > 0 && (
+          <>
+            <button className="primary" onClick={handleConfirmWrite} disabled={busy}>
+              {busy ? "Writing…" : `Write ${pending.entries.length} day(s) to roster`}
+            </button>
+            <button onClick={() => { setPending(null); setResult(null); setMsg(null); }} disabled={busy}>
+              Discard
+            </button>
+          </>
+        )}
       </div>
 
       {msg && <div className={`roster-msg ${msg.ok ? "ok" : "error"}`}>{msg.text}</div>}
@@ -231,8 +260,9 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
           {planned.length > 0 && (
             <>
               <h4 style={{ margin: "8px 0 6px" }}>
-                Written — {planned.length} course{planned.length === 1 ? "" : "s"},{" "}
-                {result.written} day{result.written === 1 ? "" : "s"}
+                {pending ? "Would write" : "Written"} — {planned.length} course{planned.length === 1 ? "" : "s"},{" "}
+                {pending ? pending.entries.length : result.written} day{(pending ? pending.entries.length : result.written) === 1 ? "" : "s"}
+                {pending && " (not written yet)"}
               </h4>
 
               {/* The grid below shows ONE month; courses are written 1-3
@@ -240,7 +270,7 @@ export default function PlanTrainingPanel({ onCancel, onGenerated, onGoToMonth }
                   written is NOT on the month currently displayed. Without
                   saying so, the roster looks unchanged and the write looks
                   like it failed. */}
-              {writtenMonths.length > 0 && (
+              {!pending && writtenMonths.length > 0 && (
                 <p className="roster-note" style={{ margin: "0 0 8px" }}>
                   <b>These are on other months.</b> The roster grid shows one
                   month at a time, and courses are written 1–3 months ahead of
