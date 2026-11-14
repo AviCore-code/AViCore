@@ -1,9 +1,21 @@
 /* Pilot Roster -> Duty & Flight History. Builds on .duty-schedule-table
    (PilotRoster.css) so it reads as a sibling of Duty Schedule - including its
-   LIGHT table body inside .roster-scroll, hence the dark cell text here. */
-.dutyhist-page{--roster-chrome:300px}
+   LIGHT table body inside .roster-scroll, hence the dark cell text here.
+
+   Three colour-coded sections, so the eye can find them at any zoom:
+     past days      - blue
+     next 7 days    - green
+     rolling totals - purple */
+.dutyhist-page{--dh-past:#1d4ed8;--dh-past-soft:#dbeafe;--dh-ahead:#047857;--dh-ahead-soft:#d1fae5;--dh-totals:#6d28d9;--dh-totals-soft:#ede9fe}
+/* Beats PilotRoster.css's .roster-page:has(.duty-schedule-table){--roster-chrome:340px}: this page has
+   less chrome above the table, so let the table use more of the screen height. */
+.roster-page.dutyhist-page:has(.duty-schedule-table){--roster-chrome:250px}
 .dutyhist-range{display:flex;align-items:center;gap:6px;font-size:12px;color:#94a3b8}
 .dutyhist-range select{padding:9px 10px;border-radius:10px;border:1px solid #334155;background:#0f172a;color:#fff;font-size:13px}
+
+.dutyhist-zoom{display:flex;align-items:center;gap:4px}
+.dutyhist-zoom button{min-width:34px;padding-left:10px;padding-right:10px}
+.dutyhist-zoom-value{min-width:42px;text-align:center;font-size:12px;font-weight:700;color:#cbd5e1;font-variant-numeric:tabular-nums}
 
 .dutyhist-legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:-6px 0 12px;font-size:11.5px;color:#94a3b8;align-items:center}
 .dutyhist-swatch{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px}
@@ -13,28 +25,51 @@
 .dutyhist-swatch.warn{background:rgba(251,191,36,.3);border:1px solid rgba(251,191,36,.7)}
 .dutyhist-swatch.exc{background:rgba(248,113,113,.3);border:1px solid rgba(248,113,113,.75)}
 
-.dutyhist-table th.dutyhist-group{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8}
-.dutyhist-table .dutyhist-sep{border-left:2px solid rgba(148,163,184,.35)}
-.dutyhist-table th .dutyhist-wd{font-weight:600;color:#64748b;font-size:9.5px}
-.dutyhist-table .pilot-col{min-width:120px;width:120px}
-.dutyhist-code{font-weight:800}
-.dutyhist-name{font-size:10px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px}
+/* Drag to move: grab hand, and no text selection while dragging. */
+.dutyhist-scroll{cursor:grab}
+.dutyhist-scroll.dragging{cursor:grabbing;user-select:none}
+.dutyhist-scroll.dragging *{cursor:grabbing!important}
 
-.dutyhist-day{min-width:44px;padding:4px 3px!important;line-height:1.25;font-variant-numeric:tabular-nums}
+/* Section headers */
+.dutyhist-table thead th.dutyhist-group{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:800;color:#fff;padding:7px 8px}
+.dutyhist-table thead th.dutyhist-group.past{background:var(--dh-past)}
+.dutyhist-table thead th.dutyhist-group.ahead{background:var(--dh-ahead)}
+.dutyhist-table thead th.dutyhist-group.totals{background:var(--dh-totals)}
+.dutyhist-table thead th.dutyhist-pilot-head{background:#1e293b;color:#fff}
+.dutyhist-table thead th.past:not(.dutyhist-group){background:var(--dh-past-soft);color:#1e3a8a}
+.dutyhist-table thead th.ahead:not(.dutyhist-group){background:var(--dh-ahead-soft);color:#065f46}
+.dutyhist-table thead th.totals:not(.dutyhist-group){background:var(--dh-totals-soft);color:#4c1d95}
+.dutyhist-table thead th.past.weekend{background:#c7dbfb}
+.dutyhist-table thead th.ahead.weekend{background:#b7f0d6}
+.dutyhist-table thead th.past.today{box-shadow:inset 0 -3px 0 var(--dh-past)}
+.dutyhist-table th .dutyhist-wd{font-weight:600;opacity:.75;font-size:9px}
+
+/* Section dividers take the colour of the section they open. */
+.dutyhist-table .dutyhist-sep{border-left:3px solid rgba(148,163,184,.35)}
+.dutyhist-table th.ahead.dutyhist-sep,.dutyhist-table td.dutyhist-ahead.dutyhist-sep{border-left-color:var(--dh-ahead)}
+.dutyhist-table th.totals.dutyhist-sep,.dutyhist-table td.dutyhist-total.dutyhist-sep{border-left-color:var(--dh-totals)}
+
+/* Compact cells: more of the table fits on screen before any zoom. */
+.dutyhist-table th,.dutyhist-table td{padding:3px 2px}
+.dutyhist-table .pilot-col{min-width:92px;width:92px;padding:4px 6px!important}
+.dutyhist-code{font-weight:800;font-size:12px}
+.dutyhist-name{font-size:9.5px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:84px}
+
+.dutyhist-day{min-width:34px;padding:3px 2px!important;line-height:1.2;font-variant-numeric:tabular-nums}
 .dutyhist-day.flight{background:rgba(14,165,233,.16)!important}
 .dutyhist-day.nonflight{background:rgba(100,116,139,.14)!important}
-.dutyhist-ft{font-weight:800;color:#0f172a;font-size:11.5px}
-.dutyhist-day.nonflight .dutyhist-ft{font-weight:700;color:#334155;font-size:10px}
-.dutyhist-dt{font-size:10px;color:#475569}
+.dutyhist-ft{font-weight:800;color:#0f172a;font-size:11px}
+.dutyhist-day.nonflight .dutyhist-ft{font-weight:700;color:#334155;font-size:9.5px}
+.dutyhist-dt{font-size:9.5px;color:#475569}
 
-.dutyhist-total{min-width:70px;font-variant-numeric:tabular-nums;line-height:1.25}
-.dutyhist-used{font-weight:800}
-.dutyhist-used small{font-weight:600;color:#64748b;margin-left:1px}
-.dutyhist-left{font-size:10px;color:#64748b}
-.dutyhist-ahead{min-width:50px;font-variant-numeric:tabular-nums;line-height:1.25;padding:4px 3px!important}
-.dutyhist-line.ft{font-weight:800;font-size:11.5px}
-.dutyhist-line.dt{font-size:10.5px;font-weight:600}
-.dutyhist-line.rr{font-size:10px;font-weight:600;opacity:.9}
+.dutyhist-total{min-width:58px;font-variant-numeric:tabular-nums;line-height:1.2;padding:3px 3px!important}
+.dutyhist-used{font-weight:800;font-size:11px}
+.dutyhist-used small{font-weight:600;color:#64748b;margin-left:1px;font-size:9px}
+.dutyhist-left{font-size:9.5px;color:#64748b}
+.dutyhist-ahead{min-width:42px;font-variant-numeric:tabular-nums;line-height:1.2;padding:3px 2px!important}
+.dutyhist-line.ft{font-weight:800;font-size:11px}
+.dutyhist-line.dt{font-size:10px;font-weight:600}
+.dutyhist-line.rr{font-size:9.5px;font-weight:600;opacity:.9}
 .dutyhist-line.warn{color:#b45309}
 .dutyhist-line.exc{color:#b91c1c;font-weight:800}
 
@@ -45,9 +80,10 @@
 
 @media print{
   .dutyhist-page .roster-scroll{max-height:none;overflow:visible;box-shadow:none;border:none}
-  .dutyhist-table{font-size:8px}
+  .dutyhist-table{font-size:8px;zoom:1!important}
   .dutyhist-day.flight{background:#dbeafe!important}
   .dutyhist-day.nonflight{background:#f1f5f9!important}
   .dutyhist-ft,.dutyhist-used{color:#0f172a}
   .dutyhist-total.ok,.dutyhist-ahead.ok{background:#dcfce7!important}
+  .dutyhist-table thead th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }

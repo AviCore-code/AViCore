@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { loadAllPilotStatusRows, decimalToHHMM } from "../../utils/statusCompute.js";
 import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS } from "./dutyHistory.js";
 import { isoAddDays } from "./weeklyPlanHeadroom.js";
@@ -21,6 +21,54 @@ function dayHeader(iso) {
 }
 
 const hhmm = (h) => (h > 0 ? decimalToHHMM(h) : "");
+
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 1.2;
+const ZOOM_STEP = 0.1;
+
+// Hold the left mouse button anywhere on the table and drag to move it in
+// every direction, like a map. Touch screens keep their own native scrolling.
+// A press that doesn't move is still a normal click (tooltips, selection).
+function useDragToScroll(ref, active) {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !active) return undefined;
+    let drag = null;
+    const down = (e) => {
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
+      if (e.target.closest("button, input, select, a, label")) return;
+      drag = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop, moved: false, id: e.pointerId };
+    };
+    const move = (e) => {
+      if (!drag) return;
+      const dx = e.clientX - drag.x;
+      const dy = e.clientY - drag.y;
+      if (!drag.moved) {
+        if (Math.abs(dx) + Math.abs(dy) < 5) return;
+        drag.moved = true;
+        el.classList.add("dragging");
+        try { el.setPointerCapture(drag.id); } catch { /* already released */ }
+      }
+      el.scrollLeft = drag.left - dx;
+      el.scrollTop = drag.top - dy;
+      e.preventDefault();
+    };
+    const up = () => {
+      if (drag?.moved) el.classList.remove("dragging");
+      drag = null;
+    };
+    el.addEventListener("pointerdown", down);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
+    return () => {
+      el.removeEventListener("pointerdown", down);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", up);
+    };
+  }, [ref, active]);
+}
 
 function aheadTitle(a) {
   const ft = a.left == null ? "—" : decimalToHHMM(a.left);
@@ -45,6 +93,13 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
   const [search, setSearch] = useState("");
   const [fullScreen, setFullScreen] = useState(false);
   const [loadedAt, setLoadedAt] = useState(null);
+  // "fit" scales the whole table to the screen width (like zooming out), so
+  // the past days, next 7 days and totals are in view together; a number is a
+  // fixed zoom set with -/+.
+  const [zoom, setZoom] = useState("fit");
+  const [fitScale, setFitScale] = useState(1);
+  const scrollRef = useRef(null);
+  const tableRef = useRef(null);
 
   async function refresh() {
     setLoading(true);
@@ -82,6 +137,35 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
   const visible = q
     ? histories.filter(({ pilot }) => `${pilot.code} ${pilot.name}`.toLowerCase().includes(q))
     : histories;
+  const hasTable = visible.length > 0;
+
+  // Fit: the table's natural (unzoomed) width against the space available.
+  useLayoutEffect(() => {
+    const box = scrollRef.current;
+    const table = tableRef.current;
+    if (!box || !table) return undefined;
+    const measure = () => {
+      const current = Number(getComputedStyle(table).zoom) || 1;
+      const natural = table.getBoundingClientRect().width / current;
+      const available = box.clientWidth - 14;
+      if (natural > 0 && available > 0) {
+        setFitScale(Math.max(ZOOM_MIN, Math.min(1, available / natural)));
+      }
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, [hasTable, range, visible.length, fullScreen]);
+
+  useDragToScroll(scrollRef, hasTable);
+
+  const scale = zoom === "fit" ? fitScale : zoom;
+  const stepZoom = (dir) => {
+    const next = Math.round((scale + dir * ZOOM_STEP) * 10) / 10;
+    setZoom(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next)));
+  };
 
   return (
     <div className={`roster-page dutyhist-page${fullScreen ? " roster-fullscreen" : ""}`}>
@@ -100,6 +184,12 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
           </label>
           <button onClick={refresh} disabled={loading}>{loading ? "Loading..." : "Refresh"}</button>
           <button onClick={() => window.print()} disabled={!visible.length}>Print</button>
+          <div className="dutyhist-zoom" role="group" aria-label="Zoom">
+            <button onClick={() => stepZoom(-1)} disabled={scale <= ZOOM_MIN} title="Zoom out" aria-label="Zoom out">−</button>
+            <span className="dutyhist-zoom-value">{Math.round(scale * 100)}%</span>
+            <button onClick={() => stepZoom(1)} disabled={scale >= ZOOM_MAX} title="Zoom in" aria-label="Zoom in">+</button>
+            <button className={zoom === "fit" ? "primary" : ""} onClick={() => setZoom("fit")} title="Fit the whole table to the screen width">Fit</button>
+          </div>
           <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
         </div>
       </div>
@@ -111,40 +201,41 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows }) {
         <span><b className="dutyhist-swatch exc" /> Over a limit / nothing left</span>
         <span><b className="dutyhist-swatch ok" /> Within all limits</span>
         <span>Next {AHEAD_DAYS} days: <b>FT left</b> / DT left / 168h cycle (hours until a 36h Recovery Rest must start; RR ✓ = resting now). Counts recorded duty only.</span>
+        <span>🖱 Drag the table to move it.</span>
       </div>
 
       {error && <div className="settings-msg error">Could not load duty records: {error}</div>}
       {!loading && !error && visible.length === 0 && <div className="mystatus-empty">No pilots found.</div>}
 
-      {visible.length > 0 && (
-        <div className="roster-scroll">
-          <table className="duty-schedule-table dutyhist-table">
+      {hasTable && (
+        <div className="roster-scroll dutyhist-scroll" ref={scrollRef}>
+          <table className="duty-schedule-table dutyhist-table" ref={tableRef} style={{ zoom: scale }}>
             <thead>
               <tr>
-                <th className="pilot-col" rowSpan={2}>Pilot</th>
-                <th colSpan={days.length} className="dutyhist-group">Past {range} days — FT / DT</th>
-                <th colSpan={AHEAD_DAYS} className="dutyhist-group dutyhist-sep">Next {AHEAD_DAYS} days — left: FT / DT / 168h cycle</th>
-                <th colSpan={FT_WINDOWS.length + DT_WINDOWS.length} className="dutyhist-group dutyhist-sep">Rolling totals (used / max · left)</th>
+                <th className="pilot-col dutyhist-pilot-head" rowSpan={2}>Pilot</th>
+                <th colSpan={days.length} className="dutyhist-group past">Past {range} days — FT / DT</th>
+                <th colSpan={AHEAD_DAYS} className="dutyhist-group ahead dutyhist-sep">Next {AHEAD_DAYS} days — left: FT / DT / 168h cycle</th>
+                <th colSpan={FT_WINDOWS.length + DT_WINDOWS.length} className="dutyhist-group totals dutyhist-sep">Rolling totals (used / max · left)</th>
               </tr>
               <tr>
-                {days.map((iso) => {
+                {days.map((iso, i) => {
                   const d = dayHeader(iso);
                   return (
-                    <th key={iso} className={`${d.weekend ? "weekend" : ""}${iso === todayIso ? " today" : ""}`}>
-                      <div>{d.dd}/{d.mm}</div><div className="dutyhist-wd">{d.wd}</div>
+                    <th key={iso} className={`past${d.weekend ? " weekend" : ""}${iso === todayIso ? " today" : ""}`} title={iso}>
+                      <div>{i === 0 || d.dd === 1 ? `${d.dd}/${d.mm}` : d.dd}</div><div className="dutyhist-wd">{d.wd}</div>
                     </th>
                   );
                 })}
                 {aheadIsos.map((iso, i) => {
                   const d = dayHeader(iso);
                   return (
-                    <th key={iso} className={`${d.weekend ? "weekend" : ""}${i === 0 ? " dutyhist-sep" : ""}`}>
-                      <div>{d.dd}/{d.mm}</div><div className="dutyhist-wd">{d.wd}</div>
+                    <th key={iso} className={`ahead${d.weekend ? " weekend" : ""}${i === 0 ? " dutyhist-sep" : ""}`} title={iso}>
+                      <div>{i === 0 || d.dd === 1 ? `${d.dd}/${d.mm}` : d.dd}</div><div className="dutyhist-wd">{d.wd}</div>
                     </th>
                   );
                 })}
                 {[...FT_WINDOWS, ...DT_WINDOWS].map((w, i) => (
-                  <th key={w.key} className={i === 0 ? "dutyhist-sep" : ""}>{w.label}</th>
+                  <th key={w.key} className={`totals${i === 0 ? " dutyhist-sep" : ""}`}>{w.label}</th>
                 ))}
               </tr>
             </thead>
