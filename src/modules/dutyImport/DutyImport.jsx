@@ -17,6 +17,15 @@ export default function DutyImport() {
   const [currentFile, setCurrentFile] = useState("");
   const [doneCount, setDoneCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  // Which part of each file to import: "all" replaces ALL of the pilot's
+  // Daily Duty with the whole file; "custom" replaces only from..to.
+  const [rangeMode, setRangeMode] = useState("all");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const range = rangeMode === "custom" ? { from, to } : null;
+  const rangeError = rangeMode === "custom"
+    ? (!from || !to ? "Pick both dates." : from > to ? "The start date is after the end date." : "")
+    : "";
 
   useEffect(() => { refreshFiles(); }, []);
 
@@ -42,6 +51,10 @@ export default function DutyImport() {
   }
 
   async function handleFiles(fileList) {
+    if (rangeError) {
+      setNotices((prev) => [{ filename: "Date range", error: rangeError, ok: false }, ...prev]);
+      return;
+    }
     const fileArr = Array.from(fileList);
     setUploading(true);
     setDoneCount(0);
@@ -73,13 +86,13 @@ export default function DutyImport() {
         const tagged = aircraftType.trim()
           ? entries.map((e) => (e.dutyType === "flight" ? { ...e, aircraftType: aircraftType.trim() } : e))
           : entries;
-        const dbResult = await replaceDutyEntriesFromFile(code, tagged);
+        const dbResult = await replaceDutyEntriesFromFile(code, tagged, range);
         const flightCount = entries.filter((e) => e.dutyType === "flight").length;
         const nonFlightCount = entries.length - flightCount;
         newNotices.push({
           filename: result.filename, code, flightCount, nonFlightCount,
           replaced: dbResult?.removed > 0, removed: dbResult?.removed ?? 0,
-          from: dbResult?.from, to: dbResult?.to, ok: true
+          from: dbResult?.from, to: dbResult?.to, limited: !!dbResult?.limited, written: dbResult?.count, ok: true
         });
       } catch (err) {
         newNotices.push({ filename: result.filename, error: err.message, ok: false });
@@ -112,9 +125,27 @@ export default function DutyImport() {
       <div className="module-header">
         <div>
           <h1>Import FDT</h1>
-          <p>Upload each pilot's _FDT.xlsx file (DT sheet + Logbook sheet) — the data is added automatically to that pilot's Daily Duty. Each file <b>replaces ALL of that pilot's Daily Duty</b> — every entry already there (any date, from any file, or typed by hand) is removed first, then the file is copied exactly. The same happens on every later import.</p>
+          <p>Upload each pilot's _FDT.xlsx file (DT sheet + Logbook sheet) — the data is added automatically to that pilot's Daily Duty. Choose below: <b>All</b> replaces ALL of that pilot's Daily Duty with the whole file (every entry already there — any date, from any file, or typed by hand — is removed first, then the file is copied exactly); <b>Only from … to …</b> replaces just that date range and leaves other dates untouched.</p>
         </div>
         <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
+      </div>
+
+      <div className="dutyimport-range">
+        <span className="dutyimport-range-title">Import</span>
+        <label>
+          <input type="radio" name="fdt-range" checked={rangeMode === "all"} onChange={() => setRangeMode("all")} disabled={uploading} />
+          All — replace all of the pilot's Daily Duty with the whole file
+        </label>
+        <label>
+          <input type="radio" name="fdt-range" checked={rangeMode === "custom"} onChange={() => setRangeMode("custom")} disabled={uploading} />
+          Only from
+        </label>
+        <input type="date" aria-label="From date" value={from} disabled={uploading}
+          onChange={(e) => { setFrom(e.target.value); setRangeMode("custom"); }} />
+        <span>to</span>
+        <input type="date" aria-label="To date" value={to} disabled={uploading}
+          onChange={(e) => { setTo(e.target.value); setRangeMode("custom"); }} />
+        {rangeError && <span className="dutyimport-range-error">{rangeError}</span>}
       </div>
 
       <label className="dutyimport-type">
@@ -165,7 +196,9 @@ export default function DutyImport() {
                       ? `${n.filename} — deleted ${n.removed ?? 0} entries`
                       : <>
                           {n.filename} — Flight {n.flightCount} · Non-Flight {n.nonFlightCount}
-                          {n.replaced ? ` · removed ${n.removed} old Daily Duty entries, file covers ${n.from} → ${n.to}` : ""}
+                          {n.limited
+                            ? ` · ${n.from} → ${n.to} only: removed ${n.removed ?? 0} old, wrote ${n.written ?? 0}`
+                            : n.replaced ? ` · removed ${n.removed} old Daily Duty entries, file covers ${n.from} → ${n.to}` : ""}
                         </>}
                   </span>
                 </>

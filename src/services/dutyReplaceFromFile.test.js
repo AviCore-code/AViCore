@@ -74,3 +74,17 @@ describe("replacePilotDutyFromFile (FDT Import)", () => {
     expect(calls.some((c) => c.kind === "insert")).toBe(false);
   });
 });
+
+describe("replacePilotDutyFromFile with a chosen date range", () => {
+  it("removes and writes only inside from..to", async () => {
+    state.updateBatches = [[{ uuid: "x" }], []];
+    const { replacePilotDutyFromFile } = await load();
+    const res = await replacePilotDutyFromFile("KPO", entries, { from: "2026-11-01", to: "2026-11-30" });
+    const clear = calls.find((c) => c.kind === "update" && c.ops.some((o) => o[0] === "gte"));
+    expect(clear.ops).toContainEqual(["gte", "date", "2026-11-01"]);
+    expect(clear.ops).toContainEqual(["lte", "date", "2026-11-30"]);
+    const insert = calls.find((c) => c.kind === "insert");
+    expect(insert.rows.map((r) => r.date).sort()).toEqual(["2026-11-10", "2026-11-13"]);   // 2024 entry left out
+    expect(res).toMatchObject({ ok: true, count: 2, removed: 1, from: "2026-11-01", to: "2026-11-30", limited: true });
+  });
+});

@@ -293,8 +293,8 @@ export async function exportLogbookPdf(suggestedName, options = {}) {
 // FDT Import: replace ALL of the pilot's Daily Duty with the file
 // (webDatabase.replacePilotDutyFromFile). The PC and local builds
 // have no such call and keep the per-file replace.
-export async function replaceDutyEntriesFromFile(code, entries) {
-  if (!window.aviCoreAPI && isWeb()) return (await webDb()).replacePilotDutyFromFile(code, entries);
+export async function replaceDutyEntriesFromFile(code, entries, range = null) {
+  if (!window.aviCoreAPI && isWeb()) return (await webDb()).replacePilotDutyFromFile(code, entries, range);
   return addDutyEntriesMany(code, entries);
 }
 

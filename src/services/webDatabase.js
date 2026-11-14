@@ -667,23 +667,31 @@ async function retireManualDuplicates(sb, pilotCode, entries) {
 // last day). Every live entry of that pilot - any date, any file, typed by
 // hand or on a phone - is soft-deleted, then the file is written. Soft
 // delete, so nothing is lost for good.
-export async function replacePilotDutyFromFile(code, entries) {
+//
+// With `range` ({ from, to }, chosen on the Import screen) only that window
+// is replaced: the pilot's entries dated inside it are removed and only the
+// file's entries inside it are written; everything outside is untouched.
+export async function replacePilotDutyFromFile(code, entries, range = null) {
   const sb = requireSupabase();
   const pilotCode = normalize(code);
-  const dates = (entries || []).map((e) => e.date).filter(Boolean).sort();
-  if (!pilotCode || !dates.length) return { ok: true, count: 0, removed: 0 };
-  const from = dates[0];
-  const to = dates.at(-1);
+  const limited = !!(range?.from && range?.to);
+  const inRange = (e) => !limited || (e.date >= range.from && e.date <= range.to);
+  const chosen = (entries || []).filter((e) => e.date && inRange(e));
+  const dates = chosen.map((e) => e.date).sort();
+  if (!pilotCode || (!limited && !dates.length)) return { ok: true, count: 0, removed: 0 };
+  const from = limited ? range.from : dates[0];
+  const to = limited ? range.to : dates.at(-1);
+  const scope = (q) => (limited ? q.gte("date", from).lte("date", to) : q);
 
   // Looped: an UPDATE ... RETURNING is capped like a SELECT, so one call can
   // leave rows behind on a long history (see removeDutyEntriesBySourceFile).
   let removed = 0;
   for (let pass = 0; pass < 100; pass++) {
     const now = new Date().toISOString();
-    const { data, error } = await sb.from("Admin_pilot_duty_entries")
+    const { data, error } = await scope(sb.from("Admin_pilot_duty_entries")
       .update({ deleted_at: now, modified_at: now })
       .eq("pilot_code", pilotCode)
-      .is("deleted_at", null)
+      .is("deleted_at", null))
       .select("uuid");
     if (error) throw new Error("replace duty entries (clear " + pilotCode + "): " + error.message);
     const n = (data || []).length;
@@ -693,17 +701,17 @@ export async function replacePilotDutyFromFile(code, entries) {
 
   // An UPDATE that row-level security filters out returns no error and no
   // rows - check nothing is left before writing, or old and new would both count.
-  const { count, error: countError } = await sb.from("Admin_pilot_duty_entries")
+  const { count, error: countError } = await scope(sb.from("Admin_pilot_duty_entries")
     .select("uuid", { count: "exact", head: true })
     .eq("pilot_code", pilotCode)
-    .is("deleted_at", null);
+    .is("deleted_at", null));
   if (countError) throw new Error("replace duty entries: " + countError.message);
   if (count) {
     throw new Error(`${count} old Daily Duty entr${count === 1 ? "y" : "ies"} for ${pilotCode} could not be removed - the database refused the delete. Nothing new was written.`);
   }
 
-  const res = await addDutyEntriesMany(code, entries);
-  return { ok: true, count: res?.count ?? 0, removed, from, to };
+  const res = chosen.length ? await addDutyEntriesMany(code, chosen) : { count: 0 };
+  return { ok: true, count: res?.count ?? 0, removed, from, to, limited };
 }
 
 export async function addDutyEntriesMany(code, entries) {
