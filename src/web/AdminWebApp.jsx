@@ -14,7 +14,7 @@ import PilotRoster from "../modules/pilotRoster/PilotRoster.jsx";
 import MyLogbook from "../modules/myLogbook/MyLogbook.jsx";
 import PilotExperienceSummary from "../modules/myExperience/PilotExperienceSummary.jsx";
 import FatigueMonitor from "../modules/fatigue/FatigueMonitor.jsx";
-import FdtStatistics from "../modules/statistics/FdtStatistics.jsx";
+import Reports from "../modules/statistics/Reports.jsx";
 import CrewLoginMonitor from "./CrewLoginMonitor.jsx";
 import AutoImport from "../modules/autoImport/AutoImport.jsx";
 import { startScheduler as startAutoImport } from "../modules/autoImport/runner.js";
@@ -76,7 +76,7 @@ const TABS = [
   // customer auditors. Sits next to Fatigue because it reports on the same
   // figures - one screen answers "is anyone at risk today", the other "what
   // did the last six months look like".
-  { key: "statistics", label: "Statistics", icon: "📈", Component: FdtStatistics },
+  { key: "statistics", label: "Statistics", icon: "📈", Component: Reports },
   { key: "training", label: "Training", icon: "🎓", Component: Training },
   // Same Logbook page the Crew app has (Capt. Weera: "tab logbook ใน admin
   // เหมือน ของ crew เลย แต่ยังเลือกชือนักบิน ได้ครับ"). No admin-specific

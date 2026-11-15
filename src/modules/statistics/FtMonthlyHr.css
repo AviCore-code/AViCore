@@ -1,0 +1,41 @@
+.hrft-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.hrft-tools label{display:flex;align-items:center;gap:6px;font-size:13px}
+.hrft-tools input[type=date]{padding:5px 8px}
+.hrft-print-area{background:#fff;color:#0f172a;border:1px solid #e2e8f0;border-radius:10px;padding:12px}
+.hrft-doc-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:0 0 8px}
+.hrft-title{font-size:17px;font-weight:800;color:#1e1b4b}
+.hrft-sub,.hrft-meta{font-size:11.5px;color:#475569}
+.hrft-wrap{overflow:auto;max-height:72vh}
+.hrft-table{border-collapse:collapse;font-size:11px;white-space:nowrap}
+.hrft-table th,.hrft-table td{border:1px solid #cbd5e1;padding:2px 4px;text-align:center}
+.hrft-table thead th{background:#1e3a8a;color:#fff;font-weight:700;position:sticky;top:0;z-index:1}
+.hrft-table thead tr:nth-child(2) th{top:21px;background:#dbeafe;color:#1e3a8a;font-weight:600}
+.hrft-table thead th.we{background:#334155}
+.hrft-table thead tr:nth-child(2) th.we{background:#e2e8f0;color:#334155}
+.hrft-date{font-size:9.5px;writing-mode:vertical-rl;transform:rotate(180deg);padding:4px 2px}
+.hrft-table .hrft-name{text-align:left;min-width:150px}
+.hrft-table td.c{text-align:center}
+.hrft-table td.zero{color:#94a3b8}
+.hrft-table td.fly{color:#0f172a;font-weight:600;background:#f0f9ff}
+.hrft-table td.we{background-color:#f8fafc}
+.hrft-table td.fly.we{background:#e0f2fe}
+.hrft-hours,.hrft-total{font-weight:800;color:#1e1b4b;background:#eef2ff}
+.hrft-table tfoot td{border-color:#cbd5e1}
+.hrft-foot-label{text-align:right!important;font-weight:700;color:#334155;background:#f8fafc}
+
+/* Reports tab bar */
+.reports-tabs{display:flex;gap:4px;margin:0 0 12px;border-bottom:2px solid #c7d2fe}
+.reports-tabs button{all:unset;box-sizing:border-box;cursor:pointer;padding:7px 14px;font-size:13px;font-weight:700;color:#475569;border:1px solid transparent;border-bottom:0;border-radius:8px 8px 0 0;margin-bottom:-2px}
+.reports-tabs button:hover{color:#1e1b4b;background:#eef2ff}
+.reports-tabs button.active{color:#1e1b4b;background:#fff;border-color:#c7d2fe;border-bottom:2px solid #fff}
+
+@media print{
+  @page{size:A4 landscape;margin:8mm}
+  .reports-tabs,.hrft-tools{display:none!important}
+  .hrft-print-area{border:0;padding:0}
+  .hrft-wrap{overflow:visible;max-height:none}
+  .hrft-table{font-size:7.5px}
+  .hrft-table th,.hrft-table td{padding:1px 2px}
+  .hrft-table thead th{position:static}
+  .hrft-table .hrft-name{min-width:0}
+}
