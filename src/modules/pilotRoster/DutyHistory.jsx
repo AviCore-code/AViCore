@@ -3,6 +3,7 @@ import { loadAllPilotStatusRows, decimalToHHMM } from "../../utils/statusCompute
 import { listRoster } from "../../services/desktopDatabase.js";
 import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS, rosterRemark, remarkLabel, preOffRrDays, simTrips, simReadiness, simDayMarks, simMarkText, REMARK_LOOKBACK_DAYS, REMARK_LOOKAHEAD_DAYS } from "./dutyHistory.js";
 import SimTrainingPanel from "./SimTrainingPanel.jsx";
+import DutyHistoryHelp from "./DutyHistoryHelp.jsx";
 import { isoAddDays } from "./weeklyPlanHeadroom.js";
 import "./PilotRoster.css";
 import "./DutyHistory.css";
@@ -167,6 +168,8 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
   const [range, setRange] = useState(personal ? 14 : 28);
   const [search, setSearch] = useState("");
   const [fullScreen, setFullScreen] = useState(false);
+  // "table" = the history itself, "help" = the manual (TH / EN).
+  const [view, setView] = useState("table");
   const [loadedAt, setLoadedAt] = useState(null);
   const [roster, setRoster] = useState([]);
   const [rosterError, setRosterError] = useState("");
@@ -311,6 +314,15 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
         </div>
       </div>
 
+      <div className="dutyhist-viewtabs no-print" role="tablist" aria-label="Duty & Flight History view">
+        <button type="button" role="tab" aria-selected={view === "table"} className={view === "table" ? "active" : ""} onClick={() => setView("table")}>📊 History</button>
+        <button type="button" role="tab" aria-selected={view === "help"} className={view === "help" ? "active" : ""} onClick={() => setView("help")}>📖 Help · คู่มือ</button>
+      </div>
+
+      {view === "help" && <DutyHistoryHelp />}
+
+      {/* Hidden, not unmounted, so the table keeps its fit-to-width measure. */}
+      <div className="dutyhist-view" hidden={view !== "table"}>
       <div className="dutyhist-legend no-print">
         <span><b className="dutyhist-swatch flight" /> Flight day: <b>FT</b> on top, DT below</span>
         <span><b className="dutyhist-swatch nonflight" /> Non-flight duty (DSB / NSB / GT …) with DT</span>
@@ -463,6 +475,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
       )}
 
       {!personal && <SimTrainingPanel items={histories.flatMap(({ pilot, sims }) => sims.map((sim) => ({ pilot, sim })))} />}
+      </div>
     </div>
   );
 }

@@ -159,3 +159,28 @@
 .dutyhist-ahead.sim-trip{background:#ddd6fe!important;box-shadow:inset 0 0 0 2px #6d28d9}
 .dutyhist-ahead.sim-trip .dutyhist-line{color:#4c1d95!important}
 .dutyhist-ahead.sim-trip .dutyhist-simtag{background:#6d28d9;color:#fff}
+
+/* View tabs: History | Help */
+.dutyhist-viewtabs{display:flex;gap:4px;margin:0 0 10px;border-bottom:2px solid #c7d2fe}
+.dutyhist-page .dutyhist-viewtabs button{all:unset;box-sizing:border-box;cursor:pointer;padding:7px 14px;font-size:13px;font-weight:700;color:#475569!important;background:transparent!important;border:1px solid transparent!important;border-bottom:0!important;border-radius:8px 8px 0 0!important;margin-bottom:-2px}
+.dutyhist-page .dutyhist-viewtabs button:hover{color:#1e1b4b!important;background:#eef2ff!important}
+.dutyhist-page .dutyhist-viewtabs button.active{color:#1e1b4b!important;background:#fff!important;border-color:#c7d2fe!important;border-bottom:2px solid #fff!important}
+.dutyhist-view[hidden]{display:none!important}
+
+/* Help: the manual */
+.dhhelp{max-width:980px;color:#0f172a}
+.dhhelp-langbar{display:inline-flex;border:1px solid #c7d2fe;border-radius:8px;overflow:hidden;margin:0 0 12px}
+.dutyhist-page .dhhelp-langbar button{all:unset;box-sizing:border-box;cursor:pointer;padding:5px 14px;font-size:12.5px;font-weight:700;color:#3730a3!important;background:#fff!important}
+.dutyhist-page .dhhelp-langbar button.active{background:#4338ca!important;color:#fff!important}
+.dhhelp-body{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px 22px;line-height:1.6;font-size:14px}
+.dhhelp-body h2{font-size:20px;margin:0 0 4px;color:#1e1b4b}
+.dhhelp-body h3{font-size:16px;margin:22px 0 6px;padding-top:12px;border-top:1px solid #e2e8f0;color:#1e1b4b}
+.dhhelp-body h4{font-size:14px;margin:16px 0 4px;color:#3730a3}
+.dhhelp-body p{margin:6px 0}
+.dhhelp-body ol,.dhhelp-body ul{margin:6px 0;padding-left:22px}
+.dhhelp-body li{margin:3px 0}
+.dhhelp-tablewrap{overflow-x:auto;margin:8px 0}
+.dhhelp-table{border-collapse:collapse;font-size:13px;min-width:60%}
+.dhhelp-table th,.dhhelp-table td{border:1px solid #e2e8f0;padding:5px 9px;text-align:left;vertical-align:top}
+.dhhelp-table th{background:#eef2ff;color:#1e1b4b;font-weight:700}
+@media (max-width:640px){.dhhelp-body{padding:12px 14px;font-size:13.5px}}

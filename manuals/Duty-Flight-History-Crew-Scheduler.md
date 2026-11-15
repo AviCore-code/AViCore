@@ -1,6 +1,6 @@
 # คู่มือ Duty & Flight History สำหรับ Crew Scheduler
 
-AviCore Admin / Crew v1.0.348 · 15 พ.ย. 2026 · Capt. Weera Juntaklud
+AviCore Admin / Crew v1.0.349 · 15 พ.ย. 2026 · Capt. Weera Juntaklud
 
 ## แท็บนี้ใช้ทำอะไร
 
