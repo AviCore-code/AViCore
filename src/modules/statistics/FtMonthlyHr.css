@@ -6,14 +6,14 @@
 .hrft-title{font-size:17px;font-weight:800;color:#1e1b4b}
 .hrft-sub,.hrft-meta{font-size:11.5px;color:#475569}
 .hrft-wrap{overflow:auto;max-height:72vh}
-.hrft-table{border-collapse:collapse;font-size:11px;white-space:nowrap}
+.hrft-table{border-collapse:collapse;font-size:10pt;white-space:nowrap}
 .hrft-table th,.hrft-table td{border:1px solid #cbd5e1;padding:2px 4px;text-align:center}
 .hrft-table thead th{background:#1e3a8a;color:#fff;font-weight:700;position:sticky;top:0;z-index:1}
-.hrft-table thead tr:nth-child(2) th{top:21px;background:#dbeafe;color:#1e3a8a;font-weight:600}
+.hrft-table thead tr:nth-child(2) th{top:24px;background:#dbeafe;color:#1e3a8a;font-weight:600}
 .hrft-table thead th.we{background:#334155}
 .hrft-table thead tr:nth-child(2) th.we{background:#e2e8f0;color:#334155}
-.hrft-date{font-size:9.5px;writing-mode:vertical-rl;transform:rotate(180deg);padding:4px 2px}
-.hrft-table .hrft-name{text-align:left;min-width:150px}
+.hrft-date{font-size:8pt;writing-mode:vertical-rl;transform:rotate(180deg);padding:4px 2px}
+.hrft-table .hrft-name{text-align:left}
 .hrft-table td.c{text-align:center}
 .hrft-table td.zero{color:#94a3b8}
 .hrft-table td.fly{color:#0f172a;font-weight:600;background:#f0f9ff}
@@ -28,14 +28,20 @@
 .reports-tabs button.active{color:#1e1b4b;background:#fff;border-color:#c7d2fe;border-bottom:2px solid #fff}
 
 @media print{
-  @page{size:A4 landscape;margin:8mm}
-  .reports-tabs,.hrft-tools{display:none!important}
-  .hrft-print-area{border:0;padding:0}
-  .hrft-wrap{overflow:visible;max-height:none}
-  .hrft-table{font-size:7.5px}
-  .hrft-table th,.hrft-table td{padding:1px 2px}
+  /* One A4 landscape sheet: everything but the report is hidden, and the
+     component sets a zoom just before printing so the whole table and the
+     signature block fit one page (see fitToPage in FtMonthlyHr.jsx). */
+  @page{size:A4 landscape;margin:6mm}
+  html:has(.hrft-page),body:has(.hrft-page){background:#fff!important}
+  /* The app shell is taken out of the flow so it cannot push a second, blank page. */
+  body:has(.hrft-page) .app-sidebar,body:has(.hrft-page) .web-header,body:has(.hrft-page) .no-print,body:has(.hrft-page) .offline-bar,body:has(.hrft-page) .update-bar{display:none!important}
+  body:has(.hrft-page) *{visibility:hidden!important}
+  body:has(.hrft-page) .hrft-print-area,body:has(.hrft-page) .hrft-print-area *{visibility:visible!important}
+  body:has(.hrft-page) .hrft-print-area{position:absolute;left:0;top:0;width:max-content;border:0;border-radius:0;padding:0;background:#fff}
+  .hrft-wrap{overflow:visible!important;max-height:none!important}
   .hrft-table thead th{position:static}
-  .hrft-table .hrft-name{min-width:0}
+  .hrft-table th,.hrft-table td{padding:1px 3px}
+  .hrft-table th,.hrft-table td,.hrft-print-area *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 
 /* Signature block under the table (FOM / CP) */
