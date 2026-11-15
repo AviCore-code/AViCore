@@ -57,3 +57,15 @@
 .hrft-sign-pos{margin-top:8px}
 .hrft-sign-date{margin-top:8px;color:#334155}
 @media print{.hrft-sign{margin-top:14px}.hrft-sign-space{height:44px}}
+
+/* DT Work for HR (roster codes per day) */
+.hrft-page .dtw-table thead th.dtw-period{background:#dcfce7!important;color:#14532d!important;font-weight:600;font-size:7.5pt;line-height:1.2}
+.hrft-page .dtw-table thead th.hrft-date{background:#1e3a8a!important;color:#fff!important}
+.hrft-page .dtw-table thead th.hrft-date.we{background:#334155!important}
+.hrft-page .dtw-table thead th.dtw-sum{background:#dcfce7!important;color:#14532d!important;font-size:8pt;line-height:1.15}
+.dtw-table td.dtw-code{min-width:22px;font-weight:600}
+.dtw-table td.dtw-off{color:#64748b;font-weight:500}
+.dtw-table td.dtw-ot{background:#fef3c7;color:#92400e;font-weight:800}
+.dtw-table td.dtw-blank{background:#f8fafc}
+.dtw-table td.dtw-num{font-weight:700;background:#f0fdf4}
+.dtw-approve{margin-top:34px;text-align:center;font-weight:700;font-size:12px;color:#0f172a;page-break-inside:avoid;break-inside:avoid}

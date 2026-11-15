@@ -1,42 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { loadAllPilotStatusRows } from "../../utils/statusCompute.js";
 import { buildFtMonthlyHr, defaultHrPeriod, minutesToHhmm, ftMonthlyHrSheetRows, HR_MAX_DAYS, isoAddDays } from "../../utils/ftMonthlyHr.js";
+import { dayLabel, isWeekend, autoFitCols, useFitToPagePrint } from "./hrPrint.js";
 import "./FtMonthlyHr.css";
 
 // Reports → FT Monthly for HR. See src/utils/ftMonthlyHr.js.
-
-const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const dayLabel = (iso) => {
-  const [y, m, d] = iso.split("-").map(Number);
-  return `${d} ${MON[m - 1]} ${String(y).slice(2)}`;
-};
-const isWeekend = (iso) => { const g = new Date(`${iso}T00:00:00`).getDay(); return g === 0 || g === 6; };
-
-// A4 landscape less the 6 mm print margins (FtMonthlyHr.css @page), in CSS px.
-const PAGE_W = Math.floor(((297 - 12) / 25.4) * 96);
-const PAGE_H = Math.floor(((210 - 12) / 25.4) * 96) - 8;
-
-// Capt. Weera: "print A4 แนวนอน แผ่นเดียว". At 10 pt a 31-day table is wider
-// than the sheet, so just before printing the report is zoomed to fit one
-// page (never enlarged), and set back afterwards.
-function fitToPage(area) {
-  if (!area) return;
-  area.style.zoom = "";
-  const table = area.querySelector("table");
-  const width = Math.max(area.scrollWidth, table?.scrollWidth || 0);
-  const parts = [...area.children].reduce((h, el) => h + (el.classList.contains("hrft-wrap") ? (table?.offsetHeight || 0) : el.offsetHeight), 0);
-  const zoom = Math.min(1, PAGE_W / Math.max(1, width), PAGE_H / Math.max(1, parts + 40));
-  area.style.zoom = String(Math.floor(zoom * 1000) / 1000);
-}
-
-// Excel: each column as wide as its longest value ("fit to cell").
-function autoFitCols(aoa, upToRow) {
-  const widths = [];
-  aoa.slice(0, upToRow).forEach((row) => row.forEach((v, c) => {
-    widths[c] = Math.max(widths[c] || 2, String(v ?? "").length + 1);
-  }));
-  return widths.map((wch) => ({ wch }));
-}
 
 export default function FtMonthlyHr({ loadRows = loadAllPilotStatusRows }) {
   const [period, setPeriod] = useState(() => defaultHrPeriod());
@@ -45,13 +13,7 @@ export default function FtMonthlyHr({ loadRows = loadAllPilotStatusRows }) {
   const [error, setError] = useState("");
   const printRef = useRef(null);
 
-  useEffect(() => {
-    const before = () => fitToPage(printRef.current);
-    const after = () => { if (printRef.current) printRef.current.style.zoom = ""; };
-    window.addEventListener("beforeprint", before);
-    window.addEventListener("afterprint", after);
-    return () => { window.removeEventListener("beforeprint", before); window.removeEventListener("afterprint", after); };
-  }, []);
+  useFitToPagePrint(printRef);
 
   async function load() {
     setLoading(true);
