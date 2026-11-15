@@ -31,9 +31,10 @@ describe("Admin two-level navigation", () => {
       "settings",
       "access",
       "utility",
+      "autoImport",
     ]));
-    expect(new Set(screens).size).toBe(11);
-    expect(screens).toHaveLength(11);
+    expect(new Set(screens).size).toBe(12);
+    expect(screens).toHaveLength(12);
     expect(ADMIN_SCREEN_KEYS).toEqual(screens);
   });
 

@@ -16,6 +16,8 @@ import PilotExperienceSummary from "../modules/myExperience/PilotExperienceSumma
 import FatigueMonitor from "../modules/fatigue/FatigueMonitor.jsx";
 import FdtStatistics from "../modules/statistics/FdtStatistics.jsx";
 import CrewLoginMonitor from "./CrewLoginMonitor.jsx";
+import AutoImport from "../modules/autoImport/AutoImport.jsx";
+import { startScheduler as startAutoImport } from "../modules/autoImport/runner.js";
 import CrewAccess from "./CrewAccess.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import LoginShell from "./AdminLoginShell.jsx";
@@ -85,7 +87,8 @@ const TABS = [
   { key: "experience", label: "Pilot Experience Summary", icon: "🪪", Component: PilotExperienceSummary },
   { key: "settings", label: "Settings", icon: "⚙️", Component: Settings },
   { key: "access", label: "Crew Access", icon: "🔑", Component: CrewAccess },
-  { key: "utility", label: "Utility", icon: "🛠️", Component: CrewLoginMonitor }
+  { key: "utility", label: "Utility", icon: "🛠️", Component: CrewLoginMonitor },
+  { key: "autoImport", label: "Auto Import", icon: "📥", Component: AutoImport }
 ];
 
 // The screen names this build knows about, used to validate a remembered one.
@@ -140,6 +143,9 @@ export default function AdminWebApp() {
   useEffect(() => startClickSound(), []);
   // Queue runs app-wide, including before sign-in (see WebApp.jsx).
   useEffect(() => startOfflineQueue(), []);
+  // Auto Import runs on its own sign-in, so its timer starts whether or not
+  // the page is signed in - and keeps going after Sign Out while the tab is open.
+  useEffect(() => { startAutoImport(); }, []);
 
   // Accept a session only if the account has Admin web access - otherwise
   // sign it straight back out (a valid Supabase account that just isn't

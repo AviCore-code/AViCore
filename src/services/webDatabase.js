@@ -150,7 +150,56 @@ const normalize = (v) => String(v || "").toUpperCase().replace(/[^A-Z0-9]/g, "")
 
 function requireSupabase() {
   if (!supabase) throw new Error("Web build is not configured (missing VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY).");
-  return supabase;
+  return importerDepth > 0 && importerClient ? importerClient : supabase;
+}
+
+// ---- Auto Import's own sign-in (admin build) ------------------------------
+// Capt. Weera: Auto Import must keep importing on its timer even after the
+// admin signs out of the page, as long as the AviCore Admin tab stays open.
+// So it signs in on its own, with a second client whose session is kept in
+// localStorage under its own key: signing the page out (sessionStorage
+// client above) does not touch it, and it survives a browser restart. While
+// withImporterClient() runs, every call in this file goes through that
+// client.
+let importerClient = null;
+let importerDepth = 0;
+function getImporterClient() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+  if (!importerClient) {
+    importerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: COMPANY_SLUG ? { "x-avicore-company": COMPANY_SLUG } : {} },
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        storageKey: "avicore-autoimport-auth",
+        ...(typeof localStorage !== "undefined" ? { storage: localStorage } : {})
+      }
+    });
+  }
+  return importerClient;
+}
+export async function importerSignIn(email, password) {
+  const sb = getImporterClient();
+  if (!sb) return { ok: false, error: "Web build is not configured." };
+  const { data, error } = await sb.auth.signInWithPassword({ email: String(email || "").trim(), password: String(password || "") });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, user: data.user };
+}
+export async function importerSignOut() {
+  const sb = getImporterClient();
+  if (sb) await sb.auth.signOut();
+  return { ok: true };
+}
+export async function getImporterSession() {
+  const sb = getImporterClient();
+  if (!sb) return null;
+  const { data } = await sb.auth.getSession();
+  return data?.session || null;
+}
+export async function withImporterClient(fn) {
+  getImporterClient();
+  importerDepth++;
+  try { return await fn(); } finally { importerDepth--; }
 }
 
 async function currentCompanyId() {

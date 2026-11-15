@@ -39,6 +39,7 @@ export const ADMIN_SECTIONS = [
       { key: "settings", label: "Settings", icon: "⚙️" },
       { key: "access", label: "Crew Access", icon: "🔑" },
       { key: "utility", label: "Login Monitor", icon: "🛠️" },
+      { key: "autoImport", label: "Auto Import", icon: "📥" },
     ],
   },
 ];
