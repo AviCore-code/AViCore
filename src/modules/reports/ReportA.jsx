@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { listExperience, loadExperience, listDutyEntriesByPilot, getSetting, exportLogbookPdf } from "../../services/desktopDatabase.js";
+import { isDemoPilotCode } from "../../config/demoUsers.js";
 import { combineExperience, combineAircraftRows, parseHbdDate, formatAgeYM, decimalToHHMM } from "../../utils/experienceCombine.js";
 import { normalizeAircraftRow } from "../../utils/timeMath.js";
 import { DEFAULT_FTL_LIMITS, withFtlDefaults } from "../../utils/ftlLimits.js";
@@ -57,7 +58,9 @@ export default function ReportA() {
 
   async function refresh() {
     setLoading(true);
-    const list = await listExperience();
+    // DEMO is a view-only login, not a crew member - never a row here (Capt.
+    // Weera, 15 Nov 2026). Same rule as All Status / Duty & Flight History.
+    const list = (await listExperience()).filter((p) => !isDemoPilotCode(p.code));
     const withRecords = await Promise.all(
       list.map(async (p) => {
         const [record, dutyEntries] = await Promise.all([
