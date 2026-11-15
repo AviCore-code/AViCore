@@ -195,9 +195,14 @@ async function computeAlerts(companyId: string) {
   // anything else off the pilot object - but record_json can carry a base64
   // photo per pilot, and pulling that for the WHOLE fleet inside this small
   // Edge Function isolate caused "WORKER_RESOURCE_LIMIT".
+  // Duty: only the last 400 days. The longest FTL window is 365 days, and the
+  // whole fleet's full history (years of imported FDT) is far more than an
+  // Edge Function's CPU budget can run through computeStats - that is what
+  // made "Send test" fail with a bare non-2xx error.
+  const cutoff = new Date(Date.now() - 400 * 86400000).toISOString().slice(0, 10);
   const [experience, duty, training] = await Promise.all([
     readAll("Admin_pilot_experience", "code, name, licence", companyId),
-    readAll("Admin_pilot_duty_entries", "pilot_code, entry_json", companyId),
+    readAll("Admin_pilot_duty_entries", "pilot_code, entry_json", companyId, (q) => q.gte("date", cutoff)),
     readAll("Admin_pilot_training", "code, name, record_json", companyId)
   ]);
   const [limits, thresholds, disabledItems] = await Promise.all([

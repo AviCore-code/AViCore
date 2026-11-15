@@ -129,12 +129,17 @@ export async function sendDailyAlertTest(to = null) {
   const sb = requireSupabase();
   const { data, error } = await sb.functions.invoke("daily-alerts", { body: to ? { forceSend: true, to } : { forceSend: true } });
   if (error) {
+    // Show what the server actually said: our own { error }, or the
+    // platform's { code, message } (e.g. WORKER_LIMIT), with the HTTP status.
     let message = error.message;
+    const status = error.context?.status;
     try {
-      const payload = await error.context?.json?.();
-      if (payload?.error) message = payload.error;
+      const text = await error.context?.text?.();
+      let payload = null;
+      try { payload = JSON.parse(text); } catch { /* not JSON */ }
+      message = payload?.error || [payload?.code, payload?.message].filter(Boolean).join(": ") || text || message;
     } catch { /* use the invoke error */ }
-    throw new Error(message);
+    throw new Error(status ? `${message} (HTTP ${status})` : message);
   }
   return data || {};
 }
