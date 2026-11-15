@@ -20,8 +20,6 @@
 .hrft-table td.we{background-color:#f8fafc}
 .hrft-table td.fly.we{background:#e0f2fe}
 .hrft-hours,.hrft-total{font-weight:800;color:#1e1b4b;background:#eef2ff}
-.hrft-table tfoot td{border-color:#cbd5e1}
-.hrft-foot-label{text-align:right!important;font-weight:700;color:#334155;background:#f8fafc}
 
 /* Reports tab bar */
 .reports-tabs{display:flex;gap:4px;margin:0 0 12px;border-bottom:2px solid #c7d2fe}
@@ -39,3 +37,13 @@
   .hrft-table thead th{position:static}
   .hrft-table .hrft-name{min-width:0}
 }
+
+/* Signature block under the table (FOM / CP) */
+.hrft-sign{display:flex;justify-content:flex-end;margin-top:22px;page-break-inside:avoid;break-inside:avoid}
+.hrft-sign-box{width:300px;text-align:center;font-size:13px;color:#0f172a}
+.hrft-sign-space{height:56px}
+.hrft-sign-line{border-top:1px solid #0f172a;padding-top:4px;font-weight:600}
+.hrft-sign-name{margin-top:10px}
+.hrft-sign-pos{margin-top:8px}
+.hrft-sign-date{margin-top:8px;color:#334155}
+@media print{.hrft-sign{margin-top:14px}.hrft-sign-space{height:44px}}

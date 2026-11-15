@@ -1,12 +1,13 @@
 // FT Monthly for HR (Reports): each pilot's flight time per day over a
 // chosen period, with the period total - the web version of the
 // "FT Monthly For HR" sheet in UOA PilotFlightTime_Monitor 2026.xlsm, which
-// HR uses for the monthly flight-pay run.
+// HR uses for the monthly flight-pay run. Capt. Weera: no fleet total or
+// averages under the table - a signature block for the FOM / CP instead.
 //
 // The sheet: start date in B1, one column per day (start .. start+30), each
 // cell = that day's flight time from the pilot's FDT file (DT sheet), Total
-// Hrs = the sum, then under the table the fleet average per pilot and
-// "average x 2 - 10:00". Here the admin picks both the start AND the end.
+// Hrs = the sum (the sheet also has two average figures under the table,
+// left out here). Here the admin picks both the start AND the end.
 //
 // Flight time is summed in whole MINUTES, entry by entry, the way the FDT
 // file adds HH:MM values - summing decimal hours and rounding at the end can
@@ -60,16 +61,7 @@ export function buildFtMonthlyHr(rows, from, to) {
       total: perDay.reduce((a, b) => a + b, 0)
     };
   });
-  const fleetTotal = pilots.reduce((a, p) => a + p.total, 0);
-  const average = pilots.length ? Math.round(fleetTotal / pilots.length) : 0;
-  return {
-    days,
-    pilots,
-    fleetTotal,
-    average,
-    // The sheet's second figure under the table: average x 2 - 10:00.
-    averageX2Less10: Math.max(0, average * 2 - 600)
-  };
+  return { days, pilots };
 }
 
 // Rows for an Excel sheet laid out like the original (times as H:MM text).
@@ -77,12 +69,15 @@ export function ftMonthlyHrSheetRows(report, { dayLabel }) {
   const head1 = ["No.", "NAME", "CODE", "Hours", ...report.days.map((_, i) => i + 1), "Total Hrs."];
   const head2 = ["", "", "", "", ...report.days.map(dayLabel), ""];
   const body = report.pilots.map((p) => [p.no, p.name, p.code, minutesToHhmm(p.total), ...p.perDay.map(minutesToHhmm), minutesToHhmm(p.total)]);
-  const pad4 = report.days.length + 4;
   return [
     head1,
     head2,
     ...body,
-    [...Array(pad4).fill(""), minutesToHhmm(report.average)],
-    [...Array(pad4).fill(""), minutesToHhmm(report.averageX2Less10)]
+    [],
+    [],
+    ["", "Signature ____________________________"],
+    ["", "( ____________________________ )"],
+    ["", "Position  FOM / CP"],
+    ["", "Date ____ / ____ / ________"]
   ];
 }

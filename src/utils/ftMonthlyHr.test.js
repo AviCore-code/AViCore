@@ -26,7 +26,5 @@ describe("FT Monthly for HR", () => {
     expect(minutesToHhmm(r.pilots[0].total)).toBe("11:53");
     expect(r.pilots[1].total).toBe(0);
     expect(r.pilots.map((p) => p.no)).toEqual([1, 2]);
-    expect(minutesToHhmm(r.average)).toBe("5:57");
-    expect(minutesToHhmm(r.averageX2Less10)).toBe("1:54");
   });
 });

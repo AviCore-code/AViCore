@@ -101,21 +101,18 @@ export default function FtMonthlyHr({ loadRows = loadAllPilotStatusRows }) {
                   </tr>
                 ))}
               </tbody>
-              <tfoot>
-                <tr>
-                  <td colSpan={4 + report.days.length} className="hrft-foot-label">Fleet total</td>
-                  <td className="hrft-total">{minutesToHhmm(report.fleetTotal)}</td>
-                </tr>
-                <tr>
-                  <td colSpan={4 + report.days.length} className="hrft-foot-label">Average per pilot ({report.pilots.length})</td>
-                  <td className="hrft-total">{minutesToHhmm(report.average)}</td>
-                </tr>
-                <tr>
-                  <td colSpan={4 + report.days.length} className="hrft-foot-label">Average × 2 − 10:00</td>
-                  <td className="hrft-total">{minutesToHhmm(report.averageX2Less10)}</td>
-                </tr>
-              </tfoot>
             </table>
+          </div>
+
+          {/* Sign-off: the FOM / CP signs the printed sheet before it goes to HR. */}
+          <div className="hrft-sign">
+            <div className="hrft-sign-box">
+              <div className="hrft-sign-space" />
+              <div className="hrft-sign-line">Signature</div>
+              <div className="hrft-sign-name">( ................................................ )</div>
+              <div className="hrft-sign-pos">Position&nbsp; <b>FOM / CP</b></div>
+              <div className="hrft-sign-date">Date ......... / ......... / ...............</div>
+            </div>
           </div>
         </div>
       )}
