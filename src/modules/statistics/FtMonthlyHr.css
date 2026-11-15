@@ -6,13 +6,17 @@
 .hrft-title{font-size:17px;font-weight:800;color:#1e1b4b}
 .hrft-sub,.hrft-meta{font-size:11.5px;color:#475569}
 .hrft-wrap{overflow:auto;max-height:72vh}
-.hrft-table{border-collapse:collapse;font-size:10pt;white-space:nowrap}
-.hrft-table th,.hrft-table td{border:1px solid #cbd5e1;padding:2px 4px;text-align:center}
-.hrft-table thead th{background:#1e3a8a;color:#fff;font-weight:700;position:sticky;top:0;z-index:1}
-.hrft-table thead tr:nth-child(2) th{top:24px;background:#dbeafe;color:#1e3a8a;font-weight:600}
-.hrft-table thead th.we{background:#334155}
-.hrft-table thead tr:nth-child(2) th.we{background:#e2e8f0;color:#334155}
-.hrft-date{font-size:8pt;writing-mode:vertical-rl;transform:rotate(180deg);padding:4px 2px}
+/* PilotExperienceBuilder.css sets table{width:100%;table-layout:fixed} and
+   th,td{height:28px;padding:6px} for every table in the Admin bundle, and the
+   Admin theme recolours every th - both are undone here, or the columns are
+   squeezed into each other and the header loses its colours. */
+.hrft-table{border-collapse:collapse;font-size:9pt;white-space:nowrap;table-layout:auto!important;width:auto!important;color:#0f172a}
+.hrft-table th,.hrft-table td{border:1px solid #cbd5e1!important;padding:2px 4px!important;height:auto!important;text-align:center;line-height:1.25}
+.hrft-page .hrft-table thead th{background:#1e3a8a!important;color:#fff!important;font-weight:700;position:sticky;top:0;z-index:1}
+.hrft-page .hrft-table thead tr:nth-child(2) th{top:22px;background:#dbeafe!important;color:#1e3a8a!important;font-weight:600}
+.hrft-page .hrft-table thead th.we{background:#334155!important}
+.hrft-page .hrft-table thead tr:nth-child(2) th.we{background:#e2e8f0!important;color:#334155!important}
+.hrft-date{font-size:7.5pt;writing-mode:vertical-rl;transform:rotate(180deg);padding:4px 2px}
 .hrft-table .hrft-name{text-align:left}
 .hrft-table td.c{text-align:center}
 .hrft-table td.zero{color:#94a3b8}
