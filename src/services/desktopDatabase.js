@@ -2,7 +2,7 @@ import { showDataErrorBanner } from "./dataErrorBanner.js";
 import { Capacitor } from "@capacitor/core";
 import { DEMO_PILOT_CODES } from "../config/demoUsers.js";
 import { downloadElementAsPdf, resolvePdfExportTarget } from "./downloadPdf.js";
-import { normalizeAlertEmailConfig } from "./emailAlertConfig.js";
+import { normalizeAlertEmailConfig, alertRecipients } from "./emailAlertConfig.js";
 
 const DEMO_SET = new Set((DEMO_PILOT_CODES || []).map((c) => String(c).toUpperCase()));
 
@@ -583,6 +583,7 @@ export async function getEmailConfig() {
     return {
       enabled: !!saved?.enabled,
       toAddress: String(saved?.toAddress || ""),
+      recipients: alertRecipients(saved || {}),
       serverManaged: true,
       smtpHost: "",
       smtpPort: 587,
@@ -606,6 +607,11 @@ export async function setEmailConfig(cfg) {
 export async function sendTestEmail() {
   if (window.aviCoreAPI) return window.aviCoreAPI.sendTestEmail();
   return { ok: false, error: "Not available in browser preview" };
+}
+
+export async function sendDailyAlertTest(to = null) {
+  if (isWeb()) return (await webDb()).sendDailyAlertTest(to);
+  throw new Error("Send test is only available in the web admin.");
 }
 
 export async function sendLineTestMessage() {

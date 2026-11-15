@@ -337,3 +337,11 @@ input.fatcrit-n:hover,input.fatcrit-t:hover{border-color:#94a3b8}
 .admin-users-active {
   margin: 10px 0;
 }
+
+/* Daily alert email recipients: email + time + test + remove per row */
+.alert-recipients{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.alert-recipient-row{display:grid;grid-template-columns:minmax(180px,1fr) 92px auto auto;gap:6px;align-items:center}
+.alert-recipient-row input,.alert-recipient-row select{min-width:0}
+.alert-recipient-remove{padding-inline:10px}
+.alert-recipient-add{align-self:flex-start}
+@media (max-width:560px){.alert-recipient-row{grid-template-columns:1fr 84px}.alert-recipient-row button{grid-column:auto}}

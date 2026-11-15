@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { getSyncConfig, setSyncConfig, clearSyncConfig, syncNow, getSyncStatus, getSetting, saveSetting, getHardwareId, copyHardwareId, getLicenseStatus, getEmailConfig, setEmailConfig, sendTestEmail, hasAdminPin, setAdminPin, getAppVersion, checkForUpdates, downloadUpdate, installUpdate, onUpdateEvent, listDevices, isWeb } from "../../services/desktopDatabase.js";
+import { getSyncConfig, setSyncConfig, clearSyncConfig, syncNow, getSyncStatus, getSetting, saveSetting, getHardwareId, copyHardwareId, getLicenseStatus, getEmailConfig, setEmailConfig, sendTestEmail, sendDailyAlertTest, hasAdminPin, setAdminPin, getAppVersion, checkForUpdates, downloadUpdate, installUpdate, onUpdateEvent, listDevices, isWeb } from "../../services/desktopDatabase.js";
+import { alertRecipients, ALERT_TIME_OPTIONS, DEFAULT_ALERT_TIME, MAX_ALERT_RECIPIENTS } from "../../services/emailAlertConfig.js";
 import { isClickSoundOn, setClickSoundOn, playClick, CLICK_TONES, getClickTone, setClickTone } from "../../utils/uiSound.js";
 import { BACKGROUND_PRESETS } from "../../components/backgroundThemes/presets.jsx";
 import ThemeScene from "../../components/backgroundThemes/ThemeScene.jsx";
@@ -245,6 +246,35 @@ export default function AdminSettingsTab() {
       setEmailMsg({ ok: false, text: "Save failed: " + err.message });
     } finally {
       setSavingEmail(false);
+    }
+  }
+
+  // Web: one row per recipient, each with its own time (see emailAlertConfig.js).
+  const webRecipients = Array.isArray(emailCfg.recipients) ? emailCfg.recipients : alertRecipients(emailCfg);
+  const setRecipient = (i, patch) =>
+    setEmailCfg({ ...emailCfg, recipients: webRecipients.map((r, n) => (n === i ? { ...r, ...patch } : r)) });
+  const addRecipient = () =>
+    setEmailCfg({ ...emailCfg, recipients: [...webRecipients, { email: "", time: DEFAULT_ALERT_TIME }] });
+  const removeRecipient = (i) =>
+    setEmailCfg({ ...emailCfg, recipients: webRecipients.filter((_, n) => n !== i) });
+
+  async function handleSendDailyAlertTest(to = null) {
+    setTestingEmail(true);
+    setEmailMsg(null);
+    try {
+      const r = await sendDailyAlertTest(to);
+      if (r.skipped === "disabled") setEmailMsg({ ok: false, text: "Not sent: alerts are switched off. Tick Enable and press Save Email Settings first." });
+      else if (r.skipped === "no-recipients") setEmailMsg({ ok: false, text: "Not sent: no recipients saved. Add them and press Save Email Settings first." });
+      else if (r.ok === false) setEmailMsg({ ok: false, text: "Send failed: " + (r.error || "unknown error") });
+      else if (r.sent) setEmailMsg({ ok: true, text: `Test email sent with ${r.sent} active alert(s) — check the inbox (and spam).` });
+      // An older server function sends nothing when no alert is active; the
+      // current one still sends a "no active alerts" note (it reports recipients).
+      else if (r.recipients) setEmailMsg({ ok: true, text: "Test email sent (no active alerts right now) — check the inbox (and spam)." });
+      else setEmailMsg({ ok: true, text: "Checked: no active alerts right now, so the server sent no email." });
+    } catch (err) {
+      setEmailMsg({ ok: false, text: "Send failed: " + err.message });
+    } finally {
+      setTestingEmail(false);
     }
   }
 
@@ -621,7 +651,7 @@ export default function AdminSettingsTab() {
         <div className="module-header settings-subheader">
           <div>
             <h2>Daily Training Due &amp; FTL Email Alerts</h2>
-            <p>Supabase checks Training Due and FTL warnings every day at 05:00 Bangkok time. New warnings are emailed once; resolved warnings can notify again if they later return.</p>
+            <p>Supabase checks Training Due and FTL warnings every day and emails each recipient at their own time (Bangkok). New warnings are emailed once per person; resolved warnings can notify again if they later return.</p>
           </div>
         </div>
 
@@ -630,20 +660,34 @@ export default function AdminSettingsTab() {
           <span>Enable daily Training Due and FTL email notifications</span>
         </label>
 
-        <label className="settings-field">
-          <span>Notification Recipients (comma-separated, up to 10)</span>
-          <input value={emailCfg.toAddress} onChange={(e) => setEmailCfg({ ...emailCfg, toAddress: e.target.value })} placeholder="dispatch@uoathai.com, ops@uoathai.com" />
-        </label>
-        {emailCfg.toAddress.split(",").filter((a) => a.trim()).length > 10 && (
-          <div className="settings-msg error">Too many recipients ({emailCfg.toAddress.split(",").filter((a) => a.trim()).length}) - max 10 allowed.</div>
-        )}
+        <div className="settings-field">
+          <span>Notification Recipients (up to {MAX_ALERT_RECIPIENTS}) — email and time of day</span>
+          <div className="alert-recipients">
+            {webRecipients.map((r, i) => (
+              <div className="alert-recipient-row" key={i}>
+                <input type="email" value={r.email} placeholder="name@uoathai.com" aria-label={`Recipient ${i + 1} email`}
+                  onChange={(e) => setRecipient(i, { email: e.target.value })} />
+                <select value={r.time} aria-label={`Recipient ${i + 1} time`} onChange={(e) => setRecipient(i, { time: e.target.value })}>
+                  {ALERT_TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <button type="button" onClick={() => handleSendDailyAlertTest(r.email)} disabled={testingEmail || savingEmail || !r.email.trim()} title="Send a test to this address now (saved recipients only)">Send test</button>
+                <button type="button" className="alert-recipient-remove" onClick={() => removeRecipient(i)} title="Remove" aria-label={`Remove recipient ${i + 1}`}>✕</button>
+              </div>
+            ))}
+            {webRecipients.length < MAX_ALERT_RECIPIENTS && (
+              <button type="button" className="alert-recipient-add" onClick={addRecipient}>+ Add email</button>
+            )}
+          </div>
+        </div>
 
         <div className="settings-note">
           Email delivery is server-managed. SMTP/API credentials are stored only in Supabase secrets and are never shown or saved in the browser.
+          <b> Send test</b> emails the alerts active right now (real data) with the subject <b>[TEST / ทดสอบ]</b> — or a short "no active alerts" note — to the <b>saved</b> recipients, without changing what the daily emails will send. Press Save first after adding or changing an address.
         </div>
 
         <div className="settings-actions">
-          <button className="primary" onClick={handleSaveEmail} disabled={savingEmail || emailCfg.toAddress.split(",").filter((a) => a.trim()).length > 10 || (emailCfg.enabled && !emailCfg.toAddress.trim())}>{savingEmail ? "Saving..." : "Save Email Settings"}</button>
+          <button className="primary" onClick={handleSaveEmail} disabled={savingEmail || (emailCfg.enabled && !webRecipients.some((r) => r.email.trim()))}>{savingEmail ? "Saving..." : "Save Email Settings"}</button>
+          <button onClick={() => handleSendDailyAlertTest()} disabled={testingEmail || savingEmail}>{testingEmail ? "Sending..." : "Send test to all"}</button>
         </div>
         {emailMsg && <div className={`settings-msg ${emailMsg.ok ? "ok" : "error"}`}>{emailMsg.text}</div>}
       </div>

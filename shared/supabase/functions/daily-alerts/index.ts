@@ -44,8 +44,8 @@
 //   ALERT_REPLY_TO     wjuntaklud@gmail.com
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are injected by the platform.
 //
-// Schedule (05:00 Asia/Bangkok = 22:00 UTC the previous day) via pg_cron - see
-// supabase/functions/daily-alerts/schedule.sql.
+// Schedule: pg_cron calls this every 15 minutes and each recipient is mailed at
+// their own Bangkok time (Admin Settings) - see daily-alerts/schedule.sql.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { computeStats, overallStatus, buildRecommendations, STATUS_LABEL } from "../../../src/utils/statusCompute.js";
@@ -54,7 +54,6 @@ import { withFtlDefaults } from "../../../src/utils/ftlLimits.js";
 import {
   withTrainingThresholdDefaults,
   withTrainingDisabledDefaults,
-  withCustomTrainingItems,
   buildTrainingRecommendations
 } from "../../../src/utils/trainingDue.js";
 
@@ -154,60 +153,64 @@ async function sendEmail(to: string[], subject: string, text: string) {
   return await res.json();
 }
 
-async function run(opts: { forceSend?: boolean } = {}) {
-  // Every read/write below is scoped to this one company - resolved once,
-  // up front, from COMPANY_SLUG. See the comment on COMPANY_SLUG above for
-  // why: this function runs as service_role, which is not auto-scoped by RLS
-  // the way the logged-in app is.
-  const companyId = await currentCompanyId();
+// Capt. Weera: several recipients, each with their OWN time of day. The
+// config row (alert_email_config, Admin Settings) holds
+//   recipients: [{ email, time: "HH:MM" }]   (Bangkok time)
+// and pg_cron calls this every 15 minutes (schedule.sql). A run only reads
+// the fleet when some recipient is due - their time has passed today and
+// they have not had today's check yet - so the quarter-hourly ticks are cheap.
+// Each recipient has their own "already told" list, so one person's 05:00
+// email never stops another person's 07:00 email from carrying the same new
+// warning.
+type Recipient = { email: string; time: string };
 
-  // --- who to tell -------------------------------------------------------
-  const cfg = (await getSetting("alert_email_config", companyId)) || {};
-  if (!cfg.enabled) {
-    log("Alerts are switched off in Settings - nothing to do.");
-    return { ok: true, skipped: "disabled" };
+export function recipientsOf(cfg: any): Recipient[] {
+  const list: any[] = Array.isArray(cfg?.recipients) && cfg.recipients.length
+    ? cfg.recipients
+    : String(cfg?.toAddress || "").split(",").map((e: string) => ({ email: e, time: "05:00" }));
+  const seen = new Set<string>();
+  const out: Recipient[] = [];
+  for (const r of list) {
+    const email = String(r?.email || "").trim();
+    const time = /^\d{2}:\d{2}$/.test(String(r?.time || "")) ? String(r.time) : "05:00";
+    if (!email || seen.has(email.toLowerCase())) continue;
+    seen.add(email.toLowerCase());
+    out.push({ email, time });
   }
-  const recipients = String(cfg.toAddress || "")
-    .split(",").map((s: string) => s.trim()).filter(Boolean).slice(0, 10);
-  if (!recipients.length) {
-    log("No recipients configured - nothing to do.");
-    return { ok: true, skipped: "no-recipients" };
-  }
+  return out.slice(0, 10);
+}
 
-  // --- read the fleet ----------------------------------------------------
+function bangkokNow(d = new Date()) {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).formatToParts(d).map((p) => [p.type, p.value]));
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, time: `${parts.hour}:${parts.minute}` };
+}
+
+const STATE_KEY = "email_alert_recipient_state";
+
+async function computeAlerts(companyId: string) {
   // pilot_experience: code/name/licence ONLY, not record_json. The FTL
   // pipeline (buildRecommendations et al, see statusCompute.js) never reads
   // anything else off the pilot object - but record_json can carry a base64
-  // photo per pilot (webDatabase.js's own comment on this table says so), and
-  // pulling that for the WHOLE fleet in one request inside this function's
-  // small Edge Function isolate is what caused
-  // "WORKER_RESOURCE_LIMIT: not having enough compute resources". The app
-  // avoids this the same way (see rawListExperience()'s comment: "ONLY REAL
-  // COLUMNS HERE").
-  // pilot_training's record_json is small (just due-dates per course, no
-  // photos) and IS needed in full, so that one is left as-is.
+  // photo per pilot, and pulling that for the WHOLE fleet inside this small
+  // Edge Function isolate caused "WORKER_RESOURCE_LIMIT".
   const [experience, duty, training] = await Promise.all([
     readAll("Admin_pilot_experience", "code, name, licence", companyId),
     readAll("Admin_pilot_duty_entries", "pilot_code, entry_json", companyId),
     readAll("Admin_pilot_training", "code, name, record_json", companyId)
   ]);
-
-  const [limits, thresholds, disabledItems, customItems] = await Promise.all([
+  const [limits, thresholds, disabledItems] = await Promise.all([
     getSetting("ftl_limits", companyId).then(withFtlDefaults),
     getSetting("training_thresholds", companyId).then(withTrainingThresholdDefaults),
-    getSetting("training_disabled_items", companyId).then(withTrainingDisabledDefaults),
-    getSetting("training_custom_items", companyId).then(withCustomTrainingItems)
+    getSetting("training_disabled_items", companyId).then(withTrainingDisabledDefaults)
   ]);
-
-  // Duty entries grouped per pilot, matching what computeStats expects.
   const byPilot = new Map<string, any[]>();
   for (const row of duty) {
     const code = String(row.pilot_code || "").toUpperCase();
     if (!byPilot.has(code)) byPilot.set(code, []);
     byPilot.get(code)!.push(row.entry_json);
   }
-
-  // --- FTL ---------------------------------------------------------------
   const ftlRecs: any[] = [];
   for (const p of experience) {
     const pilot = { code: p.code, name: p.name, licence: p.licence };
@@ -217,101 +220,124 @@ async function run(opts: { forceSend?: boolean } = {}) {
     const status = overallStatus(stats, limits, recoveryRest.status);
     ftlRecs.push(...buildRecommendations({ pilot, entries, stats, recoveryRest, status }, limits));
   }
-
-  // --- Training ----------------------------------------------------------
   const trainingRecs: any[] = [];
   for (const t of training) {
     trainingRecs.push(...buildTrainingRecommendations(
       { code: t.code, name: t.name, record: t.record_json },
-      thresholds, disabledItems, new Date(), customItems
+      thresholds, disabledItems, new Date()
     ));
   }
-
   const rank: Record<string, number> = { exc: 0, warn: 1 };
   const all = [...ftlRecs, ...trainingRecs].filter((r) => r.status === "warn").sort((a, b) => rank[a.status] - rank[b.status]);
   log(`Checked ${experience.length} pilot(s) + ${training.length} training record(s) - ${all.length} active warning(s).`);
-
-  // Written on every run regardless of whether mail goes out, so the
-  // Dashboard's "Alert System Status" can tell "the checker is alive" apart
-  // from "nothing new to report".
+  // Written whenever the fleet is checked, so the Dashboard's "Alert System
+  // Status" can tell "the checker is alive" apart from "nothing to report".
   await saveSetting("last_check_at", new Date().toISOString(), companyId);
+  return all;
+}
 
-  // --- only what is NEW --------------------------------------------------
-  const notifiedRaw = await getSetting("email_notified_warnings", companyId);
-  const notified = new Set(Array.isArray(notifiedRaw) ? notifiedRaw : []);
-  const currentKeys = all.map((r) => r.key);
-  const fresh = all.filter((r) => !notified.has(r.key));
+const lines = (recs: any[]) => recs.map((r) => `[${STATUS_LABEL[r.status] || r.status}] ${r.text}`);
 
-  // forceSend (Admin Settings "Send Test Now" button only, never the 05:00
-  // pg_cron run - see schedule.sql, which posts no body) - Capt. Weera wants
-  // the test button to prove mail delivery works every time it's pressed,
-  // not report "nothing new" once everything currently active has already
-  // been emailed once. Sends everything active, dedup or not.
-  //
-  // email_notified_warnings is NOT touched on a forced send, in either
-  // branch below - a warning this run mailed out only because forceSend
-  // skipped the dedup filter must still count as "not yet notified" for
-  // tomorrow's real 05:00 run, or a pilot's still-active warning would go
-  // completely unreported by the actual daily check the first time it
-  // legitimately becomes new.
+async function run(opts: { forceSend?: boolean; to?: string } = {}) {
+  // Every read/write below is scoped to this one company (COMPANY_SLUG):
+  // this function runs as service_role, which is not auto-scoped by RLS.
+  const companyId = await currentCompanyId();
+  const cfg = (await getSetting("alert_email_config", companyId)) || {};
+  if (!cfg.enabled) {
+    log("Alerts are switched off in Settings - nothing to do.");
+    return { ok: true, skipped: "disabled" };
+  }
+  const recipients = recipientsOf(cfg);
+  if (!recipients.length) {
+    log("No recipients configured - nothing to do.");
+    return { ok: true, skipped: "no-recipients" };
+  }
+
+  // --- "Send test" (Admin Settings) ---------------------------------------
+  // Capt. Weera: a test carries the REAL alerts active right now, with a
+  // subject that says it is a test. With nothing active it still sends a
+  // short note, so a quiet fleet and a broken mail key never look the same.
+  // The per-recipient "already told" lists are NOT touched: a warning mailed
+  // only by a test must still count as new for that person's daily email.
   if (opts.forceSend) {
-    if (!all.length) {
-      log("Forced test run: nothing currently active to send.");
-      return { ok: true, checked: 0, sent: 0 };
-    }
-    const subject = `AviCore: Test run - ${all.length} active alert${all.length > 1 ? "s" : ""}`;
+    const wanted = opts.to ? recipients.filter((r) => r.email.toLowerCase() === String(opts.to).trim().toLowerCase()) : recipients;
+    if (!wanted.length) return { ok: false, error: "That address is not in the saved recipients - press Save Email Settings first." };
+    const all = await computeAlerts(companyId);
+    const subject = all.length
+      ? `[TEST / ทดสอบ] AviCore: ${all.length} active alert${all.length > 1 ? "s" : ""}`
+      : "[TEST / ทดสอบ] AviCore: no active alerts";
     const text = [
-      `Test run from Admin Settings - ${all.length} item(s) currently active`,
-      "(sent regardless of whether they were emailed before).",
+      "*** TEST EMAIL / อีเมลทดสอบ - sent from Admin Settings \"Send test\" ***",
       "",
-      ...all.map((r) => `[${STATUS_LABEL[r.status] || r.status}] ${r.text}`),
+      all.length
+        ? `${all.length} alert(s) active right now (real data, sent whether or not they were emailed before):`
+        : "No Training Due or FTL warnings are active right now. Email delivery works.",
       "",
+      ...lines(all),
+      ...(all.length ? [""] : []),
       "---",
-      "AviCore Enterprise - test run, not the automatic daily check."
+      "AviCore Enterprise - test, not the automatic daily check."
     ].join("\n");
     try {
-      await sendEmail(recipients, subject, text);
-      log(`Forced test send: emailed ${all.length} active warning(s) to ${recipients.length} recipient(s).`);
+      await sendEmail(wanted.map((r) => r.email), subject, text);
     } catch (err) {
-      log("Forced test send failed:", (err as Error).message);
+      log("Test send failed:", (err as Error).message);
       return { ok: false, error: (err as Error).message };
     }
-    return { ok: true, checked: all.length, sent: all.length };
+    log(`Test send: ${all.length} active warning(s) to ${wanted.length} recipient(s).`);
+    return { ok: true, checked: all.length, sent: all.length, recipients: wanted.length };
   }
 
-  if (!fresh.length) {
-    log("Nothing new since the last check.");
-    // Still prune keys that have cleared, so a warning that returns later is
-    // reported again rather than being suppressed for ever.
-    const changed = currentKeys.length !== notified.size || currentKeys.some((k) => !notified.has(k));
-    if (changed) await saveSetting("email_notified_warnings", currentKeys, companyId);
-    return { ok: true, checked: all.length, sent: 0 };
+  // --- the timed check -----------------------------------------------------
+  const now = bangkokNow();
+  const stateRaw = (await getSetting(STATE_KEY, companyId)) || {};
+  const state: Record<string, { lastRunDate?: string; notified?: string[] }> = typeof stateRaw === "object" && stateRaw ? stateRaw : {};
+  const due = recipients.filter((r) => r.time <= now.time && state[r.email.toLowerCase()]?.lastRunDate !== now.date);
+  if (!due.length) return { ok: true, skipped: "not-due", time: now.time };
+
+  const all = await computeAlerts(companyId);
+  const currentKeys = all.map((r) => r.key);
+  // A recipient with no list yet (first run after this change) starts from
+  // the old shared list, so they are not sent every warning already reported.
+  const legacyRaw = await getSetting("email_notified_warnings", companyId);
+  const legacy: string[] = Array.isArray(legacyRaw) ? legacyRaw : [];
+
+  let sent = 0;
+  const errors: string[] = [];
+  for (const r of due) {
+    const id = r.email.toLowerCase();
+    const notified = new Set(state[id]?.notified ?? legacy);
+    const fresh = all.filter((x) => !notified.has(x.key));
+    if (fresh.length) {
+      const subject = `AviCore: ${fresh.length} new alert${fresh.length > 1 ? "s" : ""}`;
+      const text = [
+        `${fresh.length} new item${fresh.length > 1 ? "s" : ""} since your last check.`,
+        "",
+        ...lines(fresh),
+        "",
+        "---",
+        `${all.length} item(s) are currently active in total.`,
+        `AviCore Enterprise - automatic daily check (${r.time} Bangkok).`
+      ].join("\n");
+      try {
+        await sendEmail([r.email], subject, text);
+        sent++;
+        log(`Emailed ${fresh.length} new warning(s) to ${r.email}.`);
+      } catch (err) {
+        // Left un-marked: an email that failed to send is retried on the
+        // next tick, not silently counted as delivered.
+        errors.push(`${r.email}: ${(err as Error).message}`);
+        log("Send failed, will retry:", r.email, (err as Error).message);
+        continue;
+      }
+    }
+    // Keys that cleared are dropped, so a warning that returns later is
+    // reported again rather than suppressed for ever.
+    state[id] = { lastRunDate: now.date, notified: currentKeys };
   }
-
-  const subject = `AviCore: ${fresh.length} new alert${fresh.length > 1 ? "s" : ""}`;
-  const text = [
-    `${fresh.length} new item${fresh.length > 1 ? "s" : ""} since the last check.`,
-    "",
-    ...fresh.map((r) => `[${STATUS_LABEL[r.status] || r.status}] ${r.text}`),
-    "",
-    "---",
-    `${all.length} item(s) are currently active in total.`,
-    "AviCore Enterprise - automatic daily check."
-  ].join("\n");
-
-  try {
-    await sendEmail(recipients, subject, text);
-    await saveSetting("last_email_sent_at", new Date().toISOString(), companyId);
-    log(`Emailed ${fresh.length} new warning(s) to ${recipients.length} recipient(s).`);
-  } catch (err) {
-    // The tracked set is deliberately NOT updated - an email that failed to
-    // send must be retried tomorrow, not silently marked as delivered.
-    log("Send failed, will retry next run:", (err as Error).message);
-    return { ok: false, error: (err as Error).message };
-  }
-
-  await saveSetting("email_notified_warnings", currentKeys, companyId);
-  return { ok: true, checked: all.length, sent: fresh.length };
+  await saveSetting(STATE_KEY, state, companyId);
+  if (sent) await saveSetting("last_email_sent_at", new Date().toISOString(), companyId);
+  return errors.length ? { ok: false, error: errors.join("; "), sent } : { ok: true, checked: all.length, sent, due: due.length };
 }
 
 // CORS. pg_cron and curl (used while building this) never send an Origin
@@ -351,13 +377,30 @@ Deno.serve(async (req) => {
   // pg_cron's own POST (schedule.sql) sends no body at all, so a body-parse
   // failure there must not break the real 05:00 run - default to {} rather
   // than let req.json() reject on an empty body.
-  let body: { forceSend?: boolean } = {};
+  let body: { forceSend?: boolean; to?: string } = {};
   try {
     body = await req.json();
   } catch { /* no/invalid body - fine, forceSend stays false */ }
 
+  // A test goes out on demand, so only a signed-in AviCore admin may ask for
+  // one; the timed check (pg_cron, no body) needs no sign-in and only ever
+  // mails what is due.
+  if (body.forceSend) {
+    const jwt = req.headers.get("Authorization")?.replace(/^Bearer /, "") || "";
+    const { data: auth } = jwt ? await sb.auth.getUser(jwt) : { data: null as any };
+    const userId = auth?.user?.id;
+    const { data: member } = userId
+      ? await sb.from("company_members").select("company_id").eq("user_id", userId).eq("admin_web", true).limit(1).maybeSingle()
+      : { data: null as any };
+    if (!member) {
+      return new Response(JSON.stringify({ ok: false, error: "Sign in to AviCore Admin to send a test." }), {
+        status: 401, headers: { ...CORS_HEADERS, "Content-Type": "application/json" }
+      });
+    }
+  }
+
   try {
-    const result = await run({ forceSend: !!body.forceSend });
+    const result = await run({ forceSend: !!body.forceSend, to: body.to });
     return new Response(JSON.stringify(result), {
       status: result.ok === false ? 500 : 200,
       headers: { ...CORS_HEADERS, "Content-Type": "application/json" }

@@ -122,6 +122,23 @@ export async function deleteAdminUser(userId) {
   return callAdminUsers({ action: "delete", userId });
 }
 
+// Admin Settings "Send test": runs the daily-alerts function now with
+// forceSend, which emails every active warning (or a "no active alerts"
+// note) to the saved recipients, without touching the daily dedup list.
+export async function sendDailyAlertTest(to = null) {
+  const sb = requireSupabase();
+  const { data, error } = await sb.functions.invoke("daily-alerts", { body: to ? { forceSend: true, to } : { forceSend: true } });
+  if (error) {
+    let message = error.message;
+    try {
+      const payload = await error.context?.json?.();
+      if (payload?.error) message = payload.error;
+    } catch { /* use the invoke error */ }
+    throw new Error(message);
+  }
+  return data || {};
+}
+
 export async function sendLineTestMessage() {
   const sb = requireSupabase();
   const { data, error } = await sb.functions.invoke("line-test-message", { body: {} });
