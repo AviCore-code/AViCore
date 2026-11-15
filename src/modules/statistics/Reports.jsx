@@ -2,6 +2,7 @@ import { useState } from "react";
 import FdtStatistics from "./FdtStatistics.jsx";
 import FtMonthlyHr from "./FtMonthlyHr.jsx";
 import DtWorkHr from "./DtWorkHr.jsx";
+import PairCheck from "./PairCheck.jsx";
 import "./FtMonthlyHr.css";
 
 // Admin → Reports → Statistics & Reports: the FDT & Fatigue statistics, and
@@ -10,7 +11,8 @@ import "./FtMonthlyHr.css";
 const VIEWS = [
   { key: "stats", label: "📈 Statistics", Component: FdtStatistics },
   { key: "hr", label: "🧾 FT Monthly for HR", Component: FtMonthlyHr },
-  { key: "dt", label: "🗓️ DT Work for HR", Component: DtWorkHr }
+  { key: "dt", label: "🗓️ DT Work for HR", Component: DtWorkHr },
+  { key: "pair", label: "👥 Pair Check", Component: PairCheck }
 ];
 const KEY = "avicore_reports_view";
 

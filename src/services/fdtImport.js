@@ -22,7 +22,9 @@ let _resolvedXLSX = null;
 //   Non-Flying Record:       H=Duty, I=Start, J=Finish, K=DutyTime
 //   Flying Record:           L=Sch Dep (time-of-day), M=Stop (time-of-day),
 //                            Q=Crews, R=Sectors, S=Flights/Day, T=Flight Time
-// Sheet "Logbook": A=date, B=Flight Type, C=A/C Reg, J=Route,
+// Sheet "Logbook": A=date, B=Flight Type, C=A/C Reg,
+//   D/E, F/G, H/I = Name of Pilot (code) for Flight 1/2/3, RS / LS seat,
+//   J=Route,
 //   L/M=TRE Day/Night, N/O=TRI Day/Night, P/Q=PIC Day/Night,
 //   R/S=PICUS Day/Night, T/U=SIC Day/Night,
 //   V=IFR, W=IMC, X=Off Shore, Y=On Shore,
@@ -97,7 +99,15 @@ function readLogbookByDate(workbook) {
       { role: "SIC", dayHours: h(19), nightHours: h(20) }
     ].filter((r) => r.dayHours > 0 || r.nightHours > 0)
       .map((r) => ({ role: r.role, dayHours: decimalToBigHHMM(r.dayHours), nightHours: decimalToBigHHMM(r.nightHours) }));
+    // Who flew each flight (Capt. Weera's pairing check, Reports -> Pair
+    // Check): up to three flights per row, right seat / left seat pilot code.
+    // Kept per flight, in order; a second Logbook row for the same date adds
+    // its flights after the first row's.
+    const crew = [[3, 4], [5, 6], [7, 8]]
+      .map(([a, b]) => ({ rs: cellText(logWs, r, a).toUpperCase(), ls: cellText(logWs, r, b).toUpperCase() }))
+      .filter((f) => f.rs || f.ls);
     logByDate[key] = {
+      crew: [...(logByDate[key]?.crew || []), ...crew],
       flightType: flightType || "Revenue Flight", registration, route: cellText(logWs, r, 9),
       roles: roles.length ? roles : [{ role: "PIC", dayHours: "0:00", nightHours: "0:00" }],
       // Raw sum of this row's TRE/TRI/PIC/PICUS/SIC Day+Night hours - used as a
@@ -187,6 +197,7 @@ export function parseFdtExcelToEntries(filename, workbook) {
         // from schDep instead (fatigueMonitor.js crewForDeparture), so carrying
         // a second, hand-maintained copy could only ever drift out of step.
         sectors: cellNum(ws, r, 17) ?? "", flightsPerDay: cellNum(ws, r, 18) ?? "",
+        crew: lbData.crew || [],
         totalFlightTime: decimalToBigHHMM(totalFt || 0),
         roles: lbData.roles || [{ role: "PIC", dayHours: "0:00", nightHours: "0:00" }],
         ifrHours: lbData.ifrHours || "0:00", ifrRulesHours: lbData.ifrRulesHours || "0:00", onshoreHours: lbData.onshoreHours || "0:00", offshoreHours: lbData.offshoreHours || "0:00",

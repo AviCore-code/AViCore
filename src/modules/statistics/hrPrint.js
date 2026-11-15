@@ -17,24 +17,25 @@ const PAGE_H = Math.floor(((210 - 12) / 25.4) * 96) - 8;
 // Capt. Weera: "print A4 แนวนอน แผ่นเดียว". A 31-day table is wider than the
 // sheet, so just before printing the report is zoomed to fit one page (never
 // enlarged), and set back afterwards.
-export function fitToPage(area) {
+export function fitToPage(area, { fitHeight = true } = {}) {
   if (!area) return;
   area.style.zoom = "";
   const table = area.querySelector("table");
   const width = Math.max(area.scrollWidth, table?.scrollWidth || 0);
   const height = [...area.children].reduce((h, el) => h + (el.classList.contains("hrft-wrap") ? (table?.offsetHeight || 0) : el.offsetHeight), 0);
-  const zoom = Math.min(1, PAGE_W / Math.max(1, width), PAGE_H / Math.max(1, height + 40));
+  const zoom = Math.min(1, PAGE_W / Math.max(1, width), fitHeight ? PAGE_H / Math.max(1, height + 40) : 1);
   area.style.zoom = String(Math.floor(zoom * 1000) / 1000);
 }
 
-export function useFitToPagePrint(ref) {
+// fitHeight:false = fit the width only and let a long list run onto more pages.
+export function useFitToPagePrint(ref, { fitHeight = true } = {}) {
   useEffect(() => {
-    const before = () => fitToPage(ref.current);
+    const before = () => fitToPage(ref.current, { fitHeight });
     const after = () => { if (ref.current) ref.current.style.zoom = ""; };
     window.addEventListener("beforeprint", before);
     window.addEventListener("afterprint", after);
     return () => { window.removeEventListener("beforeprint", before); window.removeEventListener("afterprint", after); };
-  }, [ref]);
+  }, [ref, fitHeight]);
 }
 
 // Excel: each column as wide as its longest value ("fit to cell"), counted

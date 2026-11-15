@@ -69,3 +69,24 @@
 .dtw-table td.dtw-blank{background:#f8fafc}
 .dtw-table td.dtw-num{font-weight:700;background:#f0fdf4}
 .dtw-approve{margin-top:34px;text-align:center;font-weight:700;font-size:12px;color:#0f172a;page-break-inside:avoid;break-inside:avoid}
+
+/* Pair Check */
+.pair-toggle{font-size:12.5px}
+.pair-table td{text-align:left}
+.pair-table td.c{text-align:center}
+.pair-table .pair-flights,.pair-table .pair-split{font-family:ui-monospace,Consolas,monospace;font-size:8.5pt}
+.pair-table .pair-note{white-space:normal;min-width:260px;max-width:420px;text-align:left}
+.pair-table tr.pair-exc td{background:#fef2f2}
+.pair-table tr.pair-warn td{background:#fffbeb}
+.pair-badge{display:inline-block;border-radius:999px;padding:0 8px;font-weight:700;font-size:8pt}
+.pair-badge.exc{background:#fecaca;color:#991b1b}
+.pair-badge.warn{background:#fde68a;color:#92400e}
+.pair-badge.info{background:#e0f2fe;color:#075985}
+.pair-badge.ok{background:#dcfce7;color:#166534}
+.pair-foot{margin-top:10px;font-size:10px;color:#475569;max-width:900px}
+@media print{
+  /* Pair Check can run to several pages: keep rows whole and repeat the header. */
+  body:has(.pair-page) .hrft-print-area{position:static}
+  .pair-table thead{display:table-header-group}
+  .pair-table tr{break-inside:avoid;page-break-inside:avoid}
+}
