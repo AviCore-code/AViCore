@@ -4,9 +4,9 @@
 //   Normal DAYs    = days in the period - (X + SL + VL) - OVER TIME DAYs
 //   OVER TIME DAYs = count of OT + OTS
 //   Total          = Normal DAYs + OVER TIME DAYs
-// Capt. Weera (15 Nov 2026): "วันทำงาน นับหมด ยกเว้น เครื่องหมาย X" - every
-// roster code is a work day EXCEPT X (any case, also "O,X"); VL and SL count
-// as work days here, unlike the sheet. OT / OTS stay in OVER TIME DAYs.
+// Capt. Weera (15 Nov 2026): "ไม่นับ X, x, SL, VL นอกนั้นนับหมด" - every
+// roster code is a work day EXCEPT X (any case, also "O,X"), SL and VL, as in
+// the sheet. OT / OTS go to OVER TIME DAYs.
 // A day with NO roster code is not counted (the sheet counts a blank, which
 // gave pilots with an empty roster 31 days); pilots with no roster at all in
 // the period are left out.
@@ -19,7 +19,7 @@ export function classifyDay(raw) {
   const p = parts(raw);
   if (!p.length) return "blank";
   if (p.includes("OT") || p.includes("OTS")) return "ot";
-  if (p.includes("X")) return "off";
+  if (p.includes("X") || p.includes("SL") || p.includes("VL")) return "off";
   return "normal";
 }
 
