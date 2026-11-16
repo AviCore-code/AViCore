@@ -49,10 +49,28 @@ function Invoke-Sftp([string[]]$commands) {
 function Q([string]$p) { return '"' + ($p -replace '"', '\"') + '"' }
 
 try {
-  # 1. Which files to send - published by the VPS from the Auto Import settings.
+  # 0+1. Which files to send - published by the VPS from the Auto Import
+  # settings - and the current version of these PC scripts (self-update).
   $cfgLocal = Join-Path $Work "pc-config.json"
-  if (Test-Path $cfgLocal) { Remove-Item $cfgLocal -Force }
-  $r = Invoke-Sftp @("get .pc-config.json " + (Q $cfgLocal))
+  $verNew = Join-Path $Work "version.txt"
+  foreach ($f in @($cfgLocal, $verNew)) { if (Test-Path $f) { Remove-Item $f -Force } }
+  $r = Invoke-Sftp @(("-get .pc-scripts/version.txt " + (Q $verNew)), ("get .pc-config.json " + (Q $cfgLocal)))
+
+  $verLocal = Join-Path $Base "version.txt"
+  $vNew = if (Test-Path $verNew) { (Get-Content $verNew -Raw).Trim() } else { "" }
+  $vOld = if (Test-Path $verLocal) { (Get-Content $verLocal -Raw).Trim() } else { "" }
+  if ($vNew -and $vNew -ne $vOld) {
+    $names = @("avicore-pc-sync.ps1", "avicore-pc-helper.ps1", "avicore-pc-browse.ps1")
+    $u = Invoke-Sftp ($names | ForEach-Object { "get .pc-scripts/$_ " + (Q (Join-Path $Work "upd-$_")) })
+    if (($names | Where-Object { -not (Test-Path (Join-Path $Work "upd-$_")) }).Count -eq 0) {
+      foreach ($n in $names) { Copy-Item -Force (Join-Path $Work "upd-$n") (Join-Path $Base $n) }
+      Set-Content -Path $verLocal -Value $vNew -Encoding ASCII
+      try { Stop-ScheduledTask -TaskName "AviCore Sync Helper" -ErrorAction SilentlyContinue; Start-Sleep 1; Start-ScheduledTask -TaskName "AviCore Sync Helper" } catch { }
+      Write-Log "Updated the AviCore Sync scripts to $vNew"
+    } else {
+      Write-Log "Self-update to $vNew failed: $($u.out.Trim())"
+    }
+  }
   if (-not (Test-Path $cfgLocal)) { Write-Log "No settings from the VPS yet (.pc-config.json): $($r.out.Trim())"; exit 0 }
   $cfg = Get-Content $cfgLocal -Raw -Encoding UTF8 | ConvertFrom-Json
 

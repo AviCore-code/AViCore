@@ -46,7 +46,7 @@ function listFiles(key, cfg) {
   let names = [];
   try { names = fs.readdirSync(dir); } catch { return []; }
   let files = names
-    .filter((n) => /\.xlsx?$/i.test(n) && !n.startsWith("~$") && !n.endsWith(".part"))
+    .filter((n) => /\.xls[xm]?$/i.test(n) && !n.startsWith("~$") && !n.endsWith(".part"))
     .map((n) => { const st = fs.statSync(path.join(dir, n)); return { name: n, full: path.join(dir, n), st }; })
     .filter((f) => f.st.isFile());
   if (key === "fdt") files = files.filter((f) => isFdtFileName(f.name));

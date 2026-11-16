@@ -52,11 +52,13 @@ $owner.Show(); $owner.Activate()
 $titles = @{ fdt = "AviCore - choose the FDT folder (the *_FDT.xlsx files)"; roster = "AviCore - choose the roster Excel file"; training = "AviCore - choose the Pilot Training Due Excel file"; staff = "AviCore - choose the Staff Training Excel file(s)" }
 $value = $null
 if ($which -eq "fdt") {
-  $d = New-Object System.Windows.Forms.FolderBrowserDialog
-  $d.Description = $titles[$which]
-  $d.ShowNewFolderButton = $false
+  # The folder dialog does not open on the company share; pick any one
+  # *_FDT.xlsx file and use its folder (same as the local helper).
+  $d = New-Object System.Windows.Forms.OpenFileDialog
+  $d.Title = "AviCore - open the FDT folder and pick ANY one *_FDT.xlsx file (all files in that folder are used)"
+  $d.Filter = "FDT files (*_FDT.xlsx)|*_FDT.xlsx;*_FDT.xls|Excel files (*.xlsx;*.xls;*.xlsm)|*.xlsx;*.xls;*.xlsm"
   $result = $d.ShowDialog($owner)
-  if ($result -eq "OK") { $value = To-Unc $d.SelectedPath }
+  if ($result -eq "OK") { $value = To-Unc (Split-Path -Parent $d.FileName) }
 } else {
   $d = New-Object System.Windows.Forms.OpenFileDialog
   $d.Title = $titles[$which]

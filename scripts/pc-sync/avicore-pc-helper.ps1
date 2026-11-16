@@ -36,10 +36,14 @@ function Show-Picker([string]$which) {
   $owner.Show(); $owner.Activate()
   try {
     if ($which -eq "fdt") {
-      $d = New-Object System.Windows.Forms.FolderBrowserDialog
-      $d.Description = "AviCore - choose the FDT folder (the *_FDT.xlsx files)"
-      $d.ShowNewFolderButton = $false
-      if ($d.ShowDialog($owner) -eq "OK") { return (To-Unc $d.SelectedPath) }
+      # Capt. Weera: the folder-picker dialog does not open on the company
+      # share (Azure Files), the file dialog does - so pick any one *_FDT.xlsx
+      # and use the folder it is in.
+      $d = New-Object System.Windows.Forms.OpenFileDialog
+      $d.Title = "AviCore - open the FDT folder and pick ANY one *_FDT.xlsx file (all files in that folder are used)"
+      $d.Filter = "FDT files (*_FDT.xlsx)|*_FDT.xlsx;*_FDT.xls|Excel files (*.xlsx;*.xls;*.xlsm)|*.xlsx;*.xls;*.xlsm"
+      $d.Multiselect = $false
+      if ($d.ShowDialog($owner) -eq "OK") { return (To-Unc (Split-Path -Parent $d.FileName)) }
       return $null
     }
     $d = New-Object System.Windows.Forms.OpenFileDialog
