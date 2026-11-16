@@ -135,16 +135,56 @@ function isStandbyEntry(e) {
 // standby before the crew is called don't reduce anything; every hour beyond
 // that reduces the max FDP one-for-one.
 //
-// ALL standby hours count towards that 6h clock, including any that fell in
-// the night - confirmed with the Capt on a real Night Standby called out at
-// 02:00: standby 17:30 -> 01:00 = 7.5h must reduce the max FDP by 1.5h (the
-// excess over 6h), not stay unreduced. (An earlier build excluded the local
-// 23:00-07:00 window from the count per 7.9.2(i); that exclusion has been
-// removed so the reduction reflects the full time on standby.)
+// OPS-CM-01 7.9.2(i), applied literally per the manual text: ONLY when the
+// standby STARTS between 23:00 and 07:00 LT is the 23:00-07:00 time left
+// out of that 6h clock, and only up to the moment the crew member is
+// contacted. A standby that starts before 23:00 (e.g. the usual Night
+// Standby 17:30-05:30) counts every hour, night included - so a 17:30
+// standby called out at 02:00 (counted to 01:00 = 7.5h) still reduces the
+// max FDP by 1.5h, as confirmed by the Capt on a real case.
+//
+// Daily Duty Entry doesn't record a separate "time contacted", so contact
+// is taken as standbyEnd (the report) minus standbyResponseTimeMinutes
+// (7.9.2(j), 60 min) - the conservative choice: night minutes between the
+// call and the report still count.
+const STANDBY_NIGHT_FROM_HOUR = 23;
+const STANDBY_NIGHT_TO_HOUR = 7;
+
+function startsInStandbyNightWindow(d) {
+  const h = d.getHours();
+  return h >= STANDBY_NIGHT_FROM_HOUR || h < STANDBY_NIGHT_TO_HOUR;
+}
+
+// Minutes of [from, to] that fall inside any local 23:00-07:00 window.
+function nightWindowOverlapMinutes(from, to) {
+  if (!(to > from)) return 0;
+  let total = 0;
+  const cursor = new Date(from);
+  cursor.setDate(cursor.getDate() - 1);
+  cursor.setHours(STANDBY_NIGHT_FROM_HOUR, 0, 0, 0);
+  while (cursor < to) {
+    const nightStart = new Date(cursor);
+    const nightEnd = new Date(cursor);
+    nightEnd.setDate(nightEnd.getDate() + 1);
+    nightEnd.setHours(STANDBY_NIGHT_TO_HOUR, 0, 0, 0);
+    const s = nightStart > from ? nightStart : from;
+    const e = nightEnd < to ? nightEnd : to;
+    if (e > s) total += (e - s) / 60000;
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return total;
+}
+
 export function standbyReductionHours(standbyStart, standbyEnd, limits) {
-  const totalMin = (standbyEnd - standbyStart) / 60000;
+  let countedMin = (standbyEnd - standbyStart) / 60000;
+  if (startsInStandbyNightWindow(standbyStart)) {
+    const responseMin = limits.standbyResponseTimeMinutes ?? 60;
+    let contact = new Date(standbyEnd.getTime() - responseMin * 60000);
+    if (contact < standbyStart) contact = standbyStart;
+    countedMin -= nightWindowOverlapMinutes(standbyStart, contact);
+  }
   const freeMin = limits.standbyFdpReductionFreeHours * 60;
-  return Math.max(0, totalMin - freeMin) / 60;
+  return Math.max(0, countedMin - freeMin) / 60;
 }
 
 // Within a merged busy-block group, finds a leading run of Standby entries
@@ -245,14 +285,15 @@ function deriveAdjusted(group, limits) {
     : new Date(reportPoint.getTime() - limits.dutyReportOffsetMinutes * 60000);
 
   let end;
+  let lastFlightEnd = null;
   if (hasFlight) {
-    const lastFlightEnd = flightIntervals.reduce((max, iv) => (iv.end > max ? iv.end : max), flightIntervals[0].end);
+    lastFlightEnd = flightIntervals.reduce((max, iv) => (iv.end > max ? iv.end : max), flightIntervals[0].end);
     const postFlightEnd = new Date(lastFlightEnd.getTime() + limits.dutyPostFlightOffsetMinutes * 60000);
     end = postFlightEnd > group.rawEnd ? postFlightEnd : group.rawEnd;
   } else {
     end = group.rawEnd;
   }
-  return { start, end, hasFlight, standby };
+  return { start, end, hasFlight, standby, lastFlightEnd };
 }
 
 // Max FDP / max daily flight time for a Duty Period, looked up by its
@@ -317,6 +358,11 @@ export function buildDutyPeriods(entries, limits) {
     .map((g) => {
       const adj = deriveAdjusted(g, limits);
       const durationHours = (adj.end - adj.start) / 3600000;
+      // OPS-CM-01 7.4: the FDP itself ends at rotors stopped on the final
+      // sector - the +30 min post-flight duty counts as duty (durationHours,
+      // used for Actual Duty / rolling sums) but NOT as FDP. So the Max FDP
+      // and 7.9.2(b) checks use fdpHours, not durationHours.
+      const fdpHours = adj.hasFlight ? (adj.lastFlightEnd - adj.start) / 3600000 : durationHours;
       let { maxFdp, maxFt } = maxFdpForReportTime(adj.start, limits);
 
       // OPS-CM-01 7.9.2: a standby run that escalated straight into this
@@ -344,8 +390,8 @@ export function buildDutyPeriods(entries, limits) {
           hours: standbyHours,
           reductionHours,
           exceedsMaxStandby: standbyHours > limits.standbyMaxHours,
-          combinedAwakeHours: standbyHours + durationHours,
-          exceedsCombinedAwake: standbyHours + durationHours > limits.standbyPlusFdpMaxAwakeHours
+          combinedAwakeHours: standbyHours + fdpHours,
+          exceedsCombinedAwake: standbyHours + fdpHours > limits.standbyPlusFdpMaxAwakeHours
         };
       }
 
@@ -360,9 +406,9 @@ export function buildDutyPeriods(entries, limits) {
       // standby's own over-length is caught separately (16h rule, via
       // checkStandbyDurationViolations / the exceedsMaxStandby flag below).
       let status = "ok";
-      if (adj.hasFlight && durationHours > maxFdp) {
+      if (adj.hasFlight && fdpHours > maxFdp) {
         const extendedMax = maxFdp + limits.dutyPeriodUnforeseenExtensionHours;
-        status = durationHours <= extendedMax ? "warn" : "exc";
+        status = fdpHours <= extendedMax ? "warn" : "exc";
       }
       if (standby && (standby.exceedsMaxStandby || standby.exceedsCombinedAwake)) status = "exc";
 
@@ -374,7 +420,7 @@ export function buildDutyPeriods(entries, limits) {
         .reduce((s, e) => s + hhmmStrToDecimal(e.totalFlightTime), 0);
       const ftStatus = maxFt != null && ftHours > maxFt ? "exc" : "ok";
       return {
-        start: adj.start, end: adj.end, entries: g.entries, hasFlight: adj.hasFlight, durationHours, status, maxFdp, maxFt, ftHours, ftStatus, standby
+        start: adj.start, end: adj.end, entries: g.entries, hasFlight: adj.hasFlight, durationHours, fdpHours, status, maxFdp, maxFt, ftHours, ftStatus, standby
       };
     })
     .sort((a, b) => a.start - b.start);
@@ -437,12 +483,23 @@ export function checkStandbyDurationViolations(entries, limits) {
 // up to (dutyReportOffsetMinutes + dutyPostFlightOffsetMinutes), which
 // could pass a gap that's actually too short once real Duty Period
 // boundaries apply.
+//
+// OPS-CM-01 7.12.1(a): the minimum rest before the next FDP is the preceding
+// duty period OR dutyMinRestHours (12h), whichever is greater - so after a
+// 13h duty day the floor is 13h, not 12h. The preceding duty period is the
+// adjusted Duty Period (report through post-flight); an escalated home
+// standby's lead-in is not included (7.9.2(c) counts it only for 7.4.2.2).
 export function checkMinRestViolations(entries, limits) {
-  const gaps = buildRestGaps(buildDutyPeriods(entries, limits));
-  return gaps.map((g) => ({
-    ...g,
-    status: g.hours < limits.dutyMinRestCaatHours ? "exc" : g.hours < limits.dutyMinRestHours ? "warn" : "ok"
-  }));
+  const periods = buildDutyPeriods(entries, limits);
+  const gaps = buildRestGaps(periods);
+  return gaps.map((g, i) => {
+    const requiredHours = Math.max(limits.dutyMinRestHours, periods[i].durationHours);
+    return {
+      ...g,
+      requiredHours,
+      status: g.hours < limits.dutyMinRestCaatHours ? "exc" : g.hours < requiredHours ? "warn" : "ok"
+    };
+  });
 }
 
 // Recovery Rest check per OPS-CM-01 7.12.4 (min 36h incl. 2 local nights;

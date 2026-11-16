@@ -79,7 +79,10 @@ export const DEFAULT_FTL_LIMITS = {
   // report for a duty (most commonly a flight), not the "quiet" standby
   // case where it's released without ever escalating (that's just Duty
   // Time credited at stbyCreditPercent above, no FDP implications).
-  standbyMaxHours: 16, // 7.9.2(a) - a standby period itself must never run longer than this
+  // A standby period itself must never run longer than this. OPS-CM-01
+  // 7.9.2(a) allows 16h for home standby, but 7.17.3.4 caps ANY standby at
+  // 12h within 24h - the stricter 12h is used until the manual is aligned.
+  standbyMaxHours: 12,
   // 7.9.2(b) - standby duration + the FDP that follows it combined must
   // not exceed this many hours (company procedure keeping total awake
   // time in check).

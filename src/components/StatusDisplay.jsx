@@ -128,7 +128,7 @@ export function RecoveryRestCard({ result, limits }) {
 // OPS-CM-01 7.9.2 - Standby Other Than Base Airport. Shows every Duty
 // Period that was led by a Standby run escalating into an actual duty
 // report (buildDutyPeriods's `standby` field), plus any standby period on
-// its own that broke the 16h cap even without ever escalating into duty
+// its own that broke the standbyMaxHours cap even without ever escalating into duty
 // (checkStandbyDurationViolations - buildDutyPeriods only evaluates
 // standby duration in the context of an escalation, so a standby that was
 // simply released without being called out still needs this separate,
@@ -161,7 +161,7 @@ export function StandbyFdpSection({ periods, standbyViolations, limits }) {
               : " (no reduction — standby stayed within the free window, or most of it fell overnight)"}
           </Note>
           {p.standby.exceedsMaxStandby && (
-            <Note exc>Standby itself ran {decimalToHHMM(p.standby.hours)} hrs, over the {limits.standbyMaxHours}h max (7.9.2(a))</Note>
+            <Note exc>Standby itself ran {decimalToHHMM(p.standby.hours)} hrs, over the {limits.standbyMaxHours}h max (7.9.2(a) / 7.17.3.4)</Note>
           )}
           {p.standby.exceedsCombinedAwake && (
             <Note exc>Standby + FDP combined = {decimalToHHMM(p.standby.combinedAwakeHours)} hrs, over the {limits.standbyPlusFdpMaxAwakeHours}h max (7.9.2(b))</Note>
@@ -174,7 +174,7 @@ export function StandbyFdpSection({ periods, standbyViolations, limits }) {
             <span>{formatDateTime(v.start)} – {formatDateTime(v.end)} Standby ({decimalToHHMM(v.hours)} hrs), not called out</span>
             <span className="mystatus-badge exc">{STATUS_LABEL.exc}</span>
           </div>
-          <Note exc>Standby duration exceeds the {limits.standbyMaxHours}h max (7.9.2(a))</Note>
+          <Note exc>Standby duration exceeds the {limits.standbyMaxHours}h max (7.9.2(a) / 7.17.3.4)</Note>
         </div>
       ))}
     </div>

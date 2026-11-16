@@ -348,7 +348,7 @@ describe("OPS-CM-01 7.9.2 - Standby Other Than Base Airport", () => {
   it("flags exceedsCombinedAwake when standby + resulting FDP together exceed 18h", () => {
     const entries = [
       nonFlight("2026-07-01", "06:00", "14:00", "Day Standby"), // counted up to report buffer 13:00 = 7h
-      flight("2026-07-01", "14:00", "23:59") // ~10h FDP window
+      flight("2026-07-01", "14:00", "01:00") // FDP report 13:00 -> rotors stop 01:00 = 12h
     ];
     const periods = buildDutyPeriods(entries, L);
     const p = periods[0];
@@ -417,5 +417,73 @@ describe("periodDutyCreditHours (Duty Time rolling-sum credit per period)", () =
     // durationHours (report 15:00 -> Last Engine Stop 18:00 + 0:30) = 3.5h, plus
     // standby counted only to the report buffer (08:00 -> 15:00 = 7h) * 25% = 1.75h
     expect(periodDutyCreditHours(p, L)).toBeCloseTo(5.25, 5);
+  });
+});
+
+describe("OPS-CM-01 alignment (7.4 / 7.9.2(i) / 7.12.1 / 7.17.3.4)", () => {
+  it("Night Standby 17:30-05:30 called out, Sch Dep 06:30, rotors stop 08:00: standby starts before 23:00 so every hour counts (7.9.2(i) does not apply) - 12h standby, max FDP 10 - 6 = 4h, FDP 2:30, Actual Duty 6:00", () => {
+    const entries = [
+      nonFlight("2026-11-16", "17:30", "05:30", "Night Standby", "2026-11-17"),
+      flight("2026-11-17", "06:30", "08:00")
+    ];
+    const [p] = buildDutyPeriods(entries, L);
+    expect(p.standby.hours).toBeCloseTo(12, 5);
+    expect(p.standby.reductionHours).toBeCloseTo(6, 5);
+    expect(p.maxFdp).toBeCloseTo(4, 5); // 0500-0559 band = 10h
+    expect(p.fdpHours).toBeCloseTo(2.5, 5); // 05:30 -> rotors stop 08:00
+    expect(p.durationHours).toBeCloseTo(3, 5); // + 0:30 post-flight
+    expect(p.standby.combinedAwakeHours).toBeCloseTo(14.5, 5);
+    expect(p.status).toBe("ok");
+    expect(periodDutyCreditHours(p, L)).toBeCloseTo(6, 5); // 12h x 25% + 3h
+  });
+
+  it("standby STARTING inside 23:00-07:00 leaves the night hours before contact out of the 6h clock (7.9.2(i))", () => {
+    // Standby 23:00 -> called, Sch Dep 09:00 -> report 08:00, contact = 07:00 (60 min response)
+    const entries = [
+      nonFlight("2026-07-01", "23:00", "09:00", "Night Standby", "2026-07-02"),
+      flight("2026-07-02", "09:00", "11:00")
+    ];
+    const [p] = buildDutyPeriods(entries, L);
+    expect(p.standby.hours).toBeCloseTo(9, 5); // 23:00 -> 08:00
+    expect(p.standby.reductionHours).toBe(0); // only 07:00-08:00 counts = 1h
+    expect(p.maxFdp).toBeCloseTo(12, 5); // 0700-1259 band, unreduced
+  });
+
+  it("night minutes between the call and the report still count when standby starts inside the window", () => {
+    // Standby 00:00 -> 09:00 start of flight at 07:00 Sch Dep -> report 06:00, contact 05:00
+    // counted = 9h? no: standby 00:00 -> 06:00 = 6h, night 00:00-05:00 excluded -> 1h counted
+    const r = standbyReductionHours(new Date(2026, 6, 2, 0, 0), new Date(2026, 6, 2, 6, 0), L);
+    expect(r).toBe(0);
+    // Day standby 06:00 -> 15:00 (starts inside window): night 06:00-07:00 excluded -> 8h counted -> 2h reduction
+    const r2 = standbyReductionHours(new Date(2026, 6, 2, 6, 0), new Date(2026, 6, 2, 15, 0), L);
+    expect(r2).toBeCloseTo(2, 5);
+  });
+
+  it("Max FDP is judged on the FDP to rotors stop (7.4), not including the 0:30 post-flight duty", () => {
+    const entries = [flight("2026-07-01", "08:00", "19:00")]; // report 07:00, rotors stop 19:00 = 12h FDP
+    const [p] = buildDutyPeriods(entries, L);
+    expect(p.fdpHours).toBeCloseTo(12, 5);
+    expect(p.durationHours).toBeCloseTo(12.5, 5);
+    expect(p.maxFdp).toBe(12);
+    expect(p.status).toBe("ok");
+  });
+
+  it("minimum rest is the preceding duty period or 12h, whichever is greater (7.12.1(a))", () => {
+    const entries = [
+      flight("2026-07-01", "07:00", "18:30"), // duty 06:00 -> 19:00 = 13h
+      flight("2026-07-02", "08:30", "10:00") // report 07:30 -> rest 12.5h
+    ];
+    const [g] = checkMinRestViolations(entries, L);
+    expect(g.hours).toBeCloseTo(12.5, 5);
+    expect(g.requiredHours).toBeCloseTo(13, 5);
+    expect(g.status).toBe("warn");
+  });
+
+  it("caps any standby at 12h (7.17.3.4, stricter than 7.9.2(a)'s 16h)", () => {
+    const v = checkStandbyDurationViolations([nonFlight("2026-07-01", "06:00", "19:00", "Day Standby")], L);
+    expect(v[0].hours).toBeCloseTo(13, 5);
+    expect(v[0].status).toBe("exc");
+    const ok = checkStandbyDurationViolations([nonFlight("2026-07-01", "17:30", "05:30", "Night Standby", "2026-07-02")], L);
+    expect(ok[0].status).toBe("ok");
   });
 });
