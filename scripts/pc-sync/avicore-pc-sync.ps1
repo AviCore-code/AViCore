@@ -34,7 +34,9 @@ function Write-Log($text) {
 
 function Invoke-Sftp([string[]]$commands) {
   $batch = Join-Path $Work "batch.txt"
-  Set-Content -Path $batch -Value $commands -Encoding ASCII
+  # The upload account's root is the chroot /srv/avicore-import; the files
+  # live under files/.
+  Set-Content -Path $batch -Value (@("cd files") + $commands) -Encoding ASCII
   # Windows PowerShell turns any stderr line of a native program into an error
   # record; with "Stop" that would abort on a harmless ssh notice.
   $prev = $ErrorActionPreference

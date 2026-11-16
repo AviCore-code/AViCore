@@ -19,6 +19,8 @@ const ago = (iso) => {
   const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
   return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 48 * 60 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
 };
+// The AviCore Sync helper on the office PC (scripts/pc-sync/avicore-pc-helper.ps1).
+const HELPER = "http://127.0.0.1:47811";
 const kb = (n) => (n == null ? "" : n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 export default function AutoImport({ loadSetting = getSetting, storeSetting = saveSetting }) {
@@ -88,8 +90,25 @@ export default function AutoImport({ loadSetting = getSetting, storeSetting = sa
   // Sync helper (avicore-sync:// link, scripts/pc-sync). A browser cannot hand
   // a web page the real path of a picked file, so the PC sends its choice to
   // the VPS, which saves it here; the page reloads the settings to show it.
-  function browse(key) {
-    setMsg({ ok: true, text: "Windows Explorer opens on this PC (if AviCore Sync is installed here). Pick the folder / file - on this PC or the company share drive. The path appears here within about a minute." });
+  async function browse(key) {
+    // 1st choice: the AviCore Sync helper on this PC (127.0.0.1:47811) opens
+    // Explorer and hands the path straight back into the field.
+    setMsg({ ok: true, text: "Opening Windows Explorer on this PC… (if Chrome asks to allow access to this device / local network, choose Allow)" });
+    try {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 2500);
+      const ping = await fetch(`${HELPER}/ping`, { signal: ctl.signal });
+      clearTimeout(t);
+      if (ping.ok) {
+        const res = await (await fetch(`${HELPER}/browse?key=${key}`)).json();
+        if (res.cancelled || res.value == null) { setMsg(null); return; }
+        editPath(key, key === "staff" ? [].concat(res.value) : String(res.value));
+        setMsg({ ok: true, text: "Path filled in - press Save settings to keep it." });
+        return;
+      }
+    } catch { /* helper not running here - fall back below */ }
+    // Fallback: the avicore-sync:// link (the PC sends its choice via the VPS).
+    setMsg({ ok: true, text: "Windows Explorer opens on this PC if AviCore Sync is installed here. The chosen path appears here within about a minute." });
     window.location.href = `avicore-sync://browse/${key}`;
     for (const ms of [20000, 45000, 75000, 110000]) {
       setTimeout(async () => {

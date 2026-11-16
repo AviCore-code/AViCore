@@ -38,5 +38,16 @@ Set-ItemProperty -Path $proto -Name "URL Protocol" -Value ""
 Set-ItemProperty -Path "$proto\shell\open\command" -Name "(Default)" `
   -Value ('powershell.exe -NoProfile -STA -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" "%1"' -f (Join-Path $Base "avicore-pc-browse.ps1"))
 
+# The local Browse helper (127.0.0.1:47811): started at every Windows sign-in
+# and right now, hidden. -STA is needed for the Explorer dialogs.
+Copy-Item -Force (Join-Path $PSScriptRoot "avicore-pc-helper.ps1") (Join-Path $Base "avicore-pc-helper.ps1")
+$hAction = New-ScheduledTaskAction -Execute "powershell.exe" `
+  -Argument ("-NoProfile -NonInteractive -STA -WindowStyle Hidden -ExecutionPolicy Bypass -File `"{0}`"" -f (Join-Path $Base "avicore-pc-helper.ps1"))
+$hTrigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
+$hSettings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopIfGoingOnBatteries -AllowStartIfOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+Register-ScheduledTask -TaskName "AviCore Sync Helper" -Action $hAction -Trigger $hTrigger -Settings $hSettings `
+  -Description "Lets the AviCore Admin Auto Import page open Windows Explorer to pick files (127.0.0.1 only)" -Force | Out-Null
+Start-ScheduledTask -TaskName "AviCore Sync Helper"
+
 Write-Output "Installed. Public key:"
 Get-Content "$Key.pub"

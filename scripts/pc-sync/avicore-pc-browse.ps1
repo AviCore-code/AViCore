@@ -13,7 +13,7 @@
 param([string]$Url = "")
 
 $ErrorActionPreference = "Stop"
-Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 $Base    = Join-Path $env:ProgramData "AviCoreSync"
 $Key     = Join-Path $Base "id_ed25519"
 $Work    = Join-Path $Base "work"
@@ -24,6 +24,7 @@ New-Item -ItemType Directory -Force -Path $Work | Out-Null
 
 function Write-Log($text) { Add-Content -Path $LogFile -Value ("{0:yyyy-MM-dd HH:mm:ss}  {1}" -f (Get-Date), $text) -Encoding UTF8 }
 
+Write-Log "Browse started: $Url"
 $m = [regex]::Match($Url, '^avicore-sync://browse/(fdt|roster|training|staff)/?', 'IgnoreCase')
 if (-not $m.Success) { exit 0 }
 $which = $m.Groups[1].Value.ToLower()
@@ -38,10 +39,15 @@ function To-Unc([string]$p) {
   return $p
 }
 
-# An invisible top-most owner so the dialog comes up in front of the browser.
+# A top-most owner window so the dialog comes up in front of the browser. It
+# must stay SHOWN (fully transparent, 1x1 px): a dialog owned by a hidden
+# window may never appear, which is what made Browse look dead.
+[System.Windows.Forms.Application]::EnableVisualStyles()
 $owner = New-Object System.Windows.Forms.Form
-$owner.TopMost = $true; $owner.ShowInTaskbar = $false; $owner.WindowState = "Minimized"
-$owner.Show(); $owner.Hide()
+$owner.TopMost = $true; $owner.ShowInTaskbar = $false; $owner.FormBorderStyle = "None"
+$owner.StartPosition = "Manual"; $owner.Location = New-Object System.Drawing.Point(200, 200)
+$owner.Size = New-Object System.Drawing.Size(1, 1); $owner.Opacity = 0
+$owner.Show(); $owner.Activate()
 
 $titles = @{ fdt = "AviCore - choose the FDT folder (the *_FDT.xlsx files)"; roster = "AviCore - choose the roster Excel file"; training = "AviCore - choose the Pilot Training Due Excel file"; staff = "AviCore - choose the Staff Training Excel file(s)" }
 $value = $null
@@ -49,24 +55,26 @@ if ($which -eq "fdt") {
   $d = New-Object System.Windows.Forms.FolderBrowserDialog
   $d.Description = $titles[$which]
   $d.ShowNewFolderButton = $false
-  if ($d.ShowDialog($owner) -eq "OK") { $value = To-Unc $d.SelectedPath }
+  $result = $d.ShowDialog($owner)
+  if ($result -eq "OK") { $value = To-Unc $d.SelectedPath }
 } else {
   $d = New-Object System.Windows.Forms.OpenFileDialog
   $d.Title = $titles[$which]
   $d.Filter = "Excel files (*.xlsx;*.xls;*.xlsm)|*.xlsx;*.xls;*.xlsm|All files (*.*)|*.*"
   $d.Multiselect = ($which -eq "staff")
-  if ($d.ShowDialog($owner) -eq "OK") {
+  $result = $d.ShowDialog($owner)
+  if ($result -eq "OK") {
     $value = if ($which -eq "staff") { @($d.FileNames | ForEach-Object { To-Unc $_ }) } else { To-Unc $d.FileName }
   }
 }
 $owner.Close()
-if ($null -eq $value) { exit 0 }
+if ($null -eq $value) { Write-Log "Browse ($which): dialog closed without a choice ($result)"; exit 0 }
 
 $pick = [ordered]@{ key = $which; value = $value; at = (Get-Date).ToUniversalTime().ToString("o"); computer = $env:COMPUTERNAME; user = $env:USERNAME }
 $local = Join-Path $Work ".pc-pick-$which.json"
 $pick | ConvertTo-Json -Depth 4 | Set-Content -Path $local -Encoding UTF8
 $batch = Join-Path $Work "pick-batch.txt"
-Set-Content -Path $batch -Value @(('put "{0}" ".pc-pick-{1}.json.part"' -f $local, $which), ('-rm ".pc-pick-{0}.json"' -f $which), ('rename ".pc-pick-{0}.json.part" ".pc-pick-{0}.json"' -f $which)) -Encoding ASCII
+Set-Content -Path $batch -Value @("cd files", ('put "{0}" ".pc-pick-{1}.json.part"' -f $local, $which), ('-rm ".pc-pick-{0}.json"' -f $which), ('rename ".pc-pick-{0}.json.part" ".pc-pick-{0}.json"' -f $which)) -Encoding ASCII
 $ErrorActionPreference = "Continue"
 $out = & $Sftp -i $Key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o "UserKnownHostsFile=$Base\known_hosts" -o ConnectTimeout=20 -o LogLevel=ERROR -b $batch "avicoreimport@$Vps" 2>&1
 if ($LASTEXITCODE -ne 0) {
