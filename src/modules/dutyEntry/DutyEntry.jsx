@@ -249,7 +249,17 @@ export default function DutyEntry() {
   // Flight Duty tab -> "Actual FDT": the flight portion of today's merged
   // duty period (report -1:00 through Last Engine Stop +0:30). A pure
   // Standby day with no flight has none, so it reads 0:00.
-  const actualFdtMin = !todayPeriod ? null : (isPureStandbyDay ? 0 : fdtMin);
+  //
+  // Only the duty period THIS form's flight belongs to counts: with Sch Dep /
+  // Last Engine Stop not entered yet the form reads 0:00, even when another
+  // entry for the same date is already saved (Capt. Weera, 16 Nov 2026 - it
+  // showed that saved entry's 4:02 on an empty form). The Total Actual Duty
+  // box above still shows the whole day.
+  const flightDraftPeriod = dutyPeriods.find((p) => p.entries.some((e) => e.id === flightDraft.id)) || null;
+  const actualFdtMin = !todayPeriod ? null
+    : isPureStandbyDay ? 0
+    : !flightDraftPeriod ? 0
+    : Math.round(flightDraftPeriod.durationHours * 60);
   const actualFdtDisplay = actualFdtMin != null ? minToHHMM(actualFdtMin) : "0:00";
 
   // Non-Flight Duty tab -> "Actual non-FDT": the duty time of the
@@ -799,6 +809,13 @@ function FlightCountPicker({ value, onPick }) {
 }
 
 function FlightForm({ flight, setFlight, updateLeg, addLeg, removeLeg, setFlightCount, pilotCode, fleet, pilots, actualFdtDisplay }) {
+  const legInput = (i, leg, c) => (
+    <label key={c.f} className="duty-lh"><span>{c.sub}</span>
+      <input aria-label={`Flight ${i + 1} ${c.aria}`} value={leg[c.f] ?? ""} inputMode={c.time ? "text" : "numeric"}
+        onChange={(e) => updateLeg(i, c.f, e.target.value)} placeholder={c.time ? "0:00" : "0"} />
+    </label>
+  );
+  const rolesWithTime = (flight.roles || []).filter((r) => r.dayHours || r.nightHours);
   const set = (key, value) => setFlight({ ...flight, [key]: value });
   const count = flight.legs.length;
   const unseated = new Set(unseatedFlights(flight.legs, pilotCode));
@@ -864,21 +881,29 @@ function FlightForm({ flight, setFlight, updateLeg, addLeg, removeLeg, setFlight
               <input aria-label={`Flight ${i + 1} route`} value={leg.route} lang="en" inputMode="text" onChange={(e) => updateLeg(i, "route", e.target.value)} placeholder="VTSH-CPOC-VTSH" />
               {flight.legs.length > 1 ? <button aria-label={`Remove flight ${i + 1}`} onClick={() => removeLeg(i)}>×</button> : <span />}
             </div>
+            {/* One tinted box per topic: Role (Day / Night = flight time),
+                Instrument, Area, T/O, Landing, I.App. Boxes wrap on tablet / phone. */}
             <div className="duty-leg-hours">
-              <label className="duty-lh"><span>Role</span>
-                <select aria-label={`Flight ${i + 1} role`} value={leg.role || "PIC"} onChange={(e) => updateLeg(i, "role", e.target.value)}>
-                  {withCurrentOption(DUTY_ROLES, leg.role).map((dr) => <option key={dr}>{dr}</option>)}
-                </select>
-              </label>
-              {LEG_HOUR_COLUMNS.map((c) => (
-                <label key={c.f} className={`duty-lh${c.time ? "" : " count"}`}><span>{c.label}</span>
-                  <input aria-label={`Flight ${i + 1} ${c.label}`} value={leg[c.f] ?? ""} inputMode={c.time ? "text" : "numeric"}
-                    onChange={(e) => updateLeg(i, c.f, e.target.value)} placeholder={c.time ? "0:00" : "0"} />
-                </label>
+              <div className="duty-lg role">
+                <div className="duty-lg-title">Role · Flight time</div>
+                <div className="duty-lg-cells">
+                  <label className="duty-lh"><span>Role</span>
+                    <select aria-label={`Flight ${i + 1} role`} value={leg.role || "PIC"} onChange={(e) => updateLeg(i, "role", e.target.value)}>
+                      {withCurrentOption(DUTY_ROLES, leg.role).map((dr) => <option key={dr}>{dr}</option>)}
+                    </select>
+                  </label>
+                  {LEG_GROUPS[0].fields.map((c) => legInput(i, leg, c))}
+                  <label className="duty-lh ft"><span>Total</span>
+                    <input aria-label={`Flight ${i + 1} flight time`} value={fmtMin(legFlightMin(leg))} readOnly className="duty-field-readonly" title="Day + Night of this flight" />
+                  </label>
+                </div>
+              </div>
+              {LEG_GROUPS.slice(1).map((g) => (
+                <div key={g.key} className={`duty-lg ${g.key}`}>
+                  <div className="duty-lg-title">{g.title}</div>
+                  <div className="duty-lg-cells">{g.fields.map((c) => legInput(i, leg, c))}</div>
+                </div>
               ))}
-              <label className="duty-lh ft"><span>Flight time</span>
-                <input aria-label={`Flight ${i + 1} flight time`} value={legFlightMin(leg) ? `${Math.floor(legFlightMin(leg) / 60)}:${String(legFlightMin(leg) % 60).padStart(2, "0")}` : "0:00"} readOnly className="duty-field-readonly" title="Day + Night of this flight" />
-              </label>
             </div>
             {unseated.has(i + 1) && <div className="duty-leg-warn">{pilotCode} is not in RS or LS on this flight.</div>}
           </div>
@@ -886,38 +911,72 @@ function FlightForm({ flight, setFlight, updateLeg, addLeg, removeLeg, setFlight
         {count < MAX_FLIGHTS_PER_DAY && <button className="duty-add-role" onClick={addLeg}>+ Add Flight</button>}
       </div>
 
-      {/* Σ - the day's totals, always the sum of the flights above. These are
-          the values saved on the entry (FDT Monitor, Logbook, PES read them). */}
+      {/* Σ - the day's totals, always the sum of the flights above, in the
+          same tinted boxes. These are the values saved on the entry (FDT
+          Monitor, Logbook, PES read them). */}
       <div className="duty-leg-total" aria-label="Totals for the day">
-        <span className="duty-lt-sigma">Σ</span>
-        {[
-          ["IFR", flight.ifrRulesHours || "0:00"], ["IMC", flight.ifrHours || "0:00"],
-          ["Onshore", flight.onshoreHours || "0:00"], ["Offshore", flight.offshoreHours || "0:00"],
-          ["T/O Day", flight.toDay || "0"], ["T/O Night", flight.toNight || "0"],
-          ["Ldg Day", flight.landDay || "0"], ["Ldg Night", flight.landNight || "0"], ["I.App", flight.iApp || "0"],
-          ["Total Flight Time", flight.totalFlightTime || "0:00"]
-        ].map(([label, v]) => (
-          <div key={label} className={`duty-lt${label === "Total Flight Time" ? " big" : ""}`}><span>{label}</span><b>{v}</b></div>
-        ))}
-        <div className="duty-lt fdt"><span>Actual FDT</span><b>{actualFdtDisplay}</b></div>
+        <div className="duty-lt-head"><span className="duty-lt-sigma">Σ</span> Total for the day</div>
+        <div className="duty-leg-hours sum">
+          <div className="duty-lg role" aria-label="Totals by role">
+            <div className="duty-lg-title">Role · Flight time</div>
+            {rolesWithTime.length ? rolesWithTime.map((r) => (
+              <div key={r.role} className="duty-lg-cells duty-rt" aria-label={`Role ${r.role} totals`}>
+                <div className="duty-lt"><span>Role</span><b className="duty-rt-role">{r.role}</b></div>
+                <div className="duty-lt"><span>Day</span><b>{r.dayHours || "0:00"}</b></div>
+                <div className="duty-lt"><span>Night</span><b>{r.nightHours || "0:00"}</b></div>
+                <div className="duty-lt"><span>Total</span><b>{fmtMin(hhmm(r.dayHours) + hhmm(r.nightHours))}</b></div>
+              </div>
+            )) : <div className="duty-rt-empty">—</div>}
+          </div>
+          {LEG_GROUPS.slice(1).map((g) => (
+            <div key={g.key} className={`duty-lg ${g.key}`}>
+              <div className="duty-lg-title">{g.title}</div>
+              <div className="duty-lg-cells">
+                {g.fields.map((c) => (
+                  <div key={c.f} className="duty-lt"><span>{c.sub}</span><b>{flight[c.f] || (c.time ? "0:00" : "0")}</b></div>
+                ))}
+              </div>
+            </div>
+          ))}
+          <div className="duty-lg ft">
+            <div className="duty-lg-title">Flight / Duty</div>
+            <div className="duty-lg-cells">
+              <div className="duty-lt big"><span>Total Flight Time</span><b>{flight.totalFlightTime || "0:00"}</b></div>
+              <div className="duty-lt fdt"><span>Actual FDT</span><b>{actualFdtDisplay}</b></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-// The per-flight hour boxes, in the order of the old day-level fields.
-const LEG_HOUR_COLUMNS = [
-  { f: "dayHours", label: "Day", time: true },
-  { f: "nightHours", label: "Night", time: true },
-  { f: "ifrRulesHours", label: "IFR", time: true },
-  { f: "ifrHours", label: "IMC", time: true },
-  { f: "onshoreHours", label: "Onshore", time: true },
-  { f: "offshoreHours", label: "Offshore", time: true },
-  { f: "toDay", label: "T/O Day" },
-  { f: "toNight", label: "T/O Night" },
-  { f: "landDay", label: "Ldg Day" },
-  { f: "landNight", label: "Ldg Night" },
-  { f: "iApp", label: "I.App" }
+const hhmm = (v) => {
+  const [h, m] = String(v || "0:0").split(":");
+  return (parseInt(h, 10) || 0) * 60 + (parseInt(m, 10) || 0);
+};
+const fmtMin = (m) => `${Math.floor((m || 0) / 60)}:${String((m || 0) % 60).padStart(2, "0")}`;
+
+// The per-flight hour boxes, one group per topic. `aria` keeps each input's
+// accessible name ("Flight 2 T/O Day"); `sub` is the short label in the box.
+const LEG_GROUPS = [
+  { key: "role", title: "Role · Flight time", fields: [
+    { f: "dayHours", sub: "Day", aria: "Day", time: true },
+    { f: "nightHours", sub: "Night", aria: "Night", time: true }] },
+  { key: "inst", title: "Instrument", fields: [
+    { f: "ifrRulesHours", sub: "IFR", aria: "IFR", time: true },
+    { f: "ifrHours", sub: "IMC", aria: "IMC", time: true }] },
+  { key: "area", title: "Area", fields: [
+    { f: "onshoreHours", sub: "Onshore", aria: "Onshore", time: true },
+    { f: "offshoreHours", sub: "Offshore", aria: "Offshore", time: true }] },
+  { key: "to", title: "T/O", fields: [
+    { f: "toDay", sub: "Day", aria: "T/O Day" },
+    { f: "toNight", sub: "Night", aria: "T/O Night" }] },
+  { key: "ldg", title: "LDG", fields: [
+    { f: "landDay", sub: "Day", aria: "Ldg Day" },
+    { f: "landNight", sub: "Night", aria: "Ldg Night" }] },
+  { key: "app", title: "I.App", fields: [
+    { f: "iApp", sub: "Count", aria: "I.App" }] }
 ];
 
 // Add whole days to a "YYYY-MM-DD" string, returning the same format.

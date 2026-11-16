@@ -115,6 +115,8 @@ describe("Daily Duty — Flights / Day first, one row per flight", () => {
     const total = container.querySelector(".duty-leg-total").textContent;
     expect(total).toContain("3:32");                                          // Total Flight Time
     expect(total).toContain("0:32");                                          // Onshore
+    expect(screen.getByLabelText("Role PIC totals").textContent).toMatch(/Day\s*1:50.*Night\s*0:00.*Total\s*1:50/);
+    expect(screen.getByLabelText("Role SIC totals").textContent).toMatch(/Day\s*1:42.*Total\s*1:42/);
     fireEvent.click(screen.getByText("Save Entry"));
     await waitFor(() => expect(db.addDutyEntry).toHaveBeenCalled());
     const saved = db.addDutyEntry.mock.calls[0][0];
@@ -124,6 +126,15 @@ describe("Daily Duty — Flights / Day first, one row per flight", () => {
     expect([saved.toDay, saved.landDay, saved.iApp]).toEqual(["4", "4", "1"]);
     expect(saved.legs[1].dayHours).toBe("1:42");
     expect(saved.crew).toEqual([{ rs: "WJU", ls: "" }, { rs: "WJU", ls: "" }]);
+  });
+
+  it("reads Actual FDT 0:00 on an empty form even with another entry saved that day", async () => {
+    const d = new Date();
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    db.listDutyEntriesByPilot.mockResolvedValueOnce([{ id: "e1", pilotCode: "WJU", dutyType: "flight", date: today, schDep: "05:30", stop: "09:32", totalFlightTime: "3:32" }]);
+    const { container } = await openForm();
+    fireEvent.click(within(picker()).getByText("2"));
+    expect(container.querySelector(".duty-lt.fdt b").textContent).toBe("0:00");
   });
 
   it("blocks saving when Onshore + Offshore is more than a flight's time", async () => {
