@@ -65,7 +65,10 @@ export async function signInAdmin(email, password) {
 }
 export async function signOutAdmin() {
   if (!supabase) return { ok: true };
-  await supabase.auth.signOut();
+  // scope "local": sign out THIS browser only. The default ("global") revokes
+  // the account everywhere - which also signed out the VPS Auto Import service
+  // when it uses the same admin account (16 Nov 2026).
+  await supabase.auth.signOut({ scope: "local" });
   return { ok: true };
 }
 export async function getAdminSession() {
@@ -209,7 +212,7 @@ export async function importerSignIn(email, password) {
 }
 export async function importerSignOut() {
   const sb = getImporterClient();
-  if (sb) await sb.auth.signOut();
+  if (sb) await sb.auth.signOut({ scope: "local" });
   return { ok: true };
 }
 export async function getImporterSession() {
