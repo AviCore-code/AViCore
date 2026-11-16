@@ -2,7 +2,7 @@
 import React from "react";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, act, fireEvent, cleanup } from "@testing-library/react";
-import { idleState, IDLE_LIMIT_MS, registerBeforeLogout, runBeforeLogout, saveDraft, takeDraft } from "./idleLogout.js";
+import { idleState, IDLE_LIMIT_MS, registerBeforeLogout, runBeforeLogout, saveDraft, takeDraft, isRealActivity } from "./idleLogout.js";
 
 const web = vi.hoisted(() => ({
   paired: "WJU",
@@ -52,6 +52,18 @@ describe("idle timing", () => {
   });
 });
 
+describe("what counts as activity", () => {
+  it("a mouse lying still does not count, even though the browser sends mousemove", () => {
+    const p = { last: null };
+    const mv = (x, y) => isRealActivity({ type: "mousemove", screenX: x, screenY: y }, p);
+    expect(mv(500, 300)).toBe(false); // first sighting
+    expect(mv(500, 300)).toBe(false); // Chrome's hover refresh, same spot
+    expect(mv(501, 300)).toBe(false); // 1 px jitter
+    expect(mv(530, 310)).toBe(true);  // the hand moved the mouse
+    expect(isRealActivity({ type: "keydown" }, p)).toBe(true);
+  });
+});
+
 describe("AviCore Crew signs out after 10 idle minutes", () => {
   beforeEach(() => { vi.useFakeTimers({ shouldAdvanceTime: false }); web.paired = "WJU"; web.clearPairedPilotCode.mockClear(); queue.flushQueue.mockClear(); });
   afterEach(() => { cleanup(); vi.useRealTimers(); });
@@ -67,7 +79,8 @@ describe("AviCore Crew signs out after 10 idle minutes", () => {
     const off = registerBeforeLogout(saver);
     await signedIn();
     await act(async () => { vi.advanceTimersByTime(8 * 60000); });
-    fireEvent.mouseMove(window);
+    fireEvent.mouseMove(window, { screenX: 100, screenY: 100 });
+    fireEvent.mouseMove(window, { screenX: 140, screenY: 120 });
     await act(async () => { vi.advanceTimersByTime(8 * 60000); });
     expect(web.clearPairedPilotCode).not.toHaveBeenCalled();
     await act(async () => { vi.advanceTimersByTime(1.5 * 60000); });
@@ -89,5 +102,27 @@ describe("AviCore Crew signs out after 10 idle minutes", () => {
     await act(async () => { vi.advanceTimersByTime(5 * 60000); });
     expect(web.clearPairedPilotCode).not.toHaveBeenCalled();
     expect(screen.queryByText(/signing out in/)).toBeNull();
+  });
+
+  it("a still mouse over changing content and the app scrolling itself do not keep it signed in", async () => {
+    await signedIn();
+    for (let i = 0; i < 10; i++) {
+      await act(async () => { vi.advanceTimersByTime(60000); });
+      fireEvent.mouseMove(window, { screenX: 400, screenY: 300 });
+      fireEvent.scroll(window);
+    }
+    await act(async () => { vi.advanceTimersByTime(2000); });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+    expect(web.clearPairedPilotCode).toHaveBeenCalled();
+  });
+
+  it("a send that hangs does not stop the sign-out", async () => {
+    queue.flushQueue.mockImplementationOnce(() => new Promise(() => {}));
+    await signedIn();
+    await act(async () => { vi.advanceTimersByTime(10 * 60000 + 1000); });
+    expect(web.clearPairedPilotCode).not.toHaveBeenCalled();
+    await act(async () => { vi.advanceTimersByTime(9000); });
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+    expect(web.clearPairedPilotCode).toHaveBeenCalled();
   });
 });

@@ -18,7 +18,7 @@ import MyWeeklySchedule from "./MyWeeklySchedule.jsx";
 import MyDutyHistory from "./MyDutyHistory.jsx";
 import CrewSettings from "./CrewSettings.jsx";
 import { applyCrewDisplay } from "./crewDisplay.js";
-import { ACTIVITY_EVENTS, IDLE_LIMIT_MS, idleState, runBeforeLogout } from "./idleLogout.js";
+import { ACTIVITY_EVENTS, IDLE_LIMIT_MS, FLUSH_BEFORE_LOGOUT_MS, idleState, isRealActivity, runBeforeLogout, withTimeout } from "./idleLogout.js";
 import "./WebApp.css";
 import "./AppAppearance.css";
 
@@ -222,7 +222,8 @@ export default function WebApp() {
     if (!pairedCode) return undefined;
     lastActivityRef.current = Date.now();
     setIdleSecondsLeft(null);
-    const onActivity = () => { lastActivityRef.current = Date.now(); };
+    const pointer = { last: null };
+    const onActivity = (e) => { if (isRealActivity(e, pointer)) lastActivityRef.current = Date.now(); };
     ACTIVITY_EVENTS.forEach((ev) => window.addEventListener(ev, onActivity, { passive: true, capture: true }));
     const tick = () => {
       const st = idleState(lastActivityRef.current);
@@ -250,7 +251,8 @@ export default function WebApp() {
       await runBeforeLogout("idle");
       try {
         const { flushQueue, isOnline } = await import("../services/offlineQueue.js");
-        if (isOnline()) await flushQueue();
+        // Never let a hanging request keep the session open.
+        if (isOnline()) await withTimeout(flushQueue(), FLUSH_BEFORE_LOGOUT_MS);
       } catch { /* sign out regardless */ }
       await clearPairedPilotCode();
       setIdleSecondsLeft(null);

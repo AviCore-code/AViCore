@@ -22,7 +22,42 @@
 export const IDLE_LIMIT_MS = 10 * 60 * 1000;
 export const IDLE_WARNING_MS = 60 * 1000; // countdown shown for the last minute
 
-export const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "wheel", "scroll", "touchstart", "pointerdown", "input"];
+// What counts as someone using the app. Two events that used to be here never
+// did, and kept the session open for ever (Capt. Weera, 17 Nov 2026: auto
+// logout "ไม่ work"):
+//   - "scroll" also fires when the APP scrolls itself (scrollIntoView after a
+//     save, a list jumping to today). A person scrolling still shows up as
+//     wheel / touchmove / keydown, or mousedown on the scrollbar.
+//   - "mousemove" is sent by Chrome and Edge with the mouse lying still,
+//     whenever what is under the pointer changes - an animated background,
+//     a clock, a list refreshing. So a move only counts if the pointer really
+//     went somewhere (see isRealActivity).
+export const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "wheel", "touchstart", "touchmove", "pointerdown", "input"];
+
+// Least distance, in screen pixels, a mouse must travel to count as activity.
+export const MIN_MOUSE_TRAVEL_PX = 3;
+
+// Decides whether an event is a real person. `pointer` holds the last
+// position seen ({ x, y } or null) and is updated in place.
+export function isRealActivity(event, pointer) {
+  if (!event) return false;
+  if (event.type !== "mousemove") return true;
+  const x = Number(event.screenX), y = Number(event.screenY);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+  const last = pointer.last;
+  pointer.last = { x, y };
+  if (!last) return false; // first sighting: nothing to compare with yet
+  return Math.abs(x - last.x) + Math.abs(y - last.y) >= MIN_MOUSE_TRAVEL_PX;
+}
+
+// How long sending queued work may hold up an automatic sign-out. On a poor
+// offshore connection a request can hang for minutes; the work is safe in
+// the queue either way and goes up at the next sign-in.
+export const FLUSH_BEFORE_LOGOUT_MS = 8000;
+
+export function withTimeout(promise, ms) {
+  return Promise.race([promise, new Promise((resolve) => setTimeout(() => resolve("timeout"), ms))]);
+}
 
 const savers = new Set();
 
