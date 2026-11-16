@@ -102,7 +102,14 @@ export default function AutoImport({ loadSetting = getSetting, storeSetting = sa
       if (ping.ok) {
         const res = await (await fetch(`${HELPER}/browse?key=${key}`)).json();
         if (res.cancelled || res.value == null) { setMsg(null); return; }
-        editPath(key, key === "staff" ? [].concat(res.value) : String(res.value));
+        if (key === "fdt" && res.value && typeof res.value === "object" && !Array.isArray(res.value)) {
+          // { folder, files }: one file picked = the whole folder, several = only those.
+          edit({ paths: { ...cfg.paths, fdt: String(res.value.folder || ""), fdtFiles: [].concat(res.value.files || []).map(String) } });
+        } else if (key === "fdt") {
+          edit({ paths: { ...cfg.paths, fdt: String(res.value), fdtFiles: [] } });
+        } else {
+          editPath(key, key === "staff" ? [].concat(res.value) : String(res.value));
+        }
         setMsg({ ok: true, text: "Path filled in - press Save settings to keep it." });
         return;
       }
@@ -174,7 +181,16 @@ export default function AutoImport({ loadSetting = getSetting, storeSetting = sa
                         : <input value={cfg.paths[src.key] || ""} placeholder={src.hint} onChange={(e) => editPath(src.key, e.target.value)} />}
                       <button type="button" className="autoimp-browse" onClick={() => browse(src.key)} title="Open Windows Explorer on the office PC to pick it">📂 Browse…</button>
                     </div>
-                    {src.key === "fdt" && <div className="autoimp-note">Folder - every *_FDT.xlsx in it. All: each pilot's Daily Duty is replaced by the whole file.</div>}
+                    {src.key === "fdt" && (
+                      (cfg.paths.fdtFiles || []).length ? (
+                        <div className="autoimp-note">
+                          <b>Only these {cfg.paths.fdtFiles.length} file(s):</b> {cfg.paths.fdtFiles.join(", ")}{" "}
+                          <button type="button" className="autoimp-linkbtn" onClick={() => editPath("fdtFiles", [])}>use every file in the folder</button>
+                        </div>
+                      ) : (
+                        <div className="autoimp-note">Every *_FDT.xlsx in the folder. Browse: pick one file = the whole folder; pick several (Ctrl / Shift) = only those. Each pilot's Daily Duty is replaced by the whole file.</div>
+                      )
+                    )}
                     {src.key === "roster" && <div className="autoimp-note">From today to the end of the sheet; past days are not touched.</div>}
                   </td>
                   <td className="autoimp-files">

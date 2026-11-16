@@ -25,7 +25,7 @@ describe("Auto Import core", () => {
   });
 
   it("fills defaults and checks the time list", () => {
-    expect(withConfigDefaults(null).paths).toEqual({ fdt: "", roster: "", training: "", staff: [] });
+    expect(withConfigDefaults(null).paths).toEqual({ fdt: "", fdtFiles: [], roster: "", training: "", staff: [] });
     expect(withConfigDefaults({ paths: { fdt: "C:\FDT" } }).paths.fdt).toBe("C:\FDT");
     expect(normaliseTimes("6:00, 18.30 6:00")).toEqual(["06:00", "18:30"]);
     expect(normaliseTimes("25:00")).toBeNull();

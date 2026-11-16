@@ -63,3 +63,4 @@
 .autoimp-pathrow{display:flex;gap:6px;align-items:flex-start}
 .autoimp-pathrow input,.autoimp-pathrow textarea{flex:1;min-width:0}
 .autoimp-page .autoimp-browse{white-space:nowrap;flex:none}
+.autoimp-page .autoimp-linkbtn{all:unset;cursor:pointer;color:#2563eb!important;text-decoration:underline;font-size:12px}

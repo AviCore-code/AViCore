@@ -37,7 +37,8 @@ export const DEFAULT_CONFIG = {
   checkMinutes: 15,
   times: ["06:00", "18:00"],
   rosterSheet: "",
-  paths: { fdt: "", roster: "", training: "", staff: [] }
+  // fdtFiles: the FDT files picked (several) - empty = every *_FDT.xlsx in the folder.
+  paths: { fdt: "", fdtFiles: [], roster: "", training: "", staff: [] }
 };
 
 export function withConfigDefaults(saved) {
@@ -46,7 +47,12 @@ export function withConfigDefaults(saved) {
     ...DEFAULT_CONFIG,
     ...s,
     times: Array.isArray(s.times) ? s.times : DEFAULT_CONFIG.times,
-    paths: { ...DEFAULT_CONFIG.paths, ...(s.paths || {}), staff: Array.isArray(s.paths?.staff) ? s.paths.staff : [] }
+    paths: {
+      ...DEFAULT_CONFIG.paths,
+      ...(s.paths || {}),
+      staff: Array.isArray(s.paths?.staff) ? s.paths.staff : [],
+      fdtFiles: Array.isArray(s.paths?.fdtFiles) ? s.paths.fdtFiles : []
+    }
   };
 }
 

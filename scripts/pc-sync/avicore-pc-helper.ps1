@@ -40,11 +40,13 @@ function Show-Picker([string]$which) {
       # share (Azure Files), the file dialog does - so pick any one *_FDT.xlsx
       # and use the folder it is in.
       $d = New-Object System.Windows.Forms.OpenFileDialog
-      $d.Title = "AviCore - open the FDT folder and pick ANY one *_FDT.xlsx file (all files in that folder are used)"
+      $d.Title = "AviCore - FDT: pick ONE *_FDT.xlsx = every file in that folder, or pick SEVERAL (Ctrl / Shift) = only those"
       $d.Filter = "FDT files (*_FDT.xlsx)|*_FDT.xlsx;*_FDT.xls|Excel files (*.xlsx;*.xls;*.xlsm)|*.xlsx;*.xls;*.xlsm"
-      $d.Multiselect = $false
-      if ($d.ShowDialog($owner) -eq "OK") { return (To-Unc (Split-Path -Parent $d.FileName)) }
-      return $null
+      $d.Multiselect = $true
+      if ($d.ShowDialog($owner) -ne "OK") { return $null }
+      # One file = the whole folder; several = only those files.
+      $names = @($d.FileNames | ForEach-Object { Split-Path -Leaf $_ })
+      return [ordered]@{ folder = (To-Unc (Split-Path -Parent $d.FileName)); files = $(if ($names.Count -gt 1) { $names } else { @() }) }
     }
     $d = New-Object System.Windows.Forms.OpenFileDialog
     $d.Title = @{ roster = "AviCore - choose the roster Excel file"; training = "AviCore - choose the Pilot Training Due Excel file"; staff = "AviCore - choose the Staff Training Excel file(s)" }[$which]

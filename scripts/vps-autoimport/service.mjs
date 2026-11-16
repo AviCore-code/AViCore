@@ -49,7 +49,12 @@ function listFiles(key, cfg) {
     .filter((n) => /\.xls[xm]?$/i.test(n) && !n.startsWith("~$") && !n.endsWith(".part"))
     .map((n) => { const st = fs.statSync(path.join(dir, n)); return { name: n, full: path.join(dir, n), st }; })
     .filter((f) => f.st.isFile());
-  if (key === "fdt") files = files.filter((f) => isFdtFileName(f.name));
+  if (key === "fdt") {
+    files = files.filter((f) => isFdtFileName(f.name));
+    // Only the files picked on the Auto Import page, when some were picked.
+    const only = new Set((cfg.paths?.fdtFiles || []).map((n) => String(n).toLowerCase()));
+    if (only.size) files = files.filter((f) => only.has(f.name.toLowerCase()));
+  }
   if (key === "roster" || key === "training") {
     // One file is expected; prefer the one named in the settings, else the newest.
     const wanted = path.win32.basename(String(cfg.paths?.[key] || "")).toLowerCase();

@@ -76,7 +76,9 @@ try {
 
   $wanted = @()
   if ($cfg.paths.fdt -and (Test-Path -LiteralPath $cfg.paths.fdt -PathType Container)) {
-    Get-ChildItem -LiteralPath $cfg.paths.fdt -File | Where-Object { $_.Name -match '_FDT\.xlsx?$' -and $_.Name -notlike '~$*' } |
+    # fdtFiles: the files picked on the Auto Import page; empty = every *_FDT file.
+    $only = @(@($cfg.paths.fdtFiles | Where-Object { $_ }) | ForEach-Object { $_.ToLower() })
+    Get-ChildItem -LiteralPath $cfg.paths.fdt -File | Where-Object { $_.Name -match '_FDT\.xlsx?$' -and $_.Name -notlike '~$*' -and ($only.Count -eq 0 -or $only -contains $_.Name.ToLower()) } |
       ForEach-Object { $wanted += [pscustomobject]@{ key = "fdt"; file = $_ } }
   }
   foreach ($k in @("roster", "training")) {
