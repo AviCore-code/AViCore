@@ -1,0 +1,21 @@
+[Unit]
+Description=AviCore Auto Import (FDT / roster / training Excel from the office PC to AviCore)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=avicoreimport
+Group=avicoreimport
+Environment=AVI_IMPORT_ROOT=/srv/avicore-import/files
+Environment=AVI_IMPORT_STATE=/var/lib/avicore-autoimport
+Environment=NODE_OPTIONS=--max-old-space-size=512
+ExecStart=/usr/bin/node /opt/avicore-autoimport/avicore-autoimport.mjs run
+Restart=always
+RestartSec=20
+NoNewPrivileges=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/avicore-autoimport /srv/avicore-import/files
+
+[Install]
+WantedBy=multi-user.target

@@ -33,3 +33,11 @@
 .autoimp-login input{padding:6px 8px;font-size:13px;min-width:200px}
 .autoimp-login p{flex-basis:100%;margin:2px 0 0}
 .autoimp-err{color:#b91c1c;font-size:12.5px}
+.autoimp-status{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.autoimp-status small{color:#475569}
+.autoimp-table td input,.autoimp-table td textarea{width:100%;box-sizing:border-box;padding:6px 8px;font-size:12.5px;font-family:ui-monospace,Consolas,monospace}
+.autoimp-files{font-size:12px;min-width:220px}
+.autoimp-files small{color:#64748b}
+.autoimp-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.autoimp-dot.ok{background:#16a34a}
+.autoimp-dot.warn{background:#f59e0b}

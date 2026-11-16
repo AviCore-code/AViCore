@@ -18,3 +18,4 @@ shared/supabase/supabase/.temp/
 .env.mobile
 private-data/
 .codex-work/
+dist-vps/

@@ -1,0 +1,9 @@
+#!/bin/sh
+# Sign the AviCore Auto Import service in with an AviCore admin account.
+# Asks for the email and password; only the session is kept (not the password).
+#   ssh -t root@<vps> avicore-autoimport-login
+set -e
+sudo -u avicoreimport env AVI_IMPORT_ROOT=/srv/avicore-import/files AVI_IMPORT_STATE=/var/lib/avicore-autoimport \
+  /usr/bin/node /opt/avicore-autoimport/avicore-autoimport.mjs "${1:-login}"
+systemctl restart avicore-autoimport
+echo "Auto Import service restarted."
