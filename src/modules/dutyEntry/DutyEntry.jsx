@@ -10,6 +10,8 @@ import { decimalToHHMM, formatDateTime, STATUS_LABEL, entryDutyHours } from "../
 import { entryFlightTypes } from "../../utils/flightLegs.js";
 import { registerBeforeLogout, saveDraft, takeDraft } from "../../web/idleLogout.js";
 import { totalsFromLegs, legsWithHours, legsOverOnOffshore, legFlightMin } from "./legTotals.js";
+import { partnersOf, partnerOf, pairRoles, buildPartnerEntry, upCode } from "./pairing.js";
+import { PairingPanel, PairingCheck } from "./PairingPanel.jsx";
 import "./DutyEntry.css";
 import { todayIso } from "../../utils/dateKeys.js";
 
@@ -321,6 +323,66 @@ export default function DutyEntry() {
     else setEntries([]);
   }, [pilotCode]);
 
+  // ---- Pairing & Copy (pairing.js / PairingPanel.jsx) ----
+  // Rank by pilot code, for "Captain = PIC, the other = SIC".
+  const positions = useMemo(() => new Map(pilots.map((p) => [upCode(p.code), p.position || ""])), [pilots]);
+  const knownCodes = useMemo(() => new Set(pilots.map((p) => upCode(p.code))), [pilots]);
+  // Partner code -> { loading, entry (their flight entry for this date, or null), error }
+  const [partnerData, setPartnerData] = useState({});
+  // Partner code -> false when "Copy to X" was unticked (ticked by default).
+  const [copyTo, setCopyTo] = useState({});
+  const [checkFor, setCheckFor] = useState(null);
+  const partnerCodes = useMemo(
+    () => (dutyType === "flight" ? [...partnersOf(flight.legs, pilotCode).keys()].filter((c) => knownCodes.has(c)) : []),
+    [dutyType, flight.legs, pilotCode, knownCodes]
+  );
+  const partnerKey = `${flight.date}|${partnerCodes.join(",")}`;
+  async function findPartnerFlight(code, date) {
+    const list = await listDutyEntriesByPilot(code);
+    return (list || []).find((e) => e.dutyType === "flight" && e.date === date) || null;
+  }
+  async function loadPartner(code, date = flight.date) {
+    setPartnerData((d) => ({ ...d, [code]: { ...(d[code] || {}), loading: true, date } }));
+    try {
+      const entry = await findPartnerFlight(code, date);
+      setPartnerData((d) => ({ ...d, [code]: { loading: false, entry, date } }));
+    } catch (err) {
+      setPartnerData((d) => ({ ...d, [code]: { loading: false, entry: null, error: err.message, date } }));
+    }
+  }
+  useEffect(() => {
+    if (!flight.date || !partnerCodes.length) return undefined;
+    // Wait for typing in the seat boxes to settle before reading their logs.
+    const t = setTimeout(() => {
+      for (const code of partnerCodes) {
+        const d = partnerData[code];
+        if (!d || d.date !== flight.date) loadPartner(code, flight.date);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [partnerKey]);
+
+  // After my flight entry is saved: copy it to each pilot I flew with who
+  // hasn't logged the day yet (and wasn't unticked). Re-read their log first -
+  // a copy must never overwrite something they saved meanwhile (the table
+  // keeps one flight entry per pilot per day).
+  async function copyToPartners(saved) {
+    const notes = [];
+    for (const [code, idx] of partnersOf(saved.legs, pilotCode)) {
+      if (!knownCodes.has(code) || copyTo[code] === false) continue;
+      try {
+        const existing = await findPartnerFlight(code, saved.date);
+        if (existing) { notes.push(`${code} already logged — use Pairing Check`); continue; }
+        const roles = pairRoles(pilotCode, code, positions);
+        const res = await addDutyEntry(buildPartnerEntry(saved, pilotCode, code, idx, roles.theirs));
+        notes.push(`copied to ${code}${res?.queued ? " (will send when online)" : ""}`);
+      } catch (err) {
+        notes.push(`copy to ${code} failed: ${err.message}`);
+      }
+    }
+    return notes;
+  }
+
   // Automatic sign-out after 10 idle minutes (web/idleLogout.js): an entry
   // still being typed is kept as a draft on this device - not submitted - and
   // put back here when the same pilot signs in again.
@@ -383,6 +445,14 @@ export default function DutyEntry() {
   function updateLeg(i, field, value) {
     const follows = i === 0 && FOLLOW_FLIGHT_1.includes(field);
     const before = flight.legs[0]?.[field] ?? "";
+    // A seat changed: that flight's Role defaults by rank (Captain = PIC, the
+    // other = SIC) - still editable afterwards.
+    const seated = (leg) => {
+      if (field !== "rs" && field !== "ls") return leg;
+      const partner = partnerOf(leg, pilotCode);
+      if (!partner || !knownCodes.has(partner)) return leg;
+      return { ...leg, role: pairRoles(pilotCode, partner, positions).mine };
+    };
     applyLegs(flight.legs.map((leg, idx) => {
       if (idx === i) {
         const next = { ...leg, [field]: value };
@@ -407,7 +477,7 @@ export default function DutyEntry() {
         return { ...leg, [field]: value };
       }
       return leg;
-    }));
+    }).map((leg, idx) => (leg === flight.legs[idx] ? leg : seated(leg))));
   }
   function addLeg() {
     if (flight.legs.length >= MAX_FLIGHTS_PER_DAY) return;
@@ -471,16 +541,21 @@ export default function DutyEntry() {
 
     try {
       const offlineNote = " — saved on this device, will send when back online";
+      let done;
       if (editingId != null) {
         const res = await updateDutyEntry(pilotCode, editingId, withTotalDuty);
-        setMsg(`Updated — ${pilotCode} on ${base.date}${res?.queued ? offlineNote : ""}`);
-        playOk();
+        done = `Updated — ${pilotCode} on ${base.date}${res?.queued ? offlineNote : ""}`;
         setEditingId(null);
       } else {
         const res = await addDutyEntry(withTotalDuty);
-        setMsg(`Saved — ${pilotCode} on ${base.date}${res?.queued ? offlineNote : ""}`);
-        playOk();
+        done = `Saved — ${pilotCode} on ${base.date}${res?.queued ? offlineNote : ""}`;
       }
+      const pairNotes = dutyType === "flight" ? await copyToPartners(withTotalDuty) : [];
+      setMsg(pairNotes.length ? `${done} · ${pairNotes.join(" · ")}` : done);
+      playOk();
+      setPartnerData({});
+      setCopyTo({});
+      setCheckFor(null);
       if (dutyType === "flight") setFlight(blankFlight());
       else setNonFlight(blankNonFlight());
       await refreshEntries();
@@ -674,6 +749,41 @@ export default function DutyEntry() {
         <NonFlightForm nonFlight={nonFlight} setNonFlight={setNonFlight} actualNonFdtDisplay={actualNonFdtDisplay} />
       )}
 
+      {dutyType === "flight" && (
+        <PairingPanel
+          me={pilotCode} flight={flight} pilots={pilots} positions={positions}
+          partnerData={partnerData} copyTo={copyTo}
+          setCopy={(code, on) => setCopyTo((c) => ({ ...c, [code]: on }))}
+          onOpenCheck={(code) => { playClick(); setCheckFor(code); }}
+          legsOf={legsFromEntry}
+        />
+      )}
+      {dutyType === "flight" && checkFor && partnerData[checkFor]?.entry && (
+        <PairingCheck
+          key={`${checkFor}|${partnerData[checkFor].entry.id}`}
+          me={pilotCode} myEntry={flight} partner={checkFor} partnerEntry={partnerData[checkFor].entry}
+          pilots={pilots} positions={positions} legsOf={legsFromEntry}
+          onSave={async (entry) => {
+            try {
+              const res = await updateDutyEntry(checkFor, partnerData[checkFor].entry.id, entry);
+              setMsg(`Saved ${checkFor}'s entry for ${entry.date}${res?.queued ? " — will send when online" : ""} (edited by ${pilotCode})`);
+              playOk();
+              await loadPartner(checkFor);
+            } catch (err) { setMsg(`Save ${checkFor} failed: ${err.message}`); playError(); }
+          }}
+          onDelete={async () => {
+            try {
+              await deleteDutyEntry(checkFor, partnerData[checkFor].entry.id);
+              setMsg(`Deleted ${checkFor}'s flight entry for ${flight.date}.`);
+              playOk();
+              setCheckFor(null);
+              await loadPartner(checkFor);
+            } catch (err) { setMsg(`Delete ${checkFor} failed: ${err.message}`); playError(); }
+          }}
+          onClose={() => setCheckFor(null)}
+        />
+      )}
+
       <div className="duty-entry-actions">
         <button className="primary" onClick={handleSave} disabled={dutyType === "flight" && !flight.legs.length}>{editingId != null ? "Update Entry" : "Save Entry"}</button>
         <button onClick={handleCancelEdit}>{editingId != null ? "Cancel" : "Clear"}</button>
@@ -692,6 +802,8 @@ export default function DutyEntry() {
                 รอส่ง
               </span>
             )}
+            {e.pairCopy?.from && !e.pairEdit && <span className="duty-entry-pairtag" title={`Copied from ${e.pairCopy.from}'s entry — add your own T/O, LDG and I.App`}>copied from {e.pairCopy.from}</span>}
+            {e.pairEdit?.by && <span className="duty-entry-pairtag" title="Changed in Pairing Check">edited by {e.pairEdit.by}</span>}
             <span className="duty-entry-summary">
               {e.dutyType === "flight"
                 ? flightSummary(e)
