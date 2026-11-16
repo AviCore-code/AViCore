@@ -28,5 +28,15 @@ $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -DontStopIfGoingOnB
 Register-ScheduledTask -TaskName "AviCore Auto Import Sync" -Action $action -Trigger $trigger -Settings $settings `
   -Description "Sends changed FDT / roster / training Excel files to the AviCore VPS for Auto Import" -Force | Out-Null
 
+# "Browse…" on the Auto Import page opens avicore-sync://browse/<key>; this
+# links that to the Explorer dialog script (for this Windows user only).
+Copy-Item -Force (Join-Path $PSScriptRoot "avicore-pc-browse.ps1") (Join-Path $Base "avicore-pc-browse.ps1")
+$proto = "HKCU:\Software\Classes\avicore-sync"
+New-Item -Path "$proto\shell\open\command" -Force | Out-Null
+Set-ItemProperty -Path $proto -Name "(Default)" -Value "URL:AviCore Sync"
+Set-ItemProperty -Path $proto -Name "URL Protocol" -Value ""
+Set-ItemProperty -Path "$proto\shell\open\command" -Name "(Default)" `
+  -Value ('powershell.exe -NoProfile -STA -WindowStyle Hidden -ExecutionPolicy Bypass -File "{0}" "%1"' -f (Join-Path $Base "avicore-pc-browse.ps1"))
+
 Write-Output "Installed. Public key:"
 Get-Content "$Key.pub"

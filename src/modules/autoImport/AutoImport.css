@@ -60,3 +60,6 @@
 .autoimp-page input::placeholder,.autoimp-page textarea::placeholder{color:#94a3b8!important;-webkit-text-fill-color:#94a3b8!important;font-weight:400!important}
 .autoimp-page .autoimp-table{table-layout:auto!important}
 .autoimp-page .autoimp-table th,.autoimp-page .autoimp-table td{height:auto!important}
+.autoimp-pathrow{display:flex;gap:6px;align-items:flex-start}
+.autoimp-pathrow input,.autoimp-pathrow textarea{flex:1;min-width:0}
+.autoimp-page .autoimp-browse{white-space:nowrap;flex:none}

@@ -84,6 +84,24 @@ export default function AutoImport({ loadSetting = getSetting, storeSetting = sa
     }
   }
 
+  // "Browse…": opens Windows Explorer on the office PC through the AviCore
+  // Sync helper (avicore-sync:// link, scripts/pc-sync). A browser cannot hand
+  // a web page the real path of a picked file, so the PC sends its choice to
+  // the VPS, which saves it here; the page reloads the settings to show it.
+  function browse(key) {
+    setMsg({ ok: true, text: "Windows Explorer opens on this PC (if AviCore Sync is installed here). Pick the folder / file - on this PC or the company share drive. The path appears here within about a minute." });
+    window.location.href = `avicore-sync://browse/${key}`;
+    for (const ms of [20000, 45000, 75000, 110000]) {
+      setTimeout(async () => {
+        try {
+          const c = withConfigDefaults(await loadSetting(CONFIG_KEY));
+          setCfg((cur) => (cur && JSON.stringify(cur.paths) !== JSON.stringify(c.paths) ? { ...cur, paths: c.paths, updatedBy: c.updatedBy, updatedAt: c.updatedAt } : cur));
+        } catch { /* try again on the next round */ }
+        loadStatus();
+      }, ms);
+    }
+  }
+
   async function runNow() {
     setMsg(null);
     try {
@@ -131,9 +149,12 @@ export default function AutoImport({ loadSetting = getSetting, storeSetting = sa
                 <tr key={src.key}>
                   <th>{src.label}</th>
                   <td>
-                    {src.key === "staff"
-                      ? <textarea rows={3} value={(cfg.paths.staff || []).join("\n")} placeholder={src.hint} onChange={(e) => editPath("staff", e.target.value.split(/\r?\n/))} />
-                      : <input value={cfg.paths[src.key] || ""} placeholder={src.hint} onChange={(e) => editPath(src.key, e.target.value)} />}
+                    <div className="autoimp-pathrow">
+                      {src.key === "staff"
+                        ? <textarea rows={3} value={(cfg.paths.staff || []).join("\n")} placeholder={src.hint} onChange={(e) => editPath("staff", e.target.value.split(/\r?\n/))} />
+                        : <input value={cfg.paths[src.key] || ""} placeholder={src.hint} onChange={(e) => editPath(src.key, e.target.value)} />}
+                      <button type="button" className="autoimp-browse" onClick={() => browse(src.key)} title="Open Windows Explorer on the office PC to pick it">📂 Browse…</button>
+                    </div>
                     {src.key === "fdt" && <div className="autoimp-note">Folder - every *_FDT.xlsx in it. All: each pilot's Daily Duty is replaced by the whole file.</div>}
                     {src.key === "roster" && <div className="autoimp-note">From today to the end of the sheet; past days are not touched.</div>}
                   </td>

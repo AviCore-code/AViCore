@@ -103,6 +103,42 @@ async function runSources(cfg, state, force, reason) {
   return logs.length;
 }
 
+// "Browse…" on the Auto Import page opens Windows Explorer on the office PC
+// (scripts/pc-sync/avicore-pc-browse.ps1), which drops the choice here as
+// .pc-pick-<key>.json. It is saved into the shared settings, so every admin
+// sees it on the page.
+const PICK_KEYS = new Set(["fdt", "roster", "training", "staff"]);
+async function applyPcPicks(cfg, state) {
+  let names = [];
+  try { names = fs.readdirSync(ROOT).filter((n) => /^\.pc-pick-[a-z]+\.json$/.test(n)); } catch { return cfg; }
+  if (!names.length) return cfg;
+  const paths = { ...cfg.paths };
+  const picked = [];
+  for (const n of names) {
+    const full = path.join(ROOT, n);
+    try {
+      // PowerShell writes UTF-8 with a byte-order mark; JSON.parse rejects it.
+      const pick = JSON.parse(fs.readFileSync(full, "utf8").replace(/^﻿/, ""));
+      if (PICK_KEYS.has(pick.key)) {
+        const v = pick.key === "staff" ? [].concat(pick.value || []).map(String).filter(Boolean) : String(pick.value || "");
+        if (pick.key === "staff" ? v.length : v) {
+          paths[pick.key] = v;
+          picked.push({ key: pick.key, value: v, by: `${pick.user || "?"} on ${pick.computer || "office PC"}` });
+        }
+      }
+    } catch (err) { log("Bad pick file", n, err.message || err); }
+    try { fs.unlinkSync(full); } catch { /* already gone */ }
+  }
+  if (!picked.length) return cfg;
+  const next = { ...cfg, paths, updatedBy: `Browse - ${picked[0].by}`, updatedAt: new Date().toISOString() };
+  await saveSetting(CONFIG_KEY, next);
+  const at = next.updatedAt;
+  state.log = [...picked.map((p) => ({ at, reason: "Browse", source: "Settings", ok: true, text: `${p.key} = ${[].concat(p.value).join("; ")} (${p.by})` })), ...(state.log || [])].slice(0, LOG_MAX);
+  state.lastStatusAt = 0;   // report soon
+  log("Saved picked path(s):", picked.map((p) => p.key).join(", "));
+  return next;
+}
+
 // The office PC's sync job cannot read the server settings itself (it has no
 // AviCore sign-in), so the paths it must send are published here, in the
 // upload folder it can read over SFTP.
@@ -150,7 +186,8 @@ async function tick({ forceOnce = false } = {}) {
     if (!session) { log("Not signed in - run: avicore-autoimport login"); return; }
     const account = session.user?.email || "";
     await withImporterClient(async () => {
-      const cfg = withConfigDefaults(await getSetting(CONFIG_KEY));
+      let cfg = withConfigDefaults(await getSetting(CONFIG_KEY));
+      cfg = await applyPcPicks(cfg, state);
       const req = await getSetting(REQUEST_KEY);
       publishPcConfig(cfg);
       const now = bangkokNow();
