@@ -41,3 +41,22 @@
 .autoimp-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
 .autoimp-dot.ok{background:#16a34a}
 .autoimp-dot.warn{background:#f59e0b}
+
+/* PilotExperienceBuilder.css styles every `td input` in the Admin bundle
+   (no border, transparent, centred, bold, dark text-fill - which also paints
+   the placeholder like a real value), so the path fields did not look like
+   fields at all. Spelled out here so they read as editable boxes. */
+.autoimp-page .autoimp-table td input,
+.autoimp-page .autoimp-table td textarea,
+.autoimp-page .autoimp-field input,
+.autoimp-page .autoimp-field select{
+  border:1px solid #94a3b8!important;border-radius:6px!important;background:#fff!important;
+  color:#0f172a!important;-webkit-text-fill-color:#0f172a!important;
+  text-align:left!important;font-weight:500!important;height:auto!important;outline:revert!important;
+}
+.autoimp-page .autoimp-table td input:focus,
+.autoimp-page .autoimp-table td textarea:focus,
+.autoimp-page .autoimp-field input:focus{border-color:#2563eb!important;box-shadow:0 0 0 2px rgba(37,99,235,.25)!important}
+.autoimp-page input::placeholder,.autoimp-page textarea::placeholder{color:#94a3b8!important;-webkit-text-fill-color:#94a3b8!important;font-weight:400!important}
+.autoimp-page .autoimp-table{table-layout:auto!important}
+.autoimp-page .autoimp-table th,.autoimp-page .autoimp-table td{height:auto!important}

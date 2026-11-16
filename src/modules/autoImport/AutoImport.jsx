@@ -21,7 +21,7 @@ const ago = (iso) => {
 };
 const kb = (n) => (n == null ? "" : n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
-export default function AutoImport() {
+export default function AutoImport({ loadSetting = getSetting, storeSetting = saveSetting }) {
   const [cfg, setCfg] = useState(null);
   const [status, setStatus] = useState(null);
   const [timesText, setTimesText] = useState("");
@@ -30,11 +30,11 @@ export default function AutoImport() {
   const [dirty, setDirty] = useState(false);
 
   async function loadStatus() {
-    try { setStatus(await getSetting(STATUS_KEY)); } catch { /* keep the last one */ }
+    try { setStatus(await loadSetting(STATUS_KEY)); } catch { /* keep the last one */ }
   }
   async function load() {
     try {
-      const c = withConfigDefaults(await getSetting(CONFIG_KEY));
+      const c = withConfigDefaults(await loadSetting(CONFIG_KEY));
       setCfg(c);
       setTimesText(c.times.join(", "));
       setDirty(false);
@@ -72,7 +72,7 @@ export default function AutoImport() {
         updatedBy: await who(),
         updatedAt: new Date().toISOString()
       };
-      await saveSetting(CONFIG_KEY, next);
+      await storeSetting(CONFIG_KEY, next);
       setCfg(next);
       setTimesText(times.join(", "));
       setDirty(false);
@@ -87,7 +87,7 @@ export default function AutoImport() {
   async function runNow() {
     setMsg(null);
     try {
-      await saveSetting(REQUEST_KEY, { at: new Date().toISOString(), by: await who(), force: true });
+      await storeSetting(REQUEST_KEY, { at: new Date().toISOString(), by: await who(), force: true });
       setMsg({ ok: true, text: "Asked the VPS to import every file now - the log below updates within a minute or two." });
       setTimeout(loadStatus, 70000);
     } catch (err) {
