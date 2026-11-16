@@ -9,6 +9,7 @@ import { buildDutyPeriods, periodDutyCreditHours, entryToInterval } from "../../
 import { decimalToHHMM, formatDateTime, STATUS_LABEL, entryDutyHours } from "../../utils/statusCompute.js";
 import { entryFlightTypes } from "../../utils/flightLegs.js";
 import { registerBeforeLogout, saveDraft, takeDraft } from "../../web/idleLogout.js";
+import { totalsFromLegs, legsWithHours, legsOverOnOffshore, legFlightMin } from "./legTotals.js";
 import "./DutyEntry.css";
 import { todayIso } from "../../utils/dateKeys.js";
 
@@ -20,44 +21,12 @@ const DUTY_ROLES = ["PIC", "PICUS", "SIC", "TRI", "TRE"];
 const NON_FLIGHT_TYPES = ["Day Standby", "Night Standby", "Positioning", "Ground Training", "Meeting", "Travel", "Office", "Ground Run", "Other"];
 const DEFAULT_AIRCRAFT_TYPE = "AW139";
 const MAX_FLIGHTS_PER_DAY = 8;
-const FOLLOW_FLIGHT_1 = ["flightType", "aircraftType", "registration", "ls", "route"];
+const FOLLOW_FLIGHT_1 = ["flightType", "aircraftType", "registration", "ls", "route", "role"];
 const today = () => todayIso();
 
-function hhmmToMin(str) {
-  if (!str) return 0;
-  const [h, m] = String(str).split(":");
-  return (parseInt(h, 10) || 0) * 60 + (parseInt(m, 10) || 0);
-}
 function minToHHMM(min) {
   const h = Math.floor(min / 60), m = min % 60;
   return `${h}:${String(m).padStart(2, "0")}`;
-}
-
-// Live guard, called right after any edit that could push Role hours over
-// the day's Total Flight Time - Day + Night combined across every Role row
-// must never exceed it. Pops an alert immediately (no need to wait for
-// Save) but doesn't block typing; the pilot just needs to fix it before
-// saving (handleSave re-checks this too as a final guard).
-function checkRoleHours(roles, totalFlightTime) {
-  const totalMin = hhmmToMin(totalFlightTime);
-  const roleMin = roles.reduce((sum, r) => sum + hhmmToMin(r.dayHours) + hhmmToMin(r.nightHours), 0);
-  if (roleMin > totalMin) {
-    window.alert(
-      `Role hours (Day + Night = ${minToHHMM(roleMin)}) exceed Total Flight Time (${minToHHMM(totalMin)}).\n\nPlease correct the Role Day/Night hours.`
-    );
-  }
-}
-
-// Same live-guard pattern as checkRoleHours, for the other pair that must
-// never exceed the day's Total Flight Time: Onshore + Offshore combined.
-function checkOnOffshoreHours(onshoreHours, offshoreHours, totalFlightTime) {
-  const totalMin = hhmmToMin(totalFlightTime);
-  const sumMin = hhmmToMin(onshoreHours) + hhmmToMin(offshoreHours);
-  if (sumMin > totalMin) {
-    window.alert(
-      `Onshore + Offshore (${minToHHMM(sumMin)}) exceed Total Flight Time (${minToHHMM(totalMin)}).\n\nPlease correct the Onshore/Offshore hours.`
-    );
-  }
 }
 
 // One row per flight. RS always starts as the logged-in pilot (Capt. Weera:
@@ -75,7 +44,11 @@ const blankLeg = (prev, me = "") => {
     rs: me,
     // Don't copy the pilot into LS as well when they sat left on the flight above.
     ls: prevLs && prevLs.toUpperCase() !== String(me).toUpperCase() ? prevLs : "",
-    route: prev?.route || ""
+    route: prev?.route || "",
+    // Hours are per flight (Capt. Weera, 16 Nov 2026) - see legTotals.js.
+    role: prev?.role || "PIC",
+    dayHours: "", nightHours: "", ifrRulesHours: "", ifrHours: "", onshoreHours: "", offshoreHours: "",
+    toDay: "", toNight: "", landDay: "", landNight: "", iApp: ""
   };
 };
 
@@ -362,18 +335,6 @@ export default function DutyEntry() {
     setEntries(await listDutyEntriesByPilot(pilotCode));
   }
 
-  function updateRole(i, field, value) {
-    const roles = [...flight.roles];
-    roles[i] = { ...roles[i], [field]: value };
-    setFlight({ ...flight, roles });
-    if (field === "dayHours" || field === "nightHours") checkRoleHours(roles, flight.totalFlightTime);
-  }
-  function addRole() {
-    setFlight({ ...flight, roles: [...flight.roles, { role: "PIC", dayHours: "", nightHours: "" }] });
-  }
-  function removeRole(i) {
-    setFlight({ ...flight, roles: flight.roles.filter((_, idx) => idx !== i) });
-  }
 
   // Flights/Day, top-level Aircraft Type/Registration, and the composed
   // Route text are derived defaults recomputed from the legs on every leg
@@ -394,7 +355,10 @@ export default function DutyEntry() {
       flightType: legs[0]?.flightType || FLIGHT_TYPES[0],
       aircraftType: legs[0]?.aircraftType || "",
       registration: legs[0]?.registration || "",
-      route
+      route,
+      // The day's totals (Total Flight Time, roles, IFR ... I.App, crew) are
+      // always the sum of the flights - see legTotals.js.
+      ...totalsFromLegs(legs)
     });
   }
   // Editing flight 1 carries to the later flights (Capt. Weera: "แก้เที่ยวที่
@@ -407,7 +371,22 @@ export default function DutyEntry() {
     const follows = i === 0 && FOLLOW_FLIGHT_1.includes(field);
     const before = flight.legs[0]?.[field] ?? "";
     applyLegs(flight.legs.map((leg, idx) => {
-      if (idx === i) return { ...leg, [field]: value };
+      if (idx === i) {
+        const next = { ...leg, [field]: value };
+        // Day / Night typed: IFR and Offshore follow the flight's time while
+        // they are blank or still equal to it (the norm for this operation,
+        // as the old day-level Total Flight Time box did). IMC is never
+        // prefilled - most flights have no time in cloud.
+        if (field === "dayHours" || field === "nightHours") {
+          const before = legFlightMin(leg);
+          const after = legFlightMin(next);
+          const fmt = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+          for (const f of ["ifrRulesHours", "offshoreHours"]) {
+            if (!leg[f] || leg[f] === fmt(before)) next[f] = after ? fmt(after) : "";
+          }
+        }
+        return next;
+      }
       if (follows && idx > 0 && (leg[field] ?? "") === before) {
         // Never put the same pilot in both seats of a flight.
         if (field === "ls" && value && String(value).toUpperCase() === String(leg.rs || "").toUpperCase()) return leg;
@@ -445,19 +424,12 @@ export default function DutyEntry() {
     // every keystroke so mid-edit states (e.g. Day filled in before Night)
     // don't trigger a false alarm.
     if (dutyType === "flight") {
-      const totalMin = hhmmToMin(flight.totalFlightTime);
-      const roleMin = flight.roles.reduce((sum, r) => sum + hhmmToMin(r.dayHours) + hhmmToMin(r.nightHours), 0);
-      if (roleMin > totalMin) {
-        window.alert(
-          `Role hours (Day + Night = ${minToHHMM(roleMin)}) exceed Total Flight Time (${minToHHMM(totalMin)}).\n\nPlease correct the Role Day/Night hours before saving.`
-        );
-        return;
-      }
-      const onOffMin = hhmmToMin(flight.onshoreHours) + hhmmToMin(flight.offshoreHours);
-      if (onOffMin > totalMin) {
-        window.alert(
-          `Onshore + Offshore (${minToHHMM(onOffMin)}) exceed Total Flight Time (${minToHHMM(totalMin)}).\n\nPlease correct the Onshore/Offshore hours before saving.`
-        );
+      // Per flight: Onshore + Offshore can't be more than that flight's time.
+      // (Role hours can't exceed the day's total any more - the total IS the
+      // sum of the flights' Day + Night.)
+      const over = legsOverOnOffshore(flight.legs);
+      if (over.length) {
+        window.alert(`Onshore + Offshore is more than the flight time on flight ${over.join(", ")}.\n\nPlease correct it before saving.`);
         return;
       }
       if (!flight.legs.length) { setMsg("Choose Flights / Day first."); return; }
@@ -525,8 +497,9 @@ export default function DutyEntry() {
     playClick();
     setDutyType(entry.dutyType);
     if (entry.dutyType === "flight") {
-      const legs = legsFromEntry(entry);
-      setFlight({ ...blankFlight(), ...entry, ...splitLegacyIfr(entry), legs, flightsPerDay: String(legs.length) });
+      const fixed = { ...entry, ...splitLegacyIfr(entry) };
+      const legs = legsWithHours(fixed, legsFromEntry(fixed));
+      setFlight({ ...blankFlight(), ...fixed, legs, flightsPerDay: String(legs.length), ...totalsFromLegs(legs) });
     }
     else setNonFlight({ ...blankNonFlight(), ...entry });
     setEditingId(entry.id);
@@ -678,7 +651,6 @@ export default function DutyEntry() {
       {dutyType === "flight" ? (
         <FlightForm
           flight={flight} setFlight={setFlight}
-          updateRole={updateRole} addRole={addRole} removeRole={removeRole}
           updateLeg={updateLeg} addLeg={addLeg} removeLeg={removeLeg} setFlightCount={setFlightCount}
           pilotCode={pilotCode}
           fleet={fleet} pilots={pilots}
@@ -826,7 +798,7 @@ function FlightCountPicker({ value, onPick }) {
   );
 }
 
-function FlightForm({ flight, setFlight, updateRole, addRole, removeRole, updateLeg, addLeg, removeLeg, setFlightCount, pilotCode, fleet, pilots, actualFdtDisplay }) {
+function FlightForm({ flight, setFlight, updateLeg, addLeg, removeLeg, setFlightCount, pilotCode, fleet, pilots, actualFdtDisplay }) {
   const set = (key, value) => setFlight({ ...flight, [key]: value });
   const count = flight.legs.length;
   const unseated = new Set(unseatedFlights(flight.legs, pilotCode));
@@ -859,19 +831,6 @@ function FlightForm({ flight, setFlight, updateRole, addRole, removeRole, update
             from Sch Dep above (22:30-06:59 = Crew 1 ... 09:01-22:29 = Crew 6,
             see fatigueMonitor.js crewForDeparture), so a hand-entered value
             could only ever disagree with the computed one. */}
-        <Field label="Total Flight Time (H:MM)" className="narrow"><input value={flight.totalFlightTime} onChange={(e) => {
-          const v = e.target.value;
-          const roles = flight.roles.length ? flight.roles.map((r, idx) => (idx === 0 ? { ...r, dayHours: v } : r)) : flight.roles;
-          // Prefills IFR-rules time (and offshore) with the whole flight, which
-          // is the norm for this operation. IMC is deliberately NOT prefilled:
-          // most flights have no time in cloud at all, and defaulting it to the
-          // full flight time would silently overstate every pilot's IFR(IMC)
-          // specialty total on the PES report. The pilot types it when it
-          // happens.
-          setFlight({ ...flight, totalFlightTime: v, ifrRulesHours: v, offshoreHours: v, roles });
-          checkRoleHours(roles, v);
-          checkOnOffshoreHours(flight.onshoreHours, v, v);
-        }} placeholder="0:00" /></Field>
         <Field label="Actual FDT (H:MM)" className="narrow">
           <input value={actualFdtDisplay} readOnly className="duty-field-readonly" title="This tab's FDT contribution to today's Mixed Duty total - auto-calculated" />
         </Field>
@@ -887,78 +846,79 @@ function FlightForm({ flight, setFlight, updateRole, addRole, removeRole, update
           <span>#</span><span>Flight Type</span><span>A/C Type</span><span>Registration</span><span>RS</span><span>LS</span><span>Route</span><span />
         </div>
         {flight.legs.map((leg, i) => (
-          <div key={i} className={`duty-legs-row${unseated.has(i + 1) ? " unseated" : ""}`}>
-            <span className="duty-leg-no" aria-label={`Flight ${i + 1}`}>{i + 1}</span>
-            <select aria-label={`Flight ${i + 1} type`} value={leg.flightType || FLIGHT_TYPES[0]} onChange={(e) => updateLeg(i, "flightType", e.target.value)}>
-              {withCurrentOption(FLIGHT_TYPES, leg.flightType).map((t) => <option key={t}>{t}</option>)}
-            </select>
-            <select aria-label={`Flight ${i + 1} aircraft type`} value={leg.aircraftType} onChange={(e) => updateLeg(i, "aircraftType", e.target.value)}>
-              {withCurrentOption(fleet.aircraftTypes, leg.aircraftType).map((t) => <option key={t}>{t}</option>)}
-            </select>
-            <select aria-label={`Flight ${i + 1} registration`} value={leg.registration} onChange={(e) => updateLeg(i, "registration", e.target.value)}>
-              <option value="">—</option>
-              {withCurrentOption(fleet.registrations, leg.registration).map((r) => <option key={r}>{r}</option>)}
-            </select>
-            <PilotPicker value={leg.rs} onChange={(v) => updateLeg(i, "rs", v)} pilots={pilots} placeholder="RS" />
-            <PilotPicker value={leg.ls} onChange={(v) => updateLeg(i, "ls", v)} pilots={pilots} placeholder="LS" />
-            <input aria-label={`Flight ${i + 1} route`} value={leg.route} lang="en" inputMode="text" onChange={(e) => updateLeg(i, "route", e.target.value)} placeholder="VTSH-CPOC-VTSH" />
-            {flight.legs.length > 1 ? <button aria-label={`Remove flight ${i + 1}`} onClick={() => removeLeg(i)}>×</button> : <span />}
+          <div key={i} className={`duty-leg-block${unseated.has(i + 1) ? " unseated" : ""}`}>
+            <div className={`duty-legs-row${unseated.has(i + 1) ? " unseated" : ""}`}>
+              <span className="duty-leg-no" aria-label={`Flight ${i + 1}`}>{i + 1}</span>
+              <select aria-label={`Flight ${i + 1} type`} value={leg.flightType || FLIGHT_TYPES[0]} onChange={(e) => updateLeg(i, "flightType", e.target.value)}>
+                {withCurrentOption(FLIGHT_TYPES, leg.flightType).map((t) => <option key={t}>{t}</option>)}
+              </select>
+              <select aria-label={`Flight ${i + 1} aircraft type`} value={leg.aircraftType} onChange={(e) => updateLeg(i, "aircraftType", e.target.value)}>
+                {withCurrentOption(fleet.aircraftTypes, leg.aircraftType).map((t) => <option key={t}>{t}</option>)}
+              </select>
+              <select aria-label={`Flight ${i + 1} registration`} value={leg.registration} onChange={(e) => updateLeg(i, "registration", e.target.value)}>
+                <option value="">—</option>
+                {withCurrentOption(fleet.registrations, leg.registration).map((r) => <option key={r}>{r}</option>)}
+              </select>
+              <PilotPicker value={leg.rs} onChange={(v) => updateLeg(i, "rs", v)} pilots={pilots} placeholder="RS" />
+              <PilotPicker value={leg.ls} onChange={(v) => updateLeg(i, "ls", v)} pilots={pilots} placeholder="LS" />
+              <input aria-label={`Flight ${i + 1} route`} value={leg.route} lang="en" inputMode="text" onChange={(e) => updateLeg(i, "route", e.target.value)} placeholder="VTSH-CPOC-VTSH" />
+              {flight.legs.length > 1 ? <button aria-label={`Remove flight ${i + 1}`} onClick={() => removeLeg(i)}>×</button> : <span />}
+            </div>
+            <div className="duty-leg-hours">
+              <label className="duty-lh"><span>Role</span>
+                <select aria-label={`Flight ${i + 1} role`} value={leg.role || "PIC"} onChange={(e) => updateLeg(i, "role", e.target.value)}>
+                  {withCurrentOption(DUTY_ROLES, leg.role).map((dr) => <option key={dr}>{dr}</option>)}
+                </select>
+              </label>
+              {LEG_HOUR_COLUMNS.map((c) => (
+                <label key={c.f} className={`duty-lh${c.time ? "" : " count"}`}><span>{c.label}</span>
+                  <input aria-label={`Flight ${i + 1} ${c.label}`} value={leg[c.f] ?? ""} inputMode={c.time ? "text" : "numeric"}
+                    onChange={(e) => updateLeg(i, c.f, e.target.value)} placeholder={c.time ? "0:00" : "0"} />
+                </label>
+              ))}
+              <label className="duty-lh ft"><span>Flight time</span>
+                <input aria-label={`Flight ${i + 1} flight time`} value={legFlightMin(leg) ? `${Math.floor(legFlightMin(leg) / 60)}:${String(legFlightMin(leg) % 60).padStart(2, "0")}` : "0:00"} readOnly className="duty-field-readonly" title="Day + Night of this flight" />
+              </label>
+            </div>
             {unseated.has(i + 1) && <div className="duty-leg-warn">{pilotCode} is not in RS or LS on this flight.</div>}
           </div>
         ))}
         {count < MAX_FLIGHTS_PER_DAY && <button className="duty-add-role" onClick={addLeg}>+ Add Flight</button>}
       </div>
 
-      <div className="duty-roles">
-        <div className="duty-roles-head"><span>Role</span><span>Day (H:MM)</span><span>Night (H:MM)</span><span /></div>
-        {flight.roles.map((r, i) => (
-          <div key={i} className="duty-roles-row">
-            <select value={r.role} onChange={(e) => updateRole(i, "role", e.target.value)}>
-              {DUTY_ROLES.map((dr) => <option key={dr}>{dr}</option>)}
-            </select>
-            <input value={r.dayHours} onChange={(e) => updateRole(i, "dayHours", e.target.value)} placeholder="0:00" />
-            <input value={r.nightHours} onChange={(e) => updateRole(i, "nightHours", e.target.value)} placeholder="0:00" />
-            {flight.roles.length > 1 && <button onClick={() => removeRole(i)}>×</button>}
-          </div>
+      {/* Σ - the day's totals, always the sum of the flights above. These are
+          the values saved on the entry (FDT Monitor, Logbook, PES read them). */}
+      <div className="duty-leg-total" aria-label="Totals for the day">
+        <span className="duty-lt-sigma">Σ</span>
+        {[
+          ["IFR", flight.ifrRulesHours || "0:00"], ["IMC", flight.ifrHours || "0:00"],
+          ["Onshore", flight.onshoreHours || "0:00"], ["Offshore", flight.offshoreHours || "0:00"],
+          ["T/O Day", flight.toDay || "0"], ["T/O Night", flight.toNight || "0"],
+          ["Ldg Day", flight.landDay || "0"], ["Ldg Night", flight.landNight || "0"], ["I.App", flight.iApp || "0"],
+          ["Total Flight Time", flight.totalFlightTime || "0:00"]
+        ].map(([label, v]) => (
+          <div key={label} className={`duty-lt${label === "Total Flight Time" ? " big" : ""}`}><span>{label}</span><b>{v}</b></div>
         ))}
-        <button className="duty-add-role" onClick={addRole}>+ Add Role</button>
-      </div>
-
-      <div className="duty-form-grid">
-        {/* IFR and IMC are two different numbers and always have been - the FDT
-            workbook keeps them in separate columns (V = IFR flight-rules time,
-            W = IMC). Until now this form offered only one box, labelled "IFR
-            Hours", which wrote `ifrHours` - the IMC field. So a pilot entering
-            IFR-rules time had it counted as time in cloud, inflating the
-            "IFR(IMC)" specialty total on the PES report and the Logbook's IFR
-            column.
-
-            Now each writes its own field, matching the importer:
-              IFR -> ifrRulesHours   (My Status "IFR HOURS (180D)" recency)
-              IMC -> ifrHours        (PES "IFR(IMC)", Logbook IMC column)
-            See fdtImport.js, which verified the W = IMC mapping against two
-            dated PES snapshots. */}
-        <Field label="IFR Hours (H:MM)" className="narrow"><input value={flight.ifrRulesHours} onChange={(e) => set("ifrRulesHours", e.target.value)} placeholder="0:00" /></Field>
-        <Field label="IMC Hours (H:MM)" className="narrow"><input value={flight.ifrHours} onChange={(e) => set("ifrHours", e.target.value)} placeholder="0:00" /></Field>
-        <Field label="Onshore (H:MM)" className="narrow"><input value={flight.onshoreHours} onChange={(e) => {
-          const v = e.target.value;
-          set("onshoreHours", v);
-          checkOnOffshoreHours(v, flight.offshoreHours, flight.totalFlightTime);
-        }} placeholder="0:00" /></Field>
-        <Field label="Offshore (H:MM)" className="narrow"><input value={flight.offshoreHours} onChange={(e) => {
-          const v = e.target.value;
-          set("offshoreHours", v);
-          checkOnOffshoreHours(flight.onshoreHours, v, flight.totalFlightTime);
-        }} placeholder="0:00" /></Field>
-        <Field label="T/O Day" className="narrow"><input type="number" value={flight.toDay} onChange={(e) => set("toDay", e.target.value)} /></Field>
-        <Field label="T/O Night" className="narrow"><input type="number" value={flight.toNight} onChange={(e) => set("toNight", e.target.value)} /></Field>
-        <Field label="Landing Day" className="narrow"><input type="number" value={flight.landDay} onChange={(e) => set("landDay", e.target.value)} /></Field>
-        <Field label="Landing Night" className="narrow"><input type="number" value={flight.landNight} onChange={(e) => set("landNight", e.target.value)} /></Field>
-        <Field label="I.App" className="narrow"><input type="number" value={flight.iApp} onChange={(e) => set("iApp", e.target.value)} /></Field>
+        <div className="duty-lt fdt"><span>Actual FDT</span><b>{actualFdtDisplay}</b></div>
       </div>
     </div>
   );
 }
+
+// The per-flight hour boxes, in the order of the old day-level fields.
+const LEG_HOUR_COLUMNS = [
+  { f: "dayHours", label: "Day", time: true },
+  { f: "nightHours", label: "Night", time: true },
+  { f: "ifrRulesHours", label: "IFR", time: true },
+  { f: "ifrHours", label: "IMC", time: true },
+  { f: "onshoreHours", label: "Onshore", time: true },
+  { f: "offshoreHours", label: "Offshore", time: true },
+  { f: "toDay", label: "T/O Day" },
+  { f: "toNight", label: "T/O Night" },
+  { f: "landDay", label: "Ldg Day" },
+  { f: "landNight", label: "Ldg Night" },
+  { f: "iApp", label: "I.App" }
+];
 
 // Add whole days to a "YYYY-MM-DD" string, returning the same format.
 function addDays(dateStr, days) {

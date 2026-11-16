@@ -117,3 +117,31 @@
 }
 
 .duty-entry-pending{font-size:10.5px;font-weight:800;color:#f59e0b;background:rgba(245,158,11,.14);border:1px solid rgba(245,158,11,.35);border-radius:6px;padding:2px 7px;white-space:nowrap}
+
+/* Hours per flight (16 Nov 2026): each flight = info row + hours row; Σ row = day totals */
+.duty-leg-block{border-top:1px solid rgba(148,163,184,.18);padding:8px 0 6px}
+.duty-leg-block:first-of-type{border-top:0}
+.duty-leg-block .duty-legs-row{margin-bottom:6px}
+.duty-leg-hours{display:grid;grid-template-columns:28px minmax(84px,1fr) repeat(6,minmax(62px,1fr)) repeat(5,minmax(52px,.8fr)) minmax(80px,1fr);gap:6px;align-items:end}
+.duty-leg-hours::before{content:"";grid-column:1}
+.duty-lh{display:flex;flex-direction:column;gap:3px;min-width:0}
+.duty-lh span{font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.duty-lh input,.duty-lh select{padding:7px 8px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:white;font-size:13px;width:100%;box-sizing:border-box;text-align:center}
+.duty-lh select{text-align:left}
+.duty-lh.ft input{font-family:ui-monospace,Consolas,monospace;font-weight:800;background:#1e293b;border-color:#3b82f6}
+.duty-leg-total{display:grid;grid-template-columns:28px repeat(9,minmax(56px,1fr)) minmax(110px,1.3fr) minmax(90px,1.1fr);gap:6px;align-items:center;margin:4px 0 14px;padding:10px 8px;border-radius:12px;background:rgba(30,64,175,.35);border:1px solid rgba(96,165,250,.55)}
+.duty-lt-sigma{font-size:18px;font-weight:900;color:#93c5fd;text-align:center}
+.duty-lt{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.duty-lt span{font-size:10px;color:#bfdbfe;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.duty-lt b{font-family:ui-monospace,Consolas,monospace;font-size:15px;color:#fff}
+.duty-lt.big b{font-size:17px}
+.duty-lt.fdt{background:rgba(22,101,52,.45);border-radius:8px;padding:4px 0}
+.duty-lt.fdt b{color:#bbf7d0}
+@media (max-width:900px){
+  .duty-leg-hours{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .duty-leg-hours::before{display:none}
+  .duty-leg-total{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .duty-lt-sigma{grid-column:1/-1}
+}
+.duty-lh span,.duty-lt span{overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.duty-lt span{font-size:9.5px}

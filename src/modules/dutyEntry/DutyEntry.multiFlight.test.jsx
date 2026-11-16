@@ -103,6 +103,39 @@ describe("Daily Duty — Flights / Day first, one row per flight", () => {
     expect(saved.route).toBe("VTSH-CPOC-VTSH/VTSH-VTSH");
   });
 
+  it("takes hours per flight and saves the day's totals (Σ) on the entry", async () => {
+    const { container } = await openForm();
+    fireEvent.click(within(picker()).getByText("2"));
+    const set = (n, label, v) => fireEvent.change(screen.getByLabelText(`Flight ${n} ${label}`), { target: { value: v } });
+    set(1, "Day", "1:50"); set(1, "IMC", "0:10"); set(1, "Onshore", "0:20"); set(1, "Offshore", "1:30"); set(1, "T/O Day", "2"); set(1, "Ldg Day", "2"); set(1, "I.App", "1");
+    set(2, "Day", "1:42"); set(2, "Onshore", "0:12"); set(2, "Offshore", "1:30"); set(2, "T/O Day", "2"); set(2, "Ldg Day", "2");
+    fireEvent.change(screen.getByLabelText("Flight 2 role"), { target: { value: "SIC" } });
+    expect(screen.getByLabelText("Flight 1 flight time").value).toBe("1:50");
+    expect(screen.getByLabelText("Flight 1 IFR").value).toBe("1:50");          // IFR follows the flight time
+    const total = container.querySelector(".duty-leg-total").textContent;
+    expect(total).toContain("3:32");                                          // Total Flight Time
+    expect(total).toContain("0:32");                                          // Onshore
+    fireEvent.click(screen.getByText("Save Entry"));
+    await waitFor(() => expect(db.addDutyEntry).toHaveBeenCalled());
+    const saved = db.addDutyEntry.mock.calls[0][0];
+    expect(saved.totalFlightTime).toBe("3:32");
+    expect(saved.roles).toEqual([{ role: "PIC", dayHours: "1:50", nightHours: "0:00" }, { role: "SIC", dayHours: "1:42", nightHours: "0:00" }]);
+    expect([saved.ifrRulesHours, saved.ifrHours, saved.onshoreHours, saved.offshoreHours]).toEqual(["3:32", "0:10", "0:32", "3:00"]);
+    expect([saved.toDay, saved.landDay, saved.iApp]).toEqual(["4", "4", "1"]);
+    expect(saved.legs[1].dayHours).toBe("1:42");
+    expect(saved.crew).toEqual([{ rs: "WJU", ls: "" }, { rs: "WJU", ls: "" }]);
+  });
+
+  it("blocks saving when Onshore + Offshore is more than a flight's time", async () => {
+    await openForm();
+    fireEvent.click(within(picker()).getByText("1"));
+    fireEvent.change(screen.getByLabelText("Flight 1 Day"), { target: { value: "1:00" } });
+    fireEvent.change(screen.getByLabelText("Flight 1 Onshore"), { target: { value: "0:30" } });
+    fireEvent.click(screen.getByText("Save Entry"));
+    await waitFor(() => expect(window.alert).toHaveBeenCalled());
+    expect(db.addDutyEntry).not.toHaveBeenCalled();
+  });
+
   it("blocks saving when the pilot is not seated on a flight", async () => {
     const { container } = await openForm();
     fireEvent.click(within(picker()).getByText("1"));
