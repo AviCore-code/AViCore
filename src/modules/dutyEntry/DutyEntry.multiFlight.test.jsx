@@ -51,19 +51,20 @@ describe("Daily Duty — Flights / Day first, one row per flight", () => {
     expect(ls()[3]).toBe("KCH");
   });
 
-  it("defaults RS to the logged-in pilot on every flight, editable", async () => {
+  it("RS starts as the logged-in pilot; later flights keep flight 1's pilot pair, editable", async () => {
     const { container } = await openForm();
     fireEvent.click(within(picker()).getByText("2"));
-    const rs = () => [...container.querySelectorAll(".duty-legs-row")].map((r) => r.querySelectorAll(".pilot-picker input")[0].value);
-    expect(rs()).toEqual(["WJU", "WJU"]);
-    fireEvent.change(container.querySelectorAll(".duty-legs-row .pilot-picker input")[0], { target: { value: "KCH" } });
-    fireEvent.change(container.querySelectorAll(".duty-legs-row .pilot-picker input")[1], { target: { value: "WJU" } }); // WJU moves to LS on flight 1
+    const seats = () => [...container.querySelectorAll(".duty-legs-row")].map((r) => [...r.querySelectorAll(".pilot-picker input")].map((x) => x.value).join("/"));
+    expect(seats()).toEqual(["WJU/", "WJU/"]);
+    const seat = (row, k) => container.querySelectorAll(".duty-legs-row")[row].querySelectorAll(".pilot-picker input")[k];
+    fireEvent.change(seat(0, 0), { target: { value: "KCH" } });
+    fireEvent.change(seat(0, 1), { target: { value: "WJU" } }); // WJU moves to LS on flight 1
+    expect(seats()).toEqual(["KCH/WJU", "KCH/WJU"]);           // flight 2 follows the pair
     fireEvent.click(within(screen.getAllByRole("radiogroup")[0]).getByText("3"));
-    expect(rs()).toEqual(["KCH", "WJU", "WJU"]);
-    const ls2 = container.querySelectorAll(".duty-legs-row")[1].querySelectorAll(".pilot-picker input")[1].value;
-    expect(ls2).toBe(""); // WJU is already RS on flight 2 - not copied into LS
-    const ls3 = container.querySelectorAll(".duty-legs-row")[2].querySelectorAll(".pilot-picker input")[1].value;
-    expect(ls3).toBe("");
+    expect(seats()[2]).toBe("KCH/WJU");                        // a new row copies the row above
+    fireEvent.change(seat(2, 0), { target: { value: "NSO" } }); // flight 3 edited on its own
+    fireEvent.change(seat(0, 0), { target: { value: "KSU" } });
+    expect(seats()).toEqual(["KSU/WJU", "KSU/WJU", "NSO/WJU"]);
   });
 
   it("asks for Flights / Day before showing the flight form", async () => {

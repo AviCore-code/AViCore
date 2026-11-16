@@ -658,6 +658,35 @@ async function existingTrainingUuids(sb, codeKeys) {
   return new Map((data || []).map((r) => [r.code_key, r.uuid]));
 }
 
+// A Training Excel carries due dates only. Attachments (record.docs - Passport,
+// Medical, licence scans) and the per-pilot monitoring ticks (record.monitor)
+// are added in the app, so an import must carry them over from the saved
+// record - otherwise every import (the VPS Auto Import runs on a schedule)
+// silently detaches them (Capt. Weera, 16 Nov 2026: Passport / Medical files
+// gone from Training Monitor).
+export const TRAINING_KEEP_FIELDS = ["docs", "monitor"];
+export function withKeptTrainingFields(record, saved) {
+  const out = { ...(record || {}) };
+  for (const f of TRAINING_KEEP_FIELDS) {
+    const prev = saved?.[f];
+    if (prev && typeof prev === "object" && Object.keys(prev).length) {
+      out[f] = { ...prev, ...(out[f] && typeof out[f] === "object" ? out[f] : {}) };
+    }
+  }
+  return out;
+}
+async function existingTrainingKeep(sb, codeKeys) {
+  const keys = [...new Set(codeKeys)].filter(Boolean);
+  const out = new Map();
+  for (let i = 0; i < keys.length; i += 50) {
+    const sel = TRAINING_KEEP_FIELDS.map((f) => `${f}:record_json->${f}`).join(", ");
+    const { data, error } = await sb.from("Admin_pilot_training").select(`code_key, ${sel}`).in("code_key", keys.slice(i, i + 50));
+    if (error) throw new Error("look up training attachments: " + error.message);
+    for (const r of data || []) out.set(r.code_key, r);
+  }
+  return out;
+}
+
 async function rawSaveTraining(code, name, record) {
   const sb = requireSupabase();
   const companyId = await currentCompanyId();
@@ -686,6 +715,7 @@ async function rawImportTrainingMany(pilots) {
   const now = new Date().toISOString();
   const wanted = (pilots || []).map((p) => normalize(p.code)).filter(Boolean);
   const existing = await existingTrainingUuids(sb, wanted);
+  const kept = await existingTrainingKeep(sb, wanted);
   const rows = (pilots || []).map((p) => {
     const codeKey = normalize(p.code);
     return {
@@ -693,7 +723,7 @@ async function rawImportTrainingMany(pilots) {
       company_id: companyId,
       device_id: getDeviceId(),
       code_key: codeKey, code: p.code, name: p.name || "",
-      record_json: p.record,
+      record_json: withKeptTrainingFields(p.record, kept.get(codeKey)),
       created_at: now, modified_at: now, deleted_at: null
     };
   }).filter((r) => r.code_key);

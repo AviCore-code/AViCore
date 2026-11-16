@@ -21,7 +21,9 @@ const DUTY_ROLES = ["PIC", "PICUS", "SIC", "TRI", "TRE"];
 const NON_FLIGHT_TYPES = ["Day Standby", "Night Standby", "Positioning", "Ground Training", "Meeting", "Travel", "Office", "Ground Run", "Other"];
 const DEFAULT_AIRCRAFT_TYPE = "AW139";
 const MAX_FLIGHTS_PER_DAY = 8;
-const FOLLOW_FLIGHT_1 = ["flightType", "aircraftType", "registration", "ls", "route", "role"];
+// Later flights start as a copy of flight 1 and follow its changes until edited
+// (Capt. Weera, 16 Nov 2026: type, A/C, registration, the same pilot pair, route, role).
+const FOLLOW_FLIGHT_1 = ["flightType", "aircraftType", "registration", "rs", "ls", "route", "role"];
 const today = () => todayIso();
 
 function minToHHMM(min) {
@@ -37,13 +39,14 @@ function minToHHMM(min) {
 // the common day). Every field stays editable per flight.
 const blankLeg = (prev, me = "") => {
   const prevLs = prev?.ls || "";
+  const rs = prev?.rs || me;
   return {
     flightType: prev?.flightType || FLIGHT_TYPES[0],
     aircraftType: prev?.aircraftType || DEFAULT_AIRCRAFT_TYPE,
     registration: prev?.registration || "",
-    rs: me,
-    // Don't copy the pilot into LS as well when they sat left on the flight above.
-    ls: prevLs && prevLs.toUpperCase() !== String(me).toUpperCase() ? prevLs : "",
+    // The same pilot pair as the flight above (flight 1 starts with RS = me).
+    rs,
+    ls: prevLs && prevLs.toUpperCase() !== String(rs).toUpperCase() ? prevLs : "",
     route: prev?.route || "",
     // Hours are per flight (Capt. Weera, 16 Nov 2026) - see legTotals.js.
     role: prev?.role || "PIC",
@@ -400,6 +403,7 @@ export default function DutyEntry() {
       if (follows && idx > 0 && (leg[field] ?? "") === before) {
         // Never put the same pilot in both seats of a flight.
         if (field === "ls" && value && String(value).toUpperCase() === String(leg.rs || "").toUpperCase()) return leg;
+        if (field === "rs" && value && String(value).toUpperCase() === String(leg.ls || "").toUpperCase()) return leg;
         return { ...leg, [field]: value };
       }
       return leg;
