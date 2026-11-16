@@ -59,7 +59,7 @@ export function PairingPanel({ me, flight, pilots, positions, partnerData, copyT
               </div>
             ) : (
               <label className="duty-pair-copy">
-                <input type="checkbox" aria-label={`Copy to ${code}`} checked={copyTo[code] !== false} onChange={(e) => setCopy(code, e.target.checked)} />
+                <input type="checkbox" aria-label={`Copy to ${code}`} checked={copyTo[code] === true} onChange={(e) => setCopy(code, e.target.checked)} />
                 <span>Copy to {code} when saving</span>
               </label>
             )}

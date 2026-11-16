@@ -44,7 +44,8 @@ describe("Daily Duty — Pairing & Copy", () => {
     expect(screen.getByLabelText("Flight 1 role").value).toBe("SIC");  // WJU is FO, TYO Captain
     set("Flight 1 Day", "1:50"); set("Flight 1 T/O Day", "2"); set("Flight 1 Ldg Day", "2"); set("Flight 1 I.App", "1");
     set("Flight 2 Day", "1:42");
-    await waitFor(() => expect(screen.getByLabelText("Copy to TYO").checked).toBe(true));
+    await waitFor(() => expect(screen.getByLabelText("Copy to TYO").checked).toBe(false)); // off until ticked
+    fireEvent.click(screen.getByLabelText("Copy to TYO"));
     fireEvent.click(screen.getByText("Save Entry"));
     await waitFor(() => expect(db.addDutyEntry).toHaveBeenCalledTimes(2));
     const [mine, theirs] = db.addDutyEntry.mock.calls.map((c) => c[0]);
@@ -57,11 +58,10 @@ describe("Daily Duty — Pairing & Copy", () => {
     await waitFor(() => expect(screen.getByText(/copied to TYO/)).toBeTruthy());
   });
 
-  it("does not copy when the box is unticked", async () => {
+  it("does not copy unless the box is ticked", async () => {
     const { ls } = await openTwoFlights();
     fireEvent.change(ls(0), { target: { value: "KSU" } });
     await waitFor(() => screen.getByLabelText("Copy to KSU"));
-    fireEvent.click(screen.getByLabelText("Copy to KSU"));
     fireEvent.click(screen.getByText("Save Entry"));
     await waitFor(() => expect(db.addDutyEntry).toHaveBeenCalledTimes(1));
   });
@@ -91,6 +91,5 @@ describe("Daily Duty — Pairing & Copy", () => {
     // Saving my own entry now doesn't overwrite TYO's.
     fireEvent.click(screen.getByText("Save Entry"));
     await waitFor(() => expect(db.addDutyEntry).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(screen.getByText(/TYO already logged/)).toBeTruthy());
   });
 });

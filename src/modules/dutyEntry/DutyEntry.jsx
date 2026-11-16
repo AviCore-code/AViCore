@@ -329,7 +329,7 @@ export default function DutyEntry() {
   const knownCodes = useMemo(() => new Set(pilots.map((p) => upCode(p.code))), [pilots]);
   // Partner code -> { loading, entry (their flight entry for this date, or null), error }
   const [partnerData, setPartnerData] = useState({});
-  // Partner code -> false when "Copy to X" was unticked (ticked by default).
+  // Partner code -> true when "Copy to X" is ticked (unticked by default - Capt. Weera: tick only when wanted).
   const [copyTo, setCopyTo] = useState({});
   const [checkFor, setCheckFor] = useState(null);
   const partnerCodes = useMemo(
@@ -369,7 +369,7 @@ export default function DutyEntry() {
   async function copyToPartners(saved) {
     const notes = [];
     for (const [code, idx] of partnersOf(saved.legs, pilotCode)) {
-      if (!knownCodes.has(code) || copyTo[code] === false) continue;
+      if (!knownCodes.has(code) || copyTo[code] !== true) continue;
       try {
         const existing = await findPartnerFlight(code, saved.date);
         if (existing) { notes.push(`${code} already logged — use Pairing Check`); continue; }
