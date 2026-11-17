@@ -12,6 +12,8 @@ import { registerBeforeLogout, saveDraft, takeDraft } from "../../web/idleLogout
 import { totalsFromLegs, legsWithHours, legsOverOnOffshore, legFlightMin } from "./legTotals.js";
 import { partnersOf, partnerOf, pairRoles, buildPartnerEntry, upCode } from "./pairing.js";
 import { PairingPanel, PairingCheck } from "./PairingPanel.jsx";
+import DailyDutyMonitor from "./DailyDutyMonitor.jsx";
+import { dailyMonitor } from "./dailyMonitor.js";
 import "./DutyEntry.css";
 import { todayIso } from "../../utils/dateKeys.js";
 
@@ -167,6 +169,8 @@ export default function DutyEntry() {
     const key = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     return dutyPeriods.find((p) => key(p.start) === activeDate || key(p.end) === activeDate) || null;
   }, [dutyPeriods, activeDate]);
+  // Daily Duty Monitor: live limits for every Duty Period on this date.
+  const monitorCards = useMemo(() => dailyMonitor(dutyPeriods, activeDate, limits), [dutyPeriods, activeDate, limits]);
 
   // Actual Duty as displayed here = Last Engine Stop + 0:30 (post-flight) -
   // (Sch Dep - 1:00 report buffer) - confirmed to use the SAME {start, end}
@@ -748,6 +752,8 @@ export default function DutyEntry() {
       ) : (
         <NonFlightForm nonFlight={nonFlight} setNonFlight={setNonFlight} actualNonFdtDisplay={actualNonFdtDisplay} />
       )}
+
+      <DailyDutyMonitor cards={monitorCards} />
 
       {dutyType === "flight" && (
         <PairingPanel
