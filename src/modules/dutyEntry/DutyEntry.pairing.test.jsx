@@ -93,3 +93,18 @@ describe("Daily Duty — Pairing & Copy", () => {
     await waitFor(() => expect(db.addDutyEntry).toHaveBeenCalledTimes(1));
   });
 });
+
+describe("Daily Duty — Duty Time Calculator tab", () => {
+  it("opens the calculator, works out a flight, and the forms come back", async () => {
+    render(<DutyEntry />);
+    await waitFor(() => expect(screen.getByDisplayValue(/WJU — Weera/)).toBeTruthy());
+    fireEvent.click(screen.getByText("Duty Time Calculator"));
+    expect(screen.queryByText("Save Entry")).toBeNull();
+    const sec = screen.getByRole("region", { name: "FDP + Flight Time" });
+    fireEvent.change(within(sec).getByPlaceholderText("HH:MM (24h)"), { target: { value: "05:00" } });
+    expect(within(sec).getByText("10:00 hrs")).toBeTruthy();
+    expect(within(sec).getByText("15:00")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Flight Duty" }));
+    expect(screen.getByText("Save Entry")).toBeTruthy();
+  });
+});

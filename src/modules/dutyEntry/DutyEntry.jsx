@@ -13,6 +13,7 @@ import { totalsFromLegs, legsWithHours, legsOverOnOffshore, legFlightMin } from 
 import { partnersOf, partnerOf, pairRoles, buildPartnerEntry, upCode } from "./pairing.js";
 import { PairingPanel, PairingCheck } from "./PairingPanel.jsx";
 import DailyDutyMonitor from "./DailyDutyMonitor.jsx";
+import DutyCalculator from "./DutyCalculator.jsx";
 import { dailyMonitor } from "./dailyMonitor.js";
 import "./DutyEntry.css";
 import { todayIso } from "../../utils/dateKeys.js";
@@ -344,6 +345,9 @@ export default function DutyEntry() {
   // Partner code -> true when "Copy to X" is ticked (unticked by default - Capt. Weera: tick only when wanted).
   const [copyTo, setCopyTo] = useState({});
   const [checkFor, setCheckFor] = useState(null);
+  // Duty Time Calculator tab (what-if, nothing saved) - shown instead of the
+  // forms; the Flight / Non-Flight tabs bring the forms back as they were.
+  const [showCalc, setShowCalc] = useState(false);
   const partnerCodes = useMemo(
     () => (dutyType === "flight" ? [...partnersOf(flight.legs, pilotCode).keys()].filter((c) => knownCodes.has(c)) : []),
     [dutyType, flight.legs, pilotCode, knownCodes]
@@ -744,11 +748,13 @@ export default function DutyEntry() {
         </div>
 
         <div className="duty-entry-tabs">
-          <button className={dutyType === "flight" ? "active" : ""} onClick={() => setDutyType("flight")}>Flight Duty</button>
-          <button className={dutyType === "non_flight" ? "active" : ""} onClick={() => setDutyType("non_flight")}>Non-Flight Duty</button>
+          <button className={!showCalc && dutyType === "flight" ? "active" : ""} onClick={() => { setShowCalc(false); setDutyType("flight"); }}>Flight Duty</button>
+          <button className={!showCalc && dutyType === "non_flight" ? "active" : ""} onClick={() => { setShowCalc(false); setDutyType("non_flight"); }}>Non-Flight Duty</button>
+          <button className={showCalc ? "active" : ""} onClick={() => setShowCalc(true)}>Duty Time Calculator</button>
         </div>
       </div>
 
+      {showCalc ? <DutyCalculator limits={limits} /> : (<>
       {dutyType === "flight" ? (
         <FlightForm
           flight={flight} setFlight={setFlight}
@@ -803,6 +809,7 @@ export default function DutyEntry() {
         <button onClick={handleCancelEdit}>{editingId != null ? "Cancel" : "Clear"}</button>
         {msg && <span className="duty-entry-msg">{msg}</span>}
       </div>
+      </>)}
 
       <h3 className="duty-entry-listtitle">Recent Entries{pilotCode ? ` — ${pilotCode}` : ""}</h3>
       <div className="duty-entry-list">
