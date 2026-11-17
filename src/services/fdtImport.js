@@ -1,3 +1,5 @@
+import { buildFdtLegs, hhmmToMin, minToHHMM } from "./fdtLegs.js";
+
 // xlsx is a heavy library (~800 KB uncompressed). We load it lazily so it
 // doesn't inflate the initial JS bundle that every page load pays for.
 // The _xlsxModule promise caches the dynamic import after the first call so
@@ -47,11 +49,6 @@ function hourToHHMM(decHour) {
   const h = Math.floor(decHour), m = Math.round((decHour - h) * 60);
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
-function decimalToBigHHMM(dec) {
-  const totalMin = Math.round((dec || 0) * 60);
-  const h = Math.floor(totalMin / 60), m = totalMin % 60;
-  return `${h}:${String(m).padStart(2, "0")}`;
-}
 
 function normalizeNonFlightType(raw) {
   const t = (raw || "").toLowerCase();
@@ -76,6 +73,8 @@ function readLogbookByDate(workbook) {
     const flightType = cellText(logWs, r, 1);
     const registration = cellText(logWs, r, 2);
     const h = (c) => cellHourOfDay(logWs, r, c) || 0;
+    // Exact H:MM of a time cell (h() rounds to 0.01h and can drift a minute).
+    const hm = (c) => { const v = cellVal(logWs, r, c); return minToHHMM(typeof v === "number" ? Math.round(v * 1440) : 0); };
     // Some real rows have TRE/TRI/PIC/PICUS/SIC hours filled in but Flight
     // Type and A/C Reg left blank (a data-entry gap, not a non-flying row) -
     // verified against real files: 216 such rows in one 5-year file, holding
@@ -87,18 +86,18 @@ function readLogbookByDate(workbook) {
     // exposed this. Only skip a row now if it has neither identifying text
     // NOR any actual hours.
     const anyHours = h(11) + h(12) + h(13) + h(14) + h(15) + h(16) + h(17) + h(18) + h(19) + h(20) > 0;
-    if (!flightType && !registration && !anyHours) continue;
+    // A row with only T/O / LDG / I.App counts or IFR / IMC / off-onshore
+    // time and no flight time (real: 03/Jul/22 T/O 3 LDG 2, 25/Jan/25 T/O 1
+    // LDG 1 IFR 2:36) is kept as a 0:00 flight so the T/O, LDG and I.App
+    // totals match the Excel (Capt. Weera, 17 Nov 2026).
+    const anyOther = h(21) + h(22) + h(23) + h(24) > 0 || [25, 26, 27, 28, 29].some((c) => (cellNum(logWs, r, c) || 0) > 0);
+    if (!flightType && !registration && !anyHours && !anyOther) continue;
     const d = excelSerialToDate(dRaw);
     if (!d) continue;
     const key = d.toISOString().slice(0, 10);
-    const roles = [
-      { role: "TRE", dayHours: h(11), nightHours: h(12) },
-      { role: "TRI", dayHours: h(13), nightHours: h(14) },
-      { role: "PIC", dayHours: h(15), nightHours: h(16) },
-      { role: "PICUS", dayHours: h(17), nightHours: h(18) },
-      { role: "SIC", dayHours: h(19), nightHours: h(20) }
-    ].filter((r) => r.dayHours > 0 || r.nightHours > 0)
-      .map((r) => ({ role: r.role, dayHours: decimalToBigHHMM(r.dayHours), nightHours: decimalToBigHHMM(r.nightHours) }));
+    const roles = [["TRE", 11], ["TRI", 13], ["PIC", 15], ["PICUS", 17], ["SIC", 19]]
+      .filter(([, c]) => h(c) > 0 || h(c + 1) > 0)
+      .map(([role, c]) => ({ role, dayHours: hm(c), nightHours: hm(c + 1) }));
     // Who flew each flight (Capt. Weera's pairing check, Reports -> Pair
     // Check): up to three flights per row, right seat / left seat pilot code.
     // Kept per flight, in order; a second Logbook row for the same date adds
@@ -116,13 +115,20 @@ function readLogbookByDate(workbook) {
       // real files that this exactly matches the DT sheet's Flight Time
       // column whenever both are present, so it's a safe substitute.
       totalHours: h(11) + h(12) + h(13) + h(14) + h(15) + h(16) + h(17) + h(18) + h(19) + h(20),
+      // The same TRE..SIC Day+Night sum in exact minutes (h() rounds to
+      // 0.01h). Roles can overlap (an instructor logs TRI and PIC for the
+      // same flight), so this is only a last-resort flight time.
+      roleMin: (logByDate[key]?.roleMin || 0) + [11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+        .reduce((sum, c) => { const v = cellVal(logWs, r, c); return sum + (typeof v === "number" ? Math.round(v * 1440) : 0); }, 0),
+      // Logbook Total Flight Time (col K) in exact minutes.
+      kMin: (logByDate[key]?.kMin || 0) + (typeof cellVal(logWs, r, 10) === "number" ? Math.round(cellVal(logWs, r, 10) * 1440) : 0),
       // ifrHours = column W (IMC), used by the PES "IFR(IMC)" specialty combine.
       // ifrRulesHours = column V (IFR flight-rules time), a separate, much
       // larger figure used for the My Status "IFR HOURS (180D)" recency
       // number (the Excel's "IFR(180)" column BA is the 180-day rolling sum
       // of this per-flight value).
-      ifrHours: decimalToBigHHMM(h(22)), ifrRulesHours: decimalToBigHHMM(h(21)),
-      onshoreHours: decimalToBigHHMM(h(24)), offshoreHours: decimalToBigHHMM(h(23)),
+      ifrHours: hm(22), ifrRulesHours: hm(21),
+      onshoreHours: hm(24), offshoreHours: hm(23),
       toDay: cellNum(logWs, r, 25) || 0, toNight: cellNum(logWs, r, 26) || 0,
       landDay: cellNum(logWs, r, 27) || 0, landNight: cellNum(logWs, r, 28) || 0,
       iApp: cellNum(logWs, r, 29) || 0
@@ -182,12 +188,25 @@ export function parseFdtExcelToEntries(filename, workbook) {
     const hasFlying = (schDep != null && stop != null && (schDep !== 0 || stop !== 0)) || !!lb;
     if (hasFlying) {
       const lbData = lb || {};
-      const dtFlightTime = cellHourOfDay(ws, r, 19);
-      // Fall back to the Logbook row's own role-hours sum when the DT
-      // sheet's Flight Time cell is blank (same gap as above) - keeps Grand
-      // Total (sums totalFlightTime) consistent with the PIC/PICUS/SIC
-      // breakdown (sums per-role Logbook hours) for these dates.
-      const totalFt = dtFlightTime != null ? dtFlightTime : (lbData.totalHours || 0);
+      // Flight time for the day = the Logbook's Total Flight Time, col K
+      // (Capt. Weera, 17 Nov 2026 - "follow the Logbook"). On some days the
+      // DT sheet's Flight Time disagrees (e.g. KCH 15/Oct/25: DT 3:31, K and
+      // SIC 5:56). K blank/0 -> DT Flight Time; both blank -> the Logbook's
+      // role hours (a data-entry gap; roles can overlap, so last resort).
+      const dtMin = typeof cellVal(ws, r, 19) === "number" ? Math.round(cellVal(ws, r, 19) * 1440) : 0;
+      const totalMinutes = lbData.kMin > 0 ? lbData.kMin : dtMin > 0 ? dtMin : (lbData.roleMin || 0);
+      const roles = lbData.roles || [{ role: "PIC", dayHours: "0:00", nightHours: "0:00" }];
+      // One Daily Duty row per flight (see fdtLegs.js): RS/LS, route,
+      // registration and hours per flight, so an imported 2-flight day
+      // opens as 2 flights in Daily Duty Entry.
+      const { legs, split } = buildFdtLegs({
+        crew: lbData.crew || [], route: lbData.route || "", registration: lbData.registration || "",
+        flightType: lbData.flightType || "Revenue Flight", roles,
+        totalMin: totalMinutes,
+        ifrRulesMin: hhmmToMin(lbData.ifrRulesHours), ifrMin: hhmmToMin(lbData.ifrHours),
+        offshoreMin: hhmmToMin(lbData.offshoreHours), onshoreMin: hhmmToMin(lbData.onshoreHours),
+        toDay: lbData.toDay, toNight: lbData.toNight, landDay: lbData.landDay, landNight: lbData.landNight, iApp: lbData.iApp
+      });
       entries.push({
         pilotCode: code, dutyType: "flight", date: dateKey,
         flightType: lbData.flightType || "Revenue Flight", aircraftType: "", registration: lbData.registration || "", route: lbData.route || "",
@@ -198,8 +217,9 @@ export function parseFdtExcelToEntries(filename, workbook) {
         // a second, hand-maintained copy could only ever drift out of step.
         sectors: cellNum(ws, r, 17) ?? "", flightsPerDay: cellNum(ws, r, 18) ?? "",
         crew: lbData.crew || [],
-        totalFlightTime: decimalToBigHHMM(totalFt || 0),
-        roles: lbData.roles || [{ role: "PIC", dayHours: "0:00", nightHours: "0:00" }],
+        totalFlightTime: minToHHMM(totalMinutes),
+        roles,
+        legs, legsSplit: split,
         ifrHours: lbData.ifrHours || "0:00", ifrRulesHours: lbData.ifrRulesHours || "0:00", onshoreHours: lbData.onshoreHours || "0:00", offshoreHours: lbData.offshoreHours || "0:00",
         toDay: lbData.toDay ?? 0, toNight: lbData.toNight ?? 0, landDay: lbData.landDay ?? 0, landNight: lbData.landNight ?? 0, iApp: lbData.iApp ?? 0,
         source: "excel", sourceFile: filename, seq: seq++

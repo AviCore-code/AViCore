@@ -84,7 +84,8 @@ function legsFromEntry(entry) {
   if (Array.isArray(entry.legs) && entry.legs.length) {
     // Legs saved before Flight Type moved onto each flight carry none - they
     // all flew the entry's one type.
-    return entry.legs.map((l) => ({ ...l, flightType: l.flightType || entry.flightType || FLIGHT_TYPES[0] }));
+    // FDT imports leave A/C Type blank (the Excel has none) - default it.
+    return entry.legs.map((l) => ({ ...l, flightType: l.flightType || entry.flightType || FLIGHT_TYPES[0], aircraftType: l.aircraftType || entry.aircraftType || DEFAULT_AIRCRAFT_TYPE }));
   }
   return [{
     flightType: entry.flightType || FLIGHT_TYPES[0],
