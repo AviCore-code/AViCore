@@ -90,3 +90,18 @@
   .pair-table thead{display:table-header-group}
   .pair-table tr{break-inside:avoid;page-break-inside:avoid}
 }
+
+/* Pilot picker (hrPilotFilter.jsx) - screen only */
+.hrpick{position:relative;display:inline-flex;align-items:center;gap:8px}
+.hrpick-pop{position:absolute;top:calc(100% + 6px);left:0;z-index:30;width:min(360px,calc(100vw - 32px));background:#fff;color:#0f172a;border:1px solid #cbd5e1;border-radius:10px;box-shadow:0 10px 30px rgba(15,23,42,.25);padding:10px}
+.hrpick-head{display:flex;align-items:center;gap:6px;font-size:12px;color:#475569;margin-bottom:8px}
+.hrpick-head span{flex:1}
+.hrpick-list{max-height:min(60vh,420px);overflow:auto;display:grid;gap:2px}
+.hrpick-list label{display:flex;align-items:center;gap:8px;padding:6px 6px;border-radius:6px;font-size:13px;cursor:pointer;min-height:32px}
+.hrpick-list label:hover{background:#f1f5f9}
+.hrpick-list label b{min-width:38px;color:#1e1b4b}
+.hrpick-list label span{color:#334155;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hrpick-list label.off b,.hrpick-list label.off span{color:#94a3b8;text-decoration:line-through}
+.hrpick-list input{width:16px;height:16px;flex:0 0 auto}
+.hrpick-err{font-size:12px;color:#dc2626}
+@media print{.hrpick{display:none!important}}

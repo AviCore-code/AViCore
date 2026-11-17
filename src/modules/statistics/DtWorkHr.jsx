@@ -3,13 +3,14 @@ import { listRoster } from "../../services/desktopDatabase.js";
 import { defaultHrPeriod, HR_MAX_DAYS, isoAddDays } from "../../utils/ftMonthlyHr.js";
 import { buildDtWorkHr, dtWorkHrSheetRows, classifyDay } from "../../utils/dtWorkHr.js";
 import { dayLabel, isWeekend, autoFitCols, useFitToPagePrint } from "./hrPrint.js";
+import { useHrExcluded, withoutExcluded, HrPilotPicker } from "./hrPilotFilter.jsx";
 import "./FtMonthlyHr.css";
 
 // Reports → DT Work for HR. See src/utils/dtWorkHr.js. Same date picker,
 // look and one-page A4 landscape print as FT Monthly for HR (the hrft-*
 // classes carry the print rules).
 
-export default function DtWorkHr({ loadRoster = listRoster }) {
+export default function DtWorkHr({ loadRoster = listRoster, pilotFilter }) {
   const [period, setPeriod] = useState(() => defaultHrPeriod());
   const [roster, setRoster] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +37,9 @@ export default function DtWorkHr({ loadRoster = listRoster }) {
   }
   useEffect(() => { load(); }, [period.from, period.to]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  const report = useMemo(() => (rangeError ? null : buildDtWorkHr(roster, period.from, period.to)), [roster, period, rangeError]);
+  const fullReport = useMemo(() => (rangeError ? null : buildDtWorkHr(roster, period.from, period.to)), [roster, period, rangeError]);
+  const pick = useHrExcluded(pilotFilter);
+  const report = useMemo(() => withoutExcluded(fullReport, pick.excluded), [fullReport, pick.excluded]);
 
   async function exportExcel() {
     if (!report) return;
@@ -58,6 +61,7 @@ export default function DtWorkHr({ loadRoster = listRoster }) {
         <label>To <input type="date" value={period.to} onChange={(e) => setPeriod({ ...period, to: e.target.value })} /></label>
         <button onClick={() => setPeriod(defaultHrPeriod())} title="16th of last month to 15th of this month">16 – 15</button>
         <button onClick={load} disabled={loading}>{loading ? "Loading…" : "Refresh"}</button>
+        {fullReport && <HrPilotPicker pilots={fullReport.pilots} {...pick} />}
         <button onClick={exportExcel} disabled={!report || loading}>Export Excel</button>
         <button className="primary" onClick={() => window.print()} disabled={!report || loading}>Print</button>
       </div>
