@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { loadAllPilotStatusRows, decimalToHHMM } from "../../utils/statusCompute.js";
 import { listRoster } from "../../services/desktopDatabase.js";
 import { pilotHistory, pastDays, localIso, FT_WINDOWS, DT_WINDOWS, rosterRemark, remarkLabel, preOffRrDays, simTrips, simReadiness, simDayMarks, simMarkText, REMARK_LOOKBACK_DAYS, REMARK_LOOKAHEAD_DAYS } from "./dutyHistory.js";
@@ -173,11 +173,9 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
   const [loadedAt, setLoadedAt] = useState(null);
   const [roster, setRoster] = useState([]);
   const [rosterError, setRosterError] = useState("");
-  // "fit" scales the whole table to the screen width (like zooming out), so
-  // the past days, next 7 days and totals are in view together; a number is a
-  // fixed zoom set with -/+.
-  const [zoom, setZoom] = useState("fit");
-  const [fitScale, setFitScale] = useState(1);
+  // Table zoom, set with -/+. Starts at 80% (Capt. Weera, 17 Nov 2026 - the
+  // Fit button was removed).
+  const [zoom, setZoom] = useState(0.8);
   const scrollRef = useRef(null);
   const tableRef = useRef(null);
 
@@ -257,29 +255,9 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
   const totalCols = 1 + range + AHEAD_DAYS + 1 + FT_WINDOWS.length + DT_WINDOWS.length;
   const hasTable = visible.length > 0;
 
-  // Fit: the table's natural (unzoomed) width against the space available.
-  useLayoutEffect(() => {
-    const box = scrollRef.current;
-    const table = tableRef.current;
-    if (!box || !table) return undefined;
-    const measure = () => {
-      const current = Number(getComputedStyle(table).zoom) || 1;
-      const natural = table.getBoundingClientRect().width / current;
-      const available = box.clientWidth - 14;
-      if (natural > 0 && available > 0) {
-        setFitScale(Math.max(ZOOM_MIN, Math.min(1, available / natural)));
-      }
-    };
-    measure();
-    if (typeof ResizeObserver === "undefined") return undefined;
-    const ro = new ResizeObserver(measure);
-    ro.observe(box);
-    return () => ro.disconnect();
-  }, [hasTable, range, visible.length, fullScreen]);
-
   useDragToScroll(scrollRef, hasTable);
 
-  const scale = zoom === "fit" ? fitScale : zoom;
+  const scale = zoom;
   const stepZoom = (dir) => {
     const next = Math.round((scale + dir * ZOOM_STEP) * 10) / 10;
     setZoom(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next)));
@@ -308,7 +286,6 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
             <button onClick={() => stepZoom(-1)} disabled={scale <= ZOOM_MIN} title="Zoom out" aria-label="Zoom out">−</button>
             <span className="dutyhist-zoom-value">{Math.round(scale * 100)}%</span>
             <button onClick={() => stepZoom(1)} disabled={scale >= ZOOM_MAX} title="Zoom in" aria-label="Zoom in">+</button>
-            <button className={zoom === "fit" ? "primary" : ""} onClick={() => setZoom("fit")} title="Fit the whole table to the screen width">Fit</button>
           </div>
           <button onClick={() => setFullScreen((v) => !v)}>{fullScreen ? "Exit Full Screen" : "Full Screen"}</button>
         </div>
@@ -321,7 +298,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
 
       {view === "help" && <DutyHistoryHelp />}
 
-      {/* Hidden, not unmounted, so the table keeps its fit-to-width measure. */}
+      {/* Hidden, not unmounted, so the table keeps its scroll position. */}
       <div className="dutyhist-view" hidden={view !== "table"}>
       <div className="dutyhist-legend no-print">
         <span><b className="dutyhist-swatch flight" /> Flight day: <b>FT</b> on top, DT below</span>
