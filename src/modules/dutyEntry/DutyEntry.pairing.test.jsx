@@ -100,11 +100,13 @@ describe("Daily Duty — Duty Time Calculator tab", () => {
     await waitFor(() => expect(screen.getByDisplayValue(/WJU — Weera/)).toBeTruthy());
     fireEvent.click(screen.getByText("Duty Time Calculator"));
     expect(screen.queryByText("Save Entry")).toBeNull();
+    expect(screen.queryByText(/Recent Entries/)).toBeNull();
     const sec = screen.getByRole("region", { name: "FDP + Flight Time" });
     fireEvent.change(within(sec).getByPlaceholderText("HH:MM (24h)"), { target: { value: "05:00" } });
     expect(within(sec).getByText("10:00 hrs")).toBeTruthy();
     expect(within(sec).getByText("15:00")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Flight Duty" }));
     expect(screen.getByText("Save Entry")).toBeTruthy();
+    expect(screen.getByText(/Recent Entries/)).toBeTruthy();
   });
 });

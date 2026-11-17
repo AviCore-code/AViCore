@@ -811,6 +811,7 @@ export default function DutyEntry() {
       </div>
       </>)}
 
+      {!showCalc && (<>
       <h3 className="duty-entry-listtitle">Recent Entries{pilotCode ? ` — ${pilotCode}` : ""}</h3>
       <div className="duty-entry-list">
         {entries.length === 0 && <div className="duty-entry-empty">No entries for this pilot yet.</div>}
@@ -835,6 +836,7 @@ export default function DutyEntry() {
           </div>
         ))}
       </div>
+      </>)}
     </div>
   );
 }
