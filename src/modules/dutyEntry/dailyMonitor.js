@@ -46,7 +46,7 @@ export function dailyMonitor(periods, date, limits) {
     .filter((p) => dayKey(p.start) === date || dayKey(p.end) === date || (p.standby && dayKey(p.standby.start) === date))
     .map((p) => {
       const quiet = !p.hasFlight && !p.standby ? quietStandbySpan(p) : null;
-      const kind = p.hasFlight ? "flight" : quiet ? "standby" : "duty";
+      const kind = p.mixed ? "mixed" : p.hasFlight ? "flight" : quiet ? "standby" : "duty";
       const bars = [];
       const notes = [];
 
@@ -57,9 +57,10 @@ export function dailyMonitor(periods, date, limits) {
         bars.push(bar({ key: "stby", label: "Standby", used: quiet.hours, limit: limits.standbyMaxHours,
           note: `counts ${limits.stbyCreditPercent}% as duty` }));
       }
-      if (p.hasFlight) {
+      if (p.hasFlight) { // flight or mixed
         bars.push(bar({ key: "fdp", label: "FDP", used: p.fdpHours, limit: p.maxFdp, extLimit: p.maxFdp + ext }));
         notes.push({ key: "latest", label: "Latest engine stop", at: addHours(p.start, p.maxFdp) });
+        if (p.mixed) bars.push(bar({ key: "mix", label: "Mixed Duty", used: p.mixedDutyHours, limit: p.maxFdp, extLimit: p.maxFdp + ext, note: "flight + ground vs Max FDP" }));
         if (p.maxFt != null) bars.push(bar({ key: "ft", label: "Flight time", used: p.ftHours, limit: p.maxFt }));
       } else if (kind === "duty") {
         // No flight yet: Max FDP doesn't judge a non-flight day, but show

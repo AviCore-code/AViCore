@@ -280,7 +280,11 @@ function deriveAdjusted(group, limits) {
   const sortedEntries = group.entries.map(entryToInterval).filter(Boolean).sort((a, b) => a.start - b.start);
   const leadsWithPlainNonDuty = !standby && sortedEntries.length > 0 && isPlainNonDutyEntry(sortedEntries[0].entry);
 
-  const start = leadsWithPlainNonDuty
+  // Mixed Duty (Capt. Weera, 17 Nov 2026): when the period has a flight, the
+  // 1h report applies even if ground duty leads it (Office 08:00 then a
+  // flight -> report 07:00). Only a no-flight day led by ground duty starts
+  // at that duty's own start time.
+  const start = leadsWithPlainNonDuty && !hasFlight
     ? reportPoint
     : new Date(reportPoint.getTime() - limits.dutyReportOffsetMinutes * 60000);
 
@@ -328,6 +332,15 @@ function hhmmStrToDecimal(str) {
 // candidates are re-merged to a fixed point, recomputing hasFlight/end from
 // each final group's full entry list rather than naively combining two
 // already-adjusted end timestamps.
+// "flight" (has a flight), "ground" (only plain non-flight duty, no
+// standby) or "other" - used to decide what a Mixed Duty gap merges.
+function groupKind(group) {
+  const timed = group.entries.filter((e) => entryToInterval(e));
+  if (timed.some((e) => e.dutyType === "flight")) return "flight";
+  if (timed.length && timed.every(isPlainNonDutyEntry)) return "ground";
+  return "other";
+}
+
 export function buildDutyPeriods(entries, limits) {
   let groups = buildBusyBlocks(entries).map((b) => ({ rawStart: b.start, rawEnd: b.end, entries: b.entries }));
 
@@ -341,7 +354,12 @@ export function buildDutyPeriods(entries, limits) {
       if (last) {
         const gAdj = deriveAdjusted(g, limits);
         const lastAdj = deriveAdjusted(last, limits);
-        if (gAdj.start <= lastAdj.end) {
+        // Mixed Duty: a flight and ground duty (Office, Meeting, Training
+        // ...) less than the CAAT minimum rest apart are one duty period -
+        // a gap shorter than a rest isn't rest, so it counts as duty.
+        const gapHours = (gAdj.start - lastAdj.end) / 3600000;
+        const mixPair = [groupKind(g), groupKind(last)].sort().join("+") === "flight+ground";
+        if (gAdj.start <= lastAdj.end || (mixPair && gapHours < limits.dutyMinRestCaatHours)) {
           last.rawStart = last.rawStart < g.rawStart ? last.rawStart : g.rawStart;
           last.rawEnd = last.rawEnd > g.rawEnd ? last.rawEnd : g.rawEnd;
           last.entries = [...last.entries, ...g.entries];
@@ -410,6 +428,20 @@ export function buildDutyPeriods(entries, limits) {
         const extendedMax = maxFdp + limits.dutyPeriodUnforeseenExtensionHours;
         status = fdpHours <= extendedMax ? "warn" : "exc";
       }
+      // Mixed Duty: the whole duty - report through the end of the last
+      // flight or ground duty, whichever is later - is held to Max FDP too
+      // (ground work after the last flight still counts against it).
+      const groundEnds = g.entries.filter(isPlainNonDutyEntry).map(entryToInterval).filter(Boolean).map((iv) => iv.end);
+      const mixed = adj.hasFlight && groundEnds.length > 0;
+      let mixedDutyHours = null;
+      if (mixed) {
+        const workEnd = groundEnds.reduce((m, d) => (d > m ? d : m), adj.lastFlightEnd);
+        mixedDutyHours = (workEnd - adj.start) / 3600000;
+        if (mixedDutyHours > maxFdp) {
+          const s = mixedDutyHours <= maxFdp + limits.dutyPeriodUnforeseenExtensionHours ? "warn" : "exc";
+          if (s === "exc" || status === "ok") status = s;
+        }
+      }
       if (standby && (standby.exceedsMaxStandby || standby.exceedsCombinedAwake)) status = "exc";
 
       // Daily flight time within this period vs the report-time-dependent
@@ -420,7 +452,7 @@ export function buildDutyPeriods(entries, limits) {
         .reduce((s, e) => s + hhmmStrToDecimal(e.totalFlightTime), 0);
       const ftStatus = maxFt != null && ftHours > maxFt ? "exc" : "ok";
       return {
-        start: adj.start, end: adj.end, entries: g.entries, hasFlight: adj.hasFlight, durationHours, fdpHours, status, maxFdp, maxFt, ftHours, ftStatus, standby
+        start: adj.start, end: adj.end, entries: g.entries, hasFlight: adj.hasFlight, lastFlightEnd: adj.lastFlightEnd, durationHours, fdpHours, mixed, mixedDutyHours, status, maxFdp, maxFt, ftHours, ftStatus, standby
       };
     })
     .sort((a, b) => a.start - b.start);

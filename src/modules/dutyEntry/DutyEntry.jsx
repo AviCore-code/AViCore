@@ -230,7 +230,12 @@ export default function DutyEntry() {
   // total and FDT to minutes first, then deriving non-FDT as the remainder -
   // guarantees FDT + non-FDT == total exactly, every time.
   const totalCreditMin = actualDutyCreditHours != null ? Math.round(actualDutyCreditHours * 60) : null;
-  const fdtMin = actualDurationHours != null ? Math.round(actualDurationHours * 60) : null;
+  // Mixed Duty (flight + ground duty in one period): the flight side runs
+  // from report to Last Engine Stop +0:30; ground duty after that (and any
+  // short gap before it) is the non-FDT part.
+  const mixedFlightMin = (p) => Math.round((Math.min(p.end.getTime(), p.lastFlightEnd.getTime() + limits.dutyPostFlightOffsetMinutes * 60000) - p.start.getTime()) / 60000);
+  const fdtMin = todayPeriod?.mixed ? mixedFlightMin(todayPeriod)
+    : actualDurationHours != null ? Math.round(actualDurationHours * 60) : null;
   const nonFdtCreditMin = (totalCreditMin != null && fdtMin != null) ? totalCreditMin - fdtMin : null;
 
   // Total Actual Duty is presented as an explicit sum the Capt asked for:
@@ -245,11 +250,13 @@ export default function DutyEntry() {
   //                         credit (escalated or quiet), or a plain
   //                         non-flight duty's full value, else 0
   // These three always add back up to totalCreditMin exactly.
-  const postFlightMin = (todayPeriod && todayPeriod.hasFlight) ? Math.round(limits.dutyPostFlightOffsetMinutes) : 0;
+  const postFlightMin = !(todayPeriod && todayPeriod.hasFlight) ? 0
+    : todayPeriod.mixed ? Math.max(0, Math.min(Math.round(limits.dutyPostFlightOffsetMinutes), Math.round((todayPeriod.end - todayPeriod.lastFlightEnd) / 60000)))
+    : Math.round(limits.dutyPostFlightOffsetMinutes);
   const fdtExPostMin = (fdtMin != null && todayPeriod && todayPeriod.hasFlight) ? Math.max(0, fdtMin - postFlightMin) : 0;
   const topNonFdtMin = !todayPeriod ? 0
     : (isPureStandbyDay || isPlainNonFlightDay) ? totalCreditMin
-    : (todayPeriod.standby ? nonFdtCreditMin : 0);
+    : (todayPeriod.standby || todayPeriod.mixed ? nonFdtCreditMin : 0);
 
   // The field shown INSIDE each tab's own form is that tab's own slice of
   // the day, not the combined Mixed Duty total (which is already shown up
@@ -268,6 +275,7 @@ export default function DutyEntry() {
   const actualFdtMin = !todayPeriod ? null
     : isPureStandbyDay ? 0
     : !flightDraftPeriod ? 0
+    : flightDraftPeriod.mixed ? mixedFlightMin(flightDraftPeriod)
     : Math.round(flightDraftPeriod.durationHours * 60);
   const actualFdtDisplay = actualFdtMin != null ? minToHHMM(actualFdtMin) : "0:00";
 
@@ -714,7 +722,7 @@ export default function DutyEntry() {
                       <div>+ non-FDT (non-flight duty): {minToHHMM(totalCreditMin)} hrs</div>
                     )}
                     {todayPeriod.hasFlight && !todayPeriod.standby && (
-                      <div>+ non-FDT: {minToHHMM(topNonFdtMin)} hrs</div>
+                      <div>+ non-FDT{todayPeriod.mixed ? " (ground duty, Mixed Duty)" : ""}: {minToHHMM(topNonFdtMin)} hrs</div>
                     )}
                     <div className="duty-entry-actual-eq">= Total Actual Duty: {minToHHMM(totalCreditMin)} hrs</div>
                   </div>

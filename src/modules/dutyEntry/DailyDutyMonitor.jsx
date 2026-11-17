@@ -7,7 +7,7 @@ import { decimalToHHMM } from "../../utils/statusCompute.js";
 // the report-time cap, Standby + FDP vs 18h.
 
 const STATUS_TEXT = { ok: "Within limits", warn: "Near limit", exc: "Exceeded", info: "" };
-const KIND_TEXT = { flight: "Flight Duty", standby: "Standby", duty: "Duty" };
+const KIND_TEXT = { mixed: "Mixed Duty (Flight + Ground)", flight: "Flight Duty", standby: "Standby", duty: "Duty" };
 const hm = (d) => (d ? `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` : "--:--");
 const dm = (d) => `${d.getDate()}/${d.getMonth() + 1}`;
 const at = (d, ref) => (d && ref && d.toDateString() !== ref.toDateString() ? `${hm(d)} (${dm(d)})` : hm(d));
@@ -47,7 +47,7 @@ export default function DailyDutyMonitor({ cards }) {
       ) : cards.map((c, i) => (
         <div key={i} className={`ddm-card ${c.status}`}>
           <div className="ddm-card-head">
-            <span className="ddm-kind">{c.kind === "flight" && c.bars.some((b) => b.key === "stby") ? "Standby → Flight Duty" : KIND_TEXT[c.kind]}</span>
+            <span className="ddm-kind">{c.kind !== "standby" && c.kind !== "duty" && c.bars.some((b) => b.key === "stby") ? "Standby → Flight Duty" : KIND_TEXT[c.kind]}</span>
             <span className="ddm-span">{at(c.from, c.end)} – {at(c.end, c.from)}</span>
             <span className={`ddm-badge ${c.status}`}>{STATUS_TEXT[c.status]}</span>
           </div>
