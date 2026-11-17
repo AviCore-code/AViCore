@@ -24,8 +24,16 @@ export function limitStatus(used, limit, extLimit = null) {
   return "ok";
 }
 
-function bar({ key, label, used, limit, extLimit = null, note = "" }) {
-  return { key, label, used, limit, extLimit, remaining: limit == null ? null : limit - used, status: limitStatus(used, limit, extLimit), note };
+// `from` (a Date) turns the limit into clock times: endsAt = from + limit,
+// extAt = from + the extended limit (Capt. Weera: show Max FDP / DP as a
+// time too, not only hours). `endsLabel` says what must happen by then.
+function bar({ key, label, used, limit, extLimit = null, note = "", from = null, endsLabel = "until" }) {
+  return {
+    key, label, used, limit, extLimit, remaining: limit == null ? null : limit - used, status: limitStatus(used, limit, extLimit), note,
+    endsAt: from && limit != null ? addHours(from, limit) : null,
+    extAt: from && extLimit != null ? addHours(from, extLimit) : null,
+    endsLabel
+  };
 }
 
 // The standby run at the head of a period that never escalated (a quiet
@@ -51,16 +59,15 @@ export function dailyMonitor(periods, date, limits) {
       const notes = [];
 
       if (p.standby) {
-        bars.push(bar({ key: "stby", label: "Standby", used: p.standby.hours, limit: limits.standbyMaxHours }));
+        bars.push(bar({ key: "stby", label: "Standby", used: p.standby.hours, limit: limits.standbyMaxHours, from: p.standby.start, endsLabel: "max until" }));
       }
       if (quiet) {
-        bars.push(bar({ key: "stby", label: "Standby", used: quiet.hours, limit: limits.standbyMaxHours,
+        bars.push(bar({ key: "stby", label: "Standby", used: quiet.hours, limit: limits.standbyMaxHours, from: quiet.start, endsLabel: "max until",
           note: `counts ${limits.stbyCreditPercent}% as duty` }));
       }
       if (p.hasFlight) { // flight or mixed
-        bars.push(bar({ key: "fdp", label: "FDP", used: p.fdpHours, limit: p.maxFdp, extLimit: p.maxFdp + ext }));
-        notes.push({ key: "latest", label: "Latest engine stop", at: addHours(p.start, p.maxFdp) });
-        if (p.mixed) bars.push(bar({ key: "mix", label: "Mixed Duty", used: p.mixedDutyHours, limit: p.maxFdp, extLimit: p.maxFdp + ext, note: "flight + ground vs Max FDP" }));
+        bars.push(bar({ key: "fdp", label: "FDP", used: p.fdpHours, limit: p.maxFdp, extLimit: p.maxFdp + ext, from: p.start, endsLabel: "engine stop by" }));
+        if (p.mixed) bars.push(bar({ key: "mix", label: "Mixed Duty (DP)", used: p.mixedDutyHours, limit: p.maxFdp, extLimit: p.maxFdp + ext, from: p.start, endsLabel: "duty ends by" }));
         if (p.maxFt != null) bars.push(bar({ key: "ft", label: "Flight time", used: p.ftHours, limit: p.maxFt }));
       } else if (kind === "duty") {
         // No flight yet: Max FDP doesn't judge a non-flight day, but show
@@ -69,14 +76,14 @@ export function dailyMonitor(periods, date, limits) {
         notes.push({ key: "ifFly", label: "If flying: latest engine stop", at: addHours(p.start, p.maxFdp) });
       }
       if (p.standby) {
-        bars.push(bar({ key: "awake", label: "Standby + FDP", used: p.standby.hours + p.fdpHours, limit: limits.standbyPlusFdpMaxAwakeHours }));
+        bars.push(bar({ key: "awake", label: "Standby + FDP", used: p.standby.hours + p.fdpHours, limit: limits.standbyPlusFdpMaxAwakeHours, from: p.standby.start, endsLabel: "engine stop by" }));
       }
 
       const rank = { exc: 3, warn: 2, ok: 1, info: 0 };
       const status = bars.reduce((s, b) => (rank[b.status] > rank[s] ? b.status : s), "ok");
       return {
         kind, from: p.standby?.start || quiet?.start || p.start, start: p.start, end: p.end, status, bars, notes,
-        maxFdp: p.maxFdp, maxFt: p.maxFt, reducedBy: p.standby?.reductionHours || 0,
+        maxFdp: p.maxFdp, maxFdpAt: addHours(p.start, p.maxFdp), maxFt: p.maxFt, reducedBy: p.standby?.reductionHours || 0,
         dutyHours: p.durationHours
       };
     });

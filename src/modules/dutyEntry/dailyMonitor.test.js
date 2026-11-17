@@ -20,8 +20,10 @@ describe("Daily Duty Monitor", () => {
       expect(b.ft).toMatchObject({ limit: 7, status: "ok" });
       expect(b.ft.used).toBeCloseTo(1.333, 2);
       expect(b.awake).toMatchObject({ used: 14.5, limit: 18 });
-      expect(c.notes[0].at.getHours()).toBe(9); // report 05:30 + 4:00
-      expect(c.notes[0].at.getMinutes()).toBe(30);
+      expect(b.fdp.endsAt.getHours()).toBe(9); // report 05:30 + Max FDP 4:00
+      expect(b.fdp.endsAt.getMinutes()).toBe(30);
+      expect(b.fdp.extAt.getHours()).toBe(11);
+      expect(b.stby.endsAt.getHours()).toBe(5); // 17:30 + 12h
     }
   });
 
