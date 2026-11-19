@@ -80,6 +80,15 @@ const blankNonFlight = () => ({ date: today(), endDate: today(), nonFlightType: 
 // Entries saved before the multi-leg redesign have no legs array - synthesize
 // a single leg from their old flat aircraftType/registration/route/
 // totalFlightTime fields so editing an old entry doesn't show an empty list.
+// FDT import put the whole day's flight time on flight 1 because the Excel's
+// Route Details had no "(h:mm)" per flight (fdtLegs.js, legsSplit
+// "first-flight"). Flagged until the pilot spreads the hours over the
+// flights (Capt. Weera, 19 Nov 2026).
+export function needsHoursSplit(entry) {
+  const legs = Array.isArray(entry?.legs) ? entry.legs : [];
+  return entry?.dutyType === "flight" && entry?.legsSplit === "first-flight" && legs.length > 1 && legs.slice(1).every((l) => !legFlightMin(l));
+}
+
 function legsFromEntry(entry) {
   if (Array.isArray(entry.legs) && entry.legs.length) {
     // Legs saved before Flight Type moved onto each flight carry none - they
@@ -554,6 +563,7 @@ export default function DutyEntry() {
     // pending/pendingError mark an entry still waiting in the offline queue
     // (see offlineDutyOverlay.js) - display only, never stored.
     const { pending: _pending, pendingError: _pendingError, ...baseClean } = base;
+    if (baseClean.legsSplit === "first-flight" && !needsHoursSplit({ ...baseClean, dutyType })) delete baseClean.legsSplit;
     const withTotalDuty = { pilotCode, dutyType, ...baseClean, totalDuty: dutyType === "flight" ? actualFdtDisplay : actualNonFdtDisplay };
 
     try {
@@ -827,6 +837,7 @@ export default function DutyEntry() {
             )}
             {e.pairCopy?.from && !e.pairEdit && <span className="duty-entry-pairtag" title={`Copied from ${e.pairCopy.from}'s entry — add your own T/O, LDG and I.App`}>copied from {e.pairCopy.from}</span>}
             {e.pairEdit?.by && <span className="duty-entry-pairtag" title="Changed in Pairing Check">edited by {e.pairEdit.by}</span>}
+            {needsHoursSplit(e) && <span className="duty-entry-splittag" title="The FDT Excel has no (h:mm) per flight in Route Details, so the day's flight time is all on flight 1. Press Edit and enter each flight's time.">hours on flight 1 — split per flight</span>}
             <span className="duty-entry-summary">
               {e.dutyType === "flight"
                 ? flightSummary(e)
@@ -998,6 +1009,12 @@ function FlightForm({ flight, setFlight, updateLeg, addLeg, removeLeg, setFlight
         <FlightCountPicker value={count} onPick={setFlightCount} />
       </div>
 
+      {needsHoursSplit(flight) && (
+        <div className="duty-split-note" role="note">
+          <b>Hours on flight 1.</b> The FDT Excel has no time per flight in Route Details, so the day's {flight.totalFlightTime || ""} flight time was put on flight 1.
+          Enter each flight's time (the day's total should stay the same), then Update Entry.
+        </div>
+      )}
       <div className="duty-legs">
         <div className="duty-legs-head">
           <span>#</span><span>Flight Type</span><span>A/C Type</span><span>Registration</span><span>RS</span><span>LS</span><span>Route</span><span />

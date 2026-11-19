@@ -110,3 +110,24 @@ describe("Daily Duty — Duty Time Calculator tab", () => {
     expect(screen.getByText(/Recent Entries/)).toBeTruthy();
   });
 });
+
+describe("Daily Duty — FDT import with all hours on flight 1", () => {
+  it("tags the entry, explains in the form, and drops the flag once the hours are split", async () => {
+    const leg = (o) => ({ flightType: "Revenue", aircraftType: "", registration: "HS-UOA", rs: "TYO", ls: "WJU", route: "VTSH-X-VTSH", role: "PIC", dayHours: "", nightHours: "", ...o });
+    store.byPilot.WJU = [{ id: "x1", pilotCode: "WJU", dutyType: "flight", date: "2026-11-17", schDep: "06:00", stop: "13:30", totalFlightTime: "6:19",
+      source: "excel", sourceFile: "WJU_FDT.xlsx", legsSplit: "first-flight",
+      legs: [leg({ dayHours: "6:19", toDay: "3" }), leg({}), leg({ rs: "WJU", ls: "TYO" })] }];
+    render(<DutyEntry />);
+    await waitFor(() => expect(screen.getByText("hours on flight 1 — split per flight")).toBeTruthy());
+    fireEvent.click(screen.getAllByText("Edit")[0]);
+    await waitFor(() => expect(screen.getByRole("note").textContent).toContain("6:19"));
+    set("Flight 1 Day", "2:12"); set("Flight 2 Day", "2:42"); set("Flight 3 Day", "1:25");
+    expect(screen.queryByRole("note")).toBeNull();
+    fireEvent.click(screen.getByText("Update Entry"));
+    await waitFor(() => expect(db.updateDutyEntry).toHaveBeenCalled());
+    const saved = db.updateDutyEntry.mock.calls[0][2];
+    expect(saved.legsSplit).toBeUndefined();
+    expect(saved.totalFlightTime).toBe("6:19");
+    expect(saved.legs.map((l) => l.dayHours)).toEqual(["2:12", "2:42", "1:25"]);
+  });
+});
