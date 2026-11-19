@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildFdtLegs, splitRouteParts, splitRegistrations, shareMinutes, partMinutes } from "./fdtLegs.js";
+import { buildFdtLegs, splitRouteParts, splitRegistrations, shareMinutes, partMinutes, parseRouteFlights } from "./fdtLegs.js";
 
 const day = (o) => ({ crew: [{ rs: "TYO", ls: "WJU" }, { rs: "TYO", ls: "WJU" }], route: "", registration: "HS-UOM", flightType: "Revenue",
   roles: [{ role: "PIC", dayHours: "5:37", nightHours: "0:00" }], totalMin: 337, ifrRulesMin: 337, ifrMin: 0, offshoreMin: 337, onshoreMin: 0,
@@ -31,7 +31,9 @@ describe("FDT import - one row per flight", () => {
   });
 
   it("no RS/LS -> one flight; mixed day/night and two roles shared out", () => {
-    expect(buildFdtLegs(day({ crew: [], route: "VTSH-A-VTSH(2:00)/VTSH-B-VTSH(3:37)" })).legs).toHaveLength(1);
+    expect(buildFdtLegs(day({ crew: [], route: "VTSH-A-VTSH/VTSH-B-VTSH" })).legs).toHaveLength(1);
+    // Route lists timed flights adding up to the day -> that many flights.
+    expect(buildFdtLegs(day({ crew: [], route: "VTSH-A-VTSH(2:00)/VTSH-B-VTSH(3:37)" })).legs).toHaveLength(2);
     const { legs } = buildFdtLegs(day({ route: "VTSH-A-VTSH(2:00)/VTSH-B-VTSH(3:37)",
       roles: [{ role: "PIC", dayHours: "3:37", nightHours: "0:00" }, { role: "SIC", dayHours: "1:00", nightHours: "1:00" }] }));
     // 1:00 of 5:37 role time is night -> 60 of 337 min stays night here (ratio 60/337 of 337).
@@ -46,5 +48,26 @@ describe("FDT import - one row per flight", () => {
       roles: [{ role: "TRI", dayHours: "2:27", nightHours: "0:00" }, { role: "PIC", dayHours: "2:27", nightHours: "0:00" }] }));
     expect(legs).toHaveLength(1);
     expect(legs[0]).toMatchObject({ dayHours: "2:27", nightHours: "" });
+  });
+
+  it("reads '(UOA 1:58) 1/1 , ...': aircraft, time and T/O / LDG per flight", () => {
+    expect(parseRouteFlights("VTSH-SDE (UOA 1:58) 1/1 , VTSH-SDE (UOA 1:56) 1/1").map((p) => [p.minutes, p.reg, p.to, p.ldg]))
+      .toEqual([[118, "UOA", 1, 1], [116, "UOA", 1, 1]]);
+    const { legs, split } = buildFdtLegs(day({ crew: [{ rs: "PKR", ls: "CSU" }, { rs: "PKR", ls: "CSU" }], registration: "HS-UOA",
+      route: "VTSH-SDE (UOA 1:58) 1/1 , VTSH-SDE (UOA 1:56) 1/1", totalMin: 234, offshoreMin: 234, ifrRulesMin: 0, toDay: 2, landDay: 2 }));
+    expect(split).toBe("per-flight");
+    expect(legs.map((l) => [l.registration, l.route, l.dayHours, l.toDay, l.landDay])).toEqual([
+      ["HS-UOA", "VTSH-SDE (UOA 1:58) 1/1", "1:58", "1", "1"],
+      ["HS-UOA", "VTSH-SDE (UOA 1:56) 1/1", "1:56", "1", "1"]]);
+  });
+
+  it("three flights with commas and n/n; counts that don't add up stay on flight 1", () => {
+    const route = "VTSH-RT15 (2:17) 2/1 , RT15 (2:09) 2/1, IDUN (2:30 ) 1/0";
+    const crew = [{ rs: "CSU", ls: "SBO" }];
+    const ok = buildFdtLegs(day({ crew, route, totalMin: 416, toDay: 5, landDay: 2 })).legs;
+    expect(ok).toHaveLength(3);                                  // route has 3 timed flights = the day's 6:56
+    expect(ok.map((l) => [l.rs, l.dayHours, l.toDay, l.landDay])).toEqual([["CSU", "2:17", "2", "1"], ["CSU", "2:09", "2", "1"], ["CSU", "2:30", "1", ""]]);
+    const off = buildFdtLegs(day({ crew, route, totalMin: 416, toDay: 6, landDay: 2 })).legs;
+    expect(off.map((l) => l.toDay)).toEqual(["6", "", ""]);
   });
 });

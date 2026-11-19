@@ -62,6 +62,45 @@ export function shareMinutes(total, weights) {
 
 const count = (n) => (Number(n) > 0 ? String(n) : "");
 
+// One flight's "(h:mm)", optionally with the aircraft inside and the T/O /
+// LDG count after it, as some pilots write Route Details:
+//   "VTSH-RT15 (UOM 2:07 ) 2/2 / VTSH-AQP-RT15 (UOM 2:33) 1/1"
+//   "VTSH-RT15 (2:17) 2/1 , RT15 (2:09) 2/1, IDUN (2:30 ) 1/0"
+//   "VTSH-SDE (UOA 1:58) 1/1 , VTSH-SDE (UOA 1:56) 1/1"
+const FLIGHT_TIME = /\(\s*(?:([A-Z]{2,4})\s+)?(\d{1,2})\s*[:;.]\s*(\d{2})\s*\)(?:\s*(\d{1,2})\s*\/\s*(\d{1,2})(?!\s*[:;.]\d))?/g;
+
+// Route Details -> one item per flight: { route, minutes, reg, to, ldg }.
+// When "(h:mm)" times are written, each one closes a flight (the text up to
+// the next single "/" or "," still belongs to it, e.g. "(2:09)-VTSH/");
+// "n/n" right after the time is that flight's T/O / LDG. Without times, fall
+// back to splitting on a single "/" (minutes etc. null).
+export function parseRouteFlights(route) {
+  const text = String(route || "").trim();
+  if (!text) return [];
+  const hits = [...text.matchAll(FLIGHT_TIME)];
+  if (!hits.length) return splitRouteParts(text).map((r) => ({ route: r, minutes: null, reg: "", to: null, ldg: null }));
+  const out = [];
+  let start = 0;
+  hits.forEach((m, i) => {
+    const after = m.index + m[0].length;
+    const nextStart = i + 1 < hits.length ? hits[i + 1].index : text.length;
+    // This flight runs to the first separator after its time (before the next flight's time).
+    const rest = text.slice(after, nextStart);
+    const sep = rest.search(/(?<!\/)\/(?!\/)|,/);
+    const end = sep >= 0 && i + 1 < hits.length ? after + sep : (i + 1 < hits.length ? after : text.length);
+    const raw = text.slice(start, end);
+    out.push({
+      route: raw.replace(/^[\s,/]+|[\s,/]+$/g, "").replace(/^\d\.\s*/, "").trim(),
+      minutes: Number(m[2]) * 60 + Number(m[3]),
+      reg: m[1] || "",
+      to: m[4] != null ? Number(m[4]) : null,
+      ldg: m[5] != null ? Number(m[5]) : null
+    });
+    start = sep >= 0 && i + 1 < hits.length ? after + sep + 1 : end;
+  });
+  return out;
+}
+
 /**
  * @param day {
  *   crew: [{rs, ls}], route, registration, flightType,
@@ -73,18 +112,39 @@ const count = (n) => (Number(n) > 0 ? String(n) : "");
  */
 export function buildFdtLegs(day) {
   const crew = (day.crew || []).filter((c) => c.rs || c.ls);
-  const n = Math.max(1, crew.length);
-  const parts = splitRouteParts(day.route);
-  const routes = parts.length === n ? parts : [String(day.route || "").trim(), ...Array(n - 1).fill("")];
-
   const total = day.totalMin || 0;
-  const times = parts.length === n ? parts.map(partMinutes) : null;
+  const parts = parseRouteFlights(day.route);
+  const timed = parts.length > 1 && parts.every((p) => p.minutes != null) && Math.abs(parts.reduce((a, p) => a + p.minutes, 0) - total) <= 1;
+  // Flights = RS/LS pairs; when Route Details clearly lists more flights,
+  // each with its time and adding up to the day, use those (the extra
+  // flights keep the last pair - same crew).
+  const n = Math.max(1, crew.length, timed ? parts.length : 0);
+  while (crew.length && crew.length < n) crew.push({ ...crew[crew.length - 1] });
+  const routes = parts.length === n ? parts.map((p) => p.route) : [String(day.route || "").trim(), ...Array(n - 1).fill("")];
+
+  const times = parts.length === n ? parts.map((p) => p.minutes) : null;
   const perFlight = n > 1 && times && times.every((t) => t != null) && Math.abs(times.reduce((a, b) => a + b, 0) - total) <= 1;
   let mins = perFlight ? times.slice() : [total, ...Array(n - 1).fill(0)];
   if (perFlight) mins[n - 1] += total - mins.reduce((a, b) => a + b, 0);   // absorb a 1-minute rounding gap
 
   const regs = splitRegistrations(day.registration);
-  const regAt = (i) => regs[Math.min(i, regs.length - 1)] || "";
+  // "(UOM 2:07)" names the aircraft of that flight: HS-UOM.
+  const prefix = (regs[0] || "HS-").replace(/[A-Z0-9]+$/, "") || "HS-";
+  const regAt = (i) => (parts.length === n && parts[i]?.reg ? prefix + parts[i].reg : regs[Math.min(i, regs.length - 1)] || "");
+
+  // T/O and LDG per flight from "n/n" after each time, used only when every
+  // flight has one and they add up to the day's T/O and LDG (day only or
+  // night only - a mixed day keeps the counts on flight 1).
+  const sumOf = (k) => parts.reduce((a, p) => a + (p[k] ?? 0), 0);
+  const nn = (v) => Number(v) || 0;
+  const countsPerFlight = parts.length === n && n > 1 && parts.every((p) => p.to != null && p.ldg != null) &&
+    sumOf("to") === nn(day.toDay) + nn(day.toNight) && sumOf("ldg") === nn(day.landDay) + nn(day.landNight);
+  const perLeg = (i, k, dayKey, nightKey) => {
+    if (!countsPerFlight) return { [dayKey]: i === 0 ? count(day[dayKey]) : "", [nightKey]: i === 0 ? count(day[nightKey]) : "" };
+    if (!nn(day[nightKey])) return { [dayKey]: count(parts[i][k]), [nightKey]: "" };
+    if (!nn(day[dayKey])) return { [dayKey]: "", [nightKey]: count(parts[i][k]) };
+    return { [dayKey]: i === 0 ? count(day[dayKey]) : "", [nightKey]: i === 0 ? count(day[nightKey]) : "" };
+  };
 
   // Day / night: the day's split, in proportion to each flight's time.
   const roles = (day.roles || []).map((r) => ({ role: r.role, day: hhmmToMin(r.dayHours), night: hhmmToMin(r.nightHours) }));
@@ -126,10 +186,8 @@ export function buildFdtLegs(day) {
     ifrHours: ifr[i] ? minToHHMM(ifr[i]) : "",
     offshoreHours: off[i] ? minToHHMM(off[i]) : "",
     onshoreHours: on[i] ? minToHHMM(on[i]) : "",
-    toDay: i === 0 ? count(day.toDay) : "",
-    toNight: i === 0 ? count(day.toNight) : "",
-    landDay: i === 0 ? count(day.landDay) : "",
-    landNight: i === 0 ? count(day.landNight) : "",
+    ...perLeg(i, "to", "toDay", "toNight"),
+    ...perLeg(i, "ldg", "landDay", "landNight"),
     iApp: i === 0 ? count(day.iApp) : ""
   }));
   return { legs, split: n === 1 || perFlight ? "per-flight" : "first-flight" };
