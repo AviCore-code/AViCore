@@ -19,6 +19,21 @@ const ago = (iso) => {
   const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
   return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 48 * 60 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
 };
+// "Run now" result (Capt. Weera, 19 Nov 2026 - pressing it gave no sign it
+// had finished). The VPS logs every file of one run with the same `at` and
+// reason "Run now by <who>"; find the newest such batch that started after
+// the request (a minute's slack for clock differences). null = not done yet.
+export function findRunResult(log, requestedAt) {
+  const since = Date.parse(requestedAt) - 60_000;
+  const rows = (log || []).filter((l) => /^Run now/i.test(l.reason || "") && Date.parse(l.at) >= since);
+  if (!rows.length) return null;
+  const at = rows.reduce((m, l) => (l.at > m ? l.at : m), rows[0].at);
+  const batch = rows.filter((l) => l.at === at);
+  return { at, rows: batch, ok: batch.filter((l) => l.ok).length, failed: batch.filter((l) => !l.ok).length };
+}
+const RUN_POLL_MS = 10_000;
+const RUN_TIMEOUT_MS = 6 * 60_000;
+
 // The AviCore Sync helper on the office PC (scripts/pc-sync/avicore-pc-helper.ps1).
 const HELPER = "http://127.0.0.1:47811";
 const kb = (n) => (n == null ? "" : n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
@@ -30,6 +45,8 @@ export default function AutoImport({ loadSetting = getSetting, storeSetting = sa
   const [msg, setMsg] = useState(null);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  // Run now in progress / finished: { requestedAt, result, timedOut }.
+  const [run, setRun] = useState(null);
 
   async function loadStatus() {
     try { setStatus(await loadSetting(STATUS_KEY)); } catch { /* keep the last one */ }
@@ -50,6 +67,21 @@ export default function AutoImport({ loadSetting = getSetting, storeSetting = sa
     const t = setInterval(loadStatus, 30000);
     return () => clearInterval(t);
   }, []);
+
+  // While a Run now is waiting: check the VPS status every 10 s until its
+  // batch shows up in the log (or give up after 6 minutes).
+  const waiting = !!run && !run.result && !run.timedOut;
+  useEffect(() => {
+    if (!waiting) return undefined;
+    const t = setInterval(loadStatus, RUN_POLL_MS);
+    const stop = setTimeout(() => setRun((r) => (r && !r.result ? { ...r, timedOut: true } : r)), RUN_TIMEOUT_MS);
+    return () => { clearInterval(t); clearTimeout(stop); };
+  }, [waiting]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!run || run.result) return;
+    const result = findRunResult(status?.log, run.requestedAt);
+    if (result) setRun((r) => ({ ...r, result }));
+  }, [status]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!cfg) return <div className="autoimp-page"><h1>Auto Import</h1><p>Loading…</p>{msg && <div className="settings-msg error">{msg.text}</div>}</div>;
 
@@ -130,11 +162,12 @@ export default function AutoImport({ loadSetting = getSetting, storeSetting = sa
 
   async function runNow() {
     setMsg(null);
+    const requestedAt = new Date().toISOString();
     try {
-      await storeSetting(REQUEST_KEY, { at: new Date().toISOString(), by: await who(), force: true });
-      setMsg({ ok: true, text: "Asked the VPS to import every file now - the log below updates within a minute or two." });
-      setTimeout(loadStatus, 70000);
+      await storeSetting(REQUEST_KEY, { at: requestedAt, by: await who(), force: true });
+      setRun({ requestedAt, result: null, timedOut: false });
     } catch (err) {
+      setRun(null);
       setMsg({ ok: false, text: "Could not send the request: " + (err.message || err) });
     }
   }
@@ -231,10 +264,11 @@ export default function AutoImport({ loadSetting = getSetting, storeSetting = sa
         </div>
         <div className="autoimp-runbar">
           <button className="primary" onClick={save} disabled={saving || !dirty}>{saving ? "Saving…" : "Save settings"}</button>
-          <button onClick={runNow} disabled={!vpsOk}>Run now (all files)</button>
+          <button onClick={runNow} disabled={!vpsOk || waiting}>{waiting ? "Importing…" : "Run now (all files)"}</button>
           <button onClick={load}>Reload</button>
           {cfg.updatedBy && <span className="autoimp-last">Last changed by {cfg.updatedBy} · {fmt(cfg.updatedAt)}</span>}
         </div>
+        {run && <RunResult run={run} onClose={() => setRun(null)} />}
       </section>
 
       <section className="autoimp-card">
@@ -245,7 +279,7 @@ export default function AutoImport({ loadSetting = getSetting, storeSetting = sa
               <thead><tr><th>Time</th><th>Why</th><th>Import</th><th>File</th><th>Result</th></tr></thead>
               <tbody>
                 {status.log.map((l, i) => (
-                  <tr key={i} className={l.ok ? "" : "bad"}>
+                  <tr key={i} className={`${l.ok ? "" : "bad"}${run?.result && l.at === run.result.at && /^Run now/i.test(l.reason || "") ? " justran" : ""}`}>
                     <td>{fmt(l.at)}</td><td>{l.reason || ""}</td><td>{l.source}</td><td>{l.file || ""}</td><td>{l.ok ? "✓ " : "✗ "}{l.text}</td>
                   </tr>
                 ))}
@@ -254,6 +288,41 @@ export default function AutoImport({ loadSetting = getSetting, storeSetting = sa
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+// Under the Run now button: waiting, then "Update completed" with what each
+// file did (the same rows as the log, for this run only).
+function RunResult({ run, onClose }) {
+  const r = run.result;
+  if (!r) {
+    return (
+      <div className={`autoimp-run ${run.timedOut ? "warn" : "wait"}`} role="status">
+        {run.timedOut
+          ? <>No result from the VPS yet (asked {fmt(run.requestedAt)}). It may still be importing. Press Reload in a minute, or check that the VPS status above is green.</>
+          : <><span className="autoimp-spin" aria-hidden="true" /> Importing all files… asked {fmt(run.requestedAt)}. The VPS picks it up within a minute; a full import takes 1–2 minutes.</>}
+        <button className="autoimp-run-x" onClick={onClose} aria-label="Close">×</button>
+      </div>
+    );
+  }
+  return (
+    <div className={`autoimp-run ${r.failed ? "warn" : "done"}`} role="status">
+      <div className="autoimp-run-head">
+        <b>{r.failed ? "⚠ Update completed with errors" : "✓ Update completed"}</b>
+        <span>{fmt(r.at)} · {r.rows.length} file{r.rows.length === 1 ? "" : "s"} · {r.ok} OK{r.failed ? ` · ${r.failed} failed` : ""}</span>
+        <button className="autoimp-run-x" onClick={onClose} aria-label="Close">×</button>
+      </div>
+      <div className="autoimp-logwrap autoimp-run-list">
+        <table className="autoimp-table autoimp-log">
+          <thead><tr><th>Import</th><th>File</th><th>Result</th></tr></thead>
+          <tbody>
+            {r.rows.map((l, i) => (
+              <tr key={i} className={l.ok ? "" : "bad"}><td>{l.source}</td><td>{l.file || ""}</td><td>{l.ok ? "✓ " : "✗ "}{l.text}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

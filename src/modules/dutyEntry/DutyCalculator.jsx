@@ -39,6 +39,11 @@ function Result({ r, dp }) {
       <Row k="Report" hours={hm(r.report)} time="" sub={r.report.getTime() !== r.start.getTime() ? "ground duty start −1:00" : ""} />
       <Row k="Max FDP" hours={`${decimalToHHMM(r.maxFdp)} hrs`} time={<>engine stop by <b>{at(r.fdpEnd, ref)}</b></>}
         sub={`+${decimalToHHMM(r.extHours)} unforeseen → ${at(r.extEnd, ref)}`} />
+      {/* Post-flight shown on its own line (Capt. Weera, 19 Nov 2026): engine stop + 0:30. */}
+      <Row k="Post-flight" hours={`${decimalToHHMM(r.postHours)} hrs`}
+        time={<>engine stop <b>{at(r.fdpEnd, ref)}</b> + {decimalToHHMM(r.postHours)} → <b>{at(r.dutyEnd, ref)}</b></>} />
+      <Row k="Duty period" hours={`${decimalToHHMM(r.maxFdp + r.postHours)} hrs`} time={<><b>{at(r.report, ref)}</b> – <b>{at(r.dutyEnd, ref)}</b></>}
+        sub={`report ${at(r.report, ref)} → engine stop ${at(r.fdpEnd, ref)} + ${decimalToHHMM(r.postHours)} post-flight`} />
       {dp && <Row k="Max Duty (DP)" hours={`${decimalToHHMM(r.maxFdp)} hrs`} time={<>duty ends by <b>{at(r.fdpEnd, ref)}</b></>} sub="flight + ground, same as Max FDP" />}
       <Row k="Max flight time" hours={r.maxFt != null ? `${decimalToHHMM(r.maxFt)} hrs` : "—"} time="" />
     </div>
@@ -94,7 +99,7 @@ export default function DutyCalculator({ limits }) {
             </div>
             <div className="dcalc-tablewrap">
               <table className="dcalc-table" aria-label="Call-out times">
-                <thead><tr><th>Call-out</th><th>Report</th><th>Standby</th><th>Max FDP</th><th>Engine stop by</th><th>Max FT</th></tr></thead>
+                <thead><tr><th>Call-out</th><th>Report</th><th>Standby</th><th>Max FDP</th><th>Engine stop by</th><th>Duty period (+{decimalToHHMM((limits.dutyPostFlightOffsetMinutes ?? 30) / 60)} post-flight)</th><th>Max FT</th></tr></thead>
                 <tbody>
                   {stby.rows.map((r) => (
                     <tr key={r.standbyHours}>
@@ -103,6 +108,7 @@ export default function DutyCalculator({ limits }) {
                       <td>{decimalToHHMM(r.standbyHours)}</td>
                       <td>{decimalToHHMM(r.maxFdp)}{r.reduction > 0 && <span className="dcalc-red"> (−{decimalToHHMM(r.reduction)})</span>}</td>
                       <td><b>{at(r.latestStop, stby.start)}</b>{r.cappedByAwake && <span className="dcalc-red"> 18h</span>}</td>
+                      <td className="dcalc-dp">{at(r.report, stby.start)} – {at(r.dutyEnd, stby.start)} <span className="dcalc-dph">{decimalToHHMM((r.dutyEnd - r.report) / 3600000)}</span></td>
                       <td>{r.maxFt != null ? decimalToHHMM(r.maxFt) : "—"}</td>
                     </tr>
                   ))}

@@ -104,7 +104,7 @@ describe("Daily Duty — Duty Time Calculator tab", () => {
     const sec = screen.getByRole("region", { name: "FDP + Flight Time" });
     fireEvent.change(within(sec).getByPlaceholderText("HH:MM (24h)"), { target: { value: "05:00" } });
     expect(within(sec).getByText("10:00 hrs")).toBeTruthy();
-    expect(within(sec).getByText("15:00")).toBeTruthy();
+    expect(within(sec).getByText("Max FDP").closest(".dcalc-row").textContent).toContain("engine stop by 15:00");
     fireEvent.click(screen.getByRole("button", { name: "Flight Duty" }));
     expect(screen.getByText("Save Entry")).toBeTruthy();
     expect(screen.getByText(/Recent Entries/)).toBeTruthy();

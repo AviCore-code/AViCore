@@ -308,3 +308,5 @@
 .dcalc .dcalc-seg button{box-sizing:border-box;padding:8px 14px;border-radius:8px!important;border:1px solid #475569!important;background:transparent!important;color:#cbd5e1!important;font-weight:700;cursor:pointer;min-height:38px;box-shadow:none!important}
 .dcalc .dcalc-seg button.active{background:var(--acc)!important;border-color:var(--acc)!important;color:#0f172a!important}
 @media (max-width:600px){.dcalc-sec{padding:12px}.dcalc-seg button{flex:1 1 0;min-height:44px}.dcalc-sec input{font-size:16px;min-height:44px}.dcalc-start{max-width:none}.dcalc-row{grid-template-columns:1fr auto}.dcalc-t{grid-column:1/-1}.dcalc-sub{grid-column:1/-1}}
+.dcalc-dp{color:#e2e8f0}
+.dcalc-dph{display:inline-block;margin-left:6px;padding:0 6px;border-radius:999px;background:rgba(56,189,248,.15);color:#7dd3fc;font-size:11.5px}

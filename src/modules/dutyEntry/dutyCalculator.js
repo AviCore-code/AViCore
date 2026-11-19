@@ -11,6 +11,7 @@ import { maxFdpForReportTime, standbyReductionHours } from "../../utils/dutyPeri
 
 const isTime = (v) => /^\d{1,2}:\d{2}$/.test(String(v || "").trim());
 const addH = (d, h) => new Date(d.getTime() + h * 3600000);
+const postH = (limits) => (limits.dutyPostFlightOffsetMinutes ?? 30) / 60;
 
 // "HH:MM" on `base` (a Date - its day is used).
 export function atTime(base, hhmm) {
@@ -26,7 +27,9 @@ export function limitsAtReport(report, limits, reduction = 0) {
   const ext = limits.dutyPeriodUnforeseenExtensionHours ?? 2;
   return {
     report, maxFdp, maxFt: row.maxFt, tableFdp: row.maxFdp, reduction,
-    fdpEnd: addH(report, maxFdp), extHours: ext, extEnd: addH(report, maxFdp + ext)
+    fdpEnd: addH(report, maxFdp), extHours: ext, extEnd: addH(report, maxFdp + ext),
+    // Duty period: report to engine stop + post-flight duty (30 min).
+    postHours: postH(limits), dutyEnd: addH(report, maxFdp + postH(limits))
   };
 }
 
@@ -55,7 +58,9 @@ export function calcStandby(startHHMM, limits, base = new Date()) {
     const l = limitsAtReport(report, limits, standbyReductionHours(start, report, limits));
     // Standby + FDP (7.9.2(b)) may end the duty earlier than Max FDP.
     const capped = awakeEnd < l.fdpEnd;
-    rows.push({ ...l, standbyHours: k, latestStop: capped ? awakeEnd : l.fdpEnd, cappedByAwake: capped });
+    const latestStop = capped ? awakeEnd : l.fdpEnd;
+    // Duty period for this call-out: report to latest engine stop + 30 min.
+    rows.push({ ...l, standbyHours: k, latestStop, cappedByAwake: capped, dutyEnd: addH(latestStop, postH(limits)) });
   }
   const respH = (limits.standbyResponseTimeMinutes ?? 60) / 60;
   for (const r of rows) r.callout = addH(r.report, -respH);

@@ -12,6 +12,7 @@ describe("Duty Time Calculator", () => {
     expect(r).toMatchObject({ maxFdp: 10, maxFt: 7 });
     expect(hm(r.fdpEnd)).toBe("15:00");
     expect(hm(r.extEnd)).toBe("17:00");
+    expect(hm(r.dutyEnd)).toBe("15:30");
     expect(calcFromStart("flight", "22:00", L, base)).toMatchObject({ maxFdp: 9, maxFt: 6 });
   });
 
@@ -40,6 +41,9 @@ describe("Duty Time Calculator", () => {
     expect(hm(s.latestCallout)).toBe("04:30");     // report by 05:30 = 17:30 + 12h
     expect(hm(s.freeReport)).toBe("23:30");        // 17:30 + 6h, no reduction
     expect(hm(s.freeCallout)).toBe("22:30");
+    // Duty period: report to engine stop + 30 min post-flight.
+    expect(hm(s.rows[0].report) + "-" + hm(s.rows[0].dutyEnd)).toBe("18:30-05:00");
+    expect(hm(r12.dutyEnd)).toBe("10:00");
     // A standby starting at 23:00 doesn't count the night: no cut until 07:00 + 6h... capped by 12h.
     const n = calcStandby("23:00", L, base);
     expect(hm(n.freeReport)).toBe("11:00");
