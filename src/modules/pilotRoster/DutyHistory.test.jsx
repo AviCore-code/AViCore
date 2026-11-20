@@ -168,3 +168,28 @@ describe("SL / VL in Next 7 days", () => {
     expect(cells[2].classList.contains("rostered-off")).toBe(false);
   });
 });
+
+describe("DutyHistory - show Captains or Co-pilots only", () => {
+  it("the Co-pilot button shows just the co-pilots, and is remembered", async () => {
+    try { localStorage.removeItem("dutyhist_group"); } catch { /* jsdom */ }
+    const rows = async () => ({
+      limits: withFtlDefaults(DEFAULT_FTL_LIMITS),
+      rows: [
+        { pilot: { code: "CSU", name: "Chanchai", position: "Captain" }, entries: [] },
+        { pilot: { code: "KCH", name: "Kitsaphon", position: "FO" }, entries: [] },
+        { pilot: { code: "PKR", name: "Piyawut", position: "SFO" }, entries: [] }
+      ]
+    });
+    render(<DutyHistory loadRows={rows} loadRoster={async () => []} />);
+    expect(await screen.findByText("CSU")).toBeTruthy();
+    const group = screen.getByRole("group", { name: "Show pilots" });
+    expect(group.textContent).toMatch(/All\s*3.*Captain\s*1.*Co-pilot\s*2/);
+    fireEvent.click(screen.getByRole("button", { name: /^Co-pilot/ }));
+    expect(rowFor("CSU")).toBeUndefined();
+    expect(rowFor("KCH")).toBeTruthy();
+    expect(rowFor("PKR")).toBeTruthy();
+    expect(localStorage.getItem("dutyhist_group")).toBe("1");
+    fireEvent.click(screen.getByRole("button", { name: /^All/ }));
+    expect(rowFor("CSU")).toBeTruthy();
+  });
+});

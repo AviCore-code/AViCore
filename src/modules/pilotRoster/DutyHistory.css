@@ -190,3 +190,10 @@
 .dutyhist-ahead.sim-after{box-shadow:inset 0 0 0 2px rgba(109,40,217,.35)}
 .dutyhist-ahead.sim-after-rr{box-shadow:inset 0 0 0 2px #dc2626}
 .dutyhist-ahead.sim-after-rr .dutyhist-simtag{background:#dc2626;color:#fff}
+/* All | Captain | Co-pilot (the admin theme styles every <button>) */
+.dutyhist-page .dutyhist-groups{display:inline-flex;border:1px solid #c7d2fe;border-radius:10px;overflow:hidden}
+.dutyhist-page .dutyhist-groups button{all:unset;box-sizing:border-box;cursor:pointer;padding:7px 12px;font-size:13px;font-weight:700;color:#3730a3!important;background:#fff!important;border-right:1px solid #c7d2fe!important}
+.dutyhist-page .dutyhist-groups button:last-child{border-right:0!important}
+.dutyhist-page .dutyhist-groups button.active{background:#4338ca!important;color:#fff!important}
+.dutyhist-groups-n{font-weight:600;opacity:.75;font-size:11.5px}
+@media print{.dutyhist-groups{display:none!important}}

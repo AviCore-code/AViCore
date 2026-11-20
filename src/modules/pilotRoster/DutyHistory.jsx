@@ -168,6 +168,16 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
   // One pilot on a phone or tablet: 14 days keeps the table readable.
   const [range, setRange] = useState(personal ? 14 : 28);
   const [search, setSearch] = useState("");
+  // Which group to show (Capt. Weera: see the Co-pilot rows without
+  // scrolling past every Captain). "all" | 0 (Captain) | 1 (Co-pilot).
+  // Remembered on this device only.
+  const [groupShown, setGroupShownState] = useState(() => {
+    try { const v = localStorage.getItem("dutyhist_group"); return v === "0" || v === "1" ? Number(v) : "all"; } catch { return "all"; }
+  });
+  const setGroupShown = (g) => {
+    setGroupShownState(g);
+    try { localStorage.setItem("dutyhist_group", String(g)); } catch { /* not stored - fine */ }
+  };
   const [fullScreen, setFullScreen] = useState(false);
   // "table" = the history itself, "help" = the manual (TH / EN).
   const [view, setView] = useState("table");
@@ -250,9 +260,10 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
   }, [rows, limits, todayIso, loadedAt, rosterByPilot]);
 
   const q = search.trim().toLowerCase();
-  const visible = sortForPlanning(q
+  const visible = sortForPlanning((q
     ? histories.filter(({ pilot }) => `${pilot.code} ${pilot.name}`.toLowerCase().includes(q))
-    : histories);
+    : histories).filter(({ pilot }) => personal || groupShown === "all" || pilotGroup(pilot) === groupShown));
+  const groupCount = (g) => histories.filter(({ pilot }) => pilotGroup(pilot) === g).length;
   const totalCols = 1 + range + AHEAD_DAYS + 1 + FT_WINDOWS.length + DT_WINDOWS.length;
   const hasTable = visible.length > 0;
 
@@ -275,6 +286,15 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
         </div>
         <div className="header-tools">
           {!personal && <input className="roster-search" placeholder="Search pilot name/code..." value={search} onChange={(e) => setSearch(e.target.value)} />}
+          {!personal && (
+            <div className="dutyhist-groups" role="group" aria-label="Show pilots">
+              {[["all", "All", histories.length], [0, GROUP_LABELS[0], groupCount(0)], [1, GROUP_LABELS[1], groupCount(1)]].map(([g, label, n]) => (
+                <button key={label} type="button" aria-pressed={groupShown === g} className={groupShown === g ? "active" : ""} onClick={() => setGroupShown(g)}>
+                  {label} <span className="dutyhist-groups-n">{n}</span>
+                </button>
+              ))}
+            </div>
+          )}
           <label className="dutyhist-range">
             <span>Show last</span>
             <select value={range} onChange={(e) => setRange(Number(e.target.value))}>
@@ -309,7 +329,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
         <span><b className="dutyhist-swatch ok" /> Within all limits</span>
         <span>Next {AHEAD_DAYS} days: <b>FT left</b> / DT left / 168h cycle (hours until a 36h Recovery Rest must start; RR ✓ = resting now). Counts recorded duty only.</span>
         <span><b className="dutyhist-swatch exc" /> <b className="dutyhist-offtext">red text on a red cell</b> = roster OFF, SL / VL leave, or a limit reached (not available) · <b className="dutyhist-offtext">Red text</b> only = the RR pair right before a 7-day OFF</span>
-        <span><b className="dutyhist-simtag">S/T</b> positioning to / from the sim · <b className="dutyhist-simtag">S</b> sim training · <b className="dutyhist-simtag">Free · S/T −3</b> keep free of duty before S/T (DT 7D must be {60}h on S/T)</span>
+        <span><b className="dutyhist-simtag">S/T</b> positioning to / from the sim · <b className="dutyhist-simtag">S</b> sim training · <b className="dutyhist-simtag">Free · S/T −3</b> keep free of duty before S/T (DT 7D on S/T must cover 10h a trip day; FT 4h a sim day)</span>
         <span>🖱 Drag the table to move it.</span>
       </div>
 

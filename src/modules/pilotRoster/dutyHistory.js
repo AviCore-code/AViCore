@@ -386,8 +386,15 @@ export function cycleOnDay(cycle, iso, limits) {
 // only checks and suggests - the admin and crew scheduler change the roster.
 // 21 = the 14-day table + the 7 days before S/T that it marks.
 export const SIM_LOOKAHEAD_DAYS = 21;
-export const SIM_MIN_DT_LEFT = 60;     // DT the trip uses (7D)
-export const SIM_MIN_FT_LEFT = 12;     // FT the trip uses (7D)
+// What a trip uses (Capt. Weera, 20 Nov 2026): duty up to 10h a day on every
+// day of the trip (S/T to S/T) -> 4 days 40h, 5 days 50h; flight time 4h on
+// each sim training day (S) -> 4-day trip (2 S) 8h, 5-day trip (3 S) 12h.
+export const SIM_DT_PER_DAY = 10;
+export const SIM_FT_PER_SIM_DAY = 4;
+export const simNeeds = (trip) => ({
+  dt: trip.days * SIM_DT_PER_DAY,
+  ft: (trip.simDays ?? Math.max(0, trip.days - 2)) * SIM_FT_PER_SIM_DAY
+});
 
 const rosterParts = (raw) => String(raw || "").toUpperCase().split(",").map((p) => p.trim()).filter(Boolean);
 const isSimTravel = (raw) => rosterParts(raw).includes("S/T");
@@ -405,16 +412,17 @@ export function simTrips(rosterDays, todayIso, lookahead = SIM_LOOKAHEAD_DAYS) {
     if (isSimDay(rosterDays.get(isoAddDays(iso, -1)))) continue;   // inside a trip already
     let to = iso;
     let sawSim = false;
+    let simDays = 0;
     for (;;) {
       const next = isoAddDays(to, 1);
       const raw = rosterDays.get(next);
       if (!isSimDay(raw)) break;
       to = next;
-      if (rosterParts(raw).includes("S")) sawSim = true;
+      if (rosterParts(raw).includes("S")) { sawSim = true; simDays++; }
       else if (sawSim) break;                // the S/T after the sim days: travel home
     }
     const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${iso}T00:00:00Z`)) / 86400000) + 1;
-    out.push({ from: iso, to, days });
+    out.push({ from: iso, to, days, simDays });
   }
   return out;
 }
@@ -428,7 +436,7 @@ const fmtH = (h) => {
 // One trip checked against what the pilot has recorded plus the roster.
 // history: pilotHistory(...) result (needs leftOn + cycle).
 export function simReadiness(history, trip, limits, rosterDays, todayIso, {
-  minDt = SIM_MIN_DT_LEFT, minFt = SIM_MIN_FT_LEFT
+  minDt = simNeeds(trip).dt, minFt = simNeeds(trip).ft
 } = {}) {
   const { ft, dt } = history.leftOn(trip.from);
   // The 7-day windows are what the trip itself uses up; a longer window
@@ -553,7 +561,7 @@ export function simReadiness(history, trip, limits, rosterDays, todayIso, {
 
   const status = !dtOk || !ftOk || !cycleOk ? "exc" : notes.some((n) => !n.startsWith("After the sim")) ? "warn" : "ok";
   return {
-    trip, dtLeft: dt7Left, ftLeft: ft7Left, dtOk, ftOk, dtSpare, ftSpare,
+    trip, dtLeft: dt7Left, ftLeft: ft7Left, dtOk, ftOk, dtSpare, ftSpare, minDt, minFt,
     rrBeforeOk: cycleOk, rrRun: rrFound, cycle: rr, cycleNeedHours: needH, cycleHoursAtStart: hoursAtStart,
     afterDuty, afterLeft, restAfter, rrWindow, blockDays,
     dutyBefore, readyFrom, notes, status,
@@ -567,12 +575,19 @@ export function simReadiness(history, trip, limits, rosterDays, todayIso, {
 //   lead - one of the 7 days before S/T: any duty that day comes off the
 //          DT 7D the trip needs; keepFree when nothing can be spared
 //   trip - day n of the trip (S/T = day 1)
+// Capt. Weera, 20 Nov 2026: with the 14-day table the run-up is easy to
+// see, so "Free · S/T" marks only the 3 days before S/T; days further back
+// are marked only where an RR would carry the trip ("RR ok").
+export const SIM_FREE_DAYS = 3;
+
 export function simDayMarks(sims, rosterDays = null) {
   const marks = new Map();
   for (const sim of sims || []) {
     for (let k = 7; k >= 1; k--) {
       const d = isoAddDays(sim.trip.from, -k);
       if (marks.has(d)) continue;
+      const inRrWindow = !!sim.rrWindow && d >= sim.rrWindow.from && d <= sim.rrWindow.to;
+      if (k > SIM_FREE_DAYS && !inRrWindow) continue;
       marks.set(d, {
         kind: "lead", sim, daysTo: k,
         keepFree: sim.dtSpare == null || sim.dtSpare <= 0,
@@ -617,6 +632,6 @@ export function simMarkText(mark) {
   }
   const rrHint = mark.rrOk ? `\nRR (2 days) ending on or before S/T works: the 168h cycle then carries the trip${mark.sim.afterDuty?.length ? " and the duty after it" : ""}` : "";
   return (mark.keepFree
-    ? `Keep free for Sim: S/T ${st} in ${mark.daysTo} day(s) - duty today comes off the ${fmtH(SIM_MIN_DT_LEFT)} DT 7D the trip needs`
+    ? `Keep free for Sim: S/T ${st} in ${mark.daysTo} day(s) - duty today comes off the ${fmtH(mark.sim.minDt)} DT 7D the trip needs`
     : `Sim S/T ${st} in ${mark.daysTo} day(s): keep duty before it within ${fmtH(mark.spare)} DT`) + rrHint;
 }

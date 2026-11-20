@@ -13,12 +13,12 @@ const flight = (date, dep = "08:00", stop = "16:00", ft = "4:00") =>
 describe("simTrips: the roster's S/T marks a sim trip", () => {
   it("S/T S S S/T is a 4-day trip, as the roster says", () => {
     const r = roster({ "2026-11-16": "S/T", "2026-11-17": "S", "2026-11-18": "S", "2026-11-19": "S/T", "2026-11-20": "O" });
-    expect(simTrips(r, today)).toEqual([{ from: "2026-11-16", to: "2026-11-19", days: 4 }]);
+    expect(simTrips(r, today)).toEqual([{ from: "2026-11-16", to: "2026-11-19", days: 4, simDays: 2 }]);
   });
 
   it("S/T S S S S S/T is a 6-day trip", () => {
     const r = roster({ "2026-11-16": "S/T", "2026-11-17": "S", "2026-11-18": "S", "2026-11-19": "S", "2026-11-20": "S", "2026-11-21": "S/T" });
-    expect(simTrips(r, today)).toEqual([{ from: "2026-11-16", to: "2026-11-21", days: 6 }]);
+    expect(simTrips(r, today)).toEqual([{ from: "2026-11-16", to: "2026-11-21", days: 6, simDays: 4 }]);
   });
 
   it("looks 21 days ahead only (the 14-day table + 7 days before S/T), and not at a trip already under way", () => {
@@ -83,9 +83,12 @@ describe("Next 7 days before S/T", () => {
   const sims = simTrips(r, today).map((t) => simReadiness(h, t, limits, r, today));
   const marks = simDayMarks(sims, r);
 
-  it("marks the 7 days before S/T as keep-free and the trip days with their roster code", () => {
-    expect(marks.get("2026-11-17")).toMatchObject({ kind: "lead", daysTo: 1, keepFree: true });
-    expect(marks.get("2026-11-11")).toMatchObject({ kind: "lead", daysTo: 7 });
+  it("marks the 3 days before S/T and the trip days with their roster code", () => {
+    // A 2-day trip (S/T S) needs only 20h DT: with ~60h left the days before can be flown.
+    expect(marks.get("2026-11-17")).toMatchObject({ kind: "lead", daysTo: 1, keepFree: false });
+    expect(marks.get("2026-11-17").spare).toBeGreaterThan(0);
+    expect(marks.get("2026-11-15")).toMatchObject({ kind: "lead", daysTo: 3 });
+    expect(marks.get("2026-11-14")).toBeUndefined();   // 4 days before: not marked any more
     expect(marks.get("2026-11-18")).toMatchObject({ kind: "trip", n: 1, code: "S/T" });
     expect(marks.get("2026-11-19")).toMatchObject({ kind: "trip", n: 2, code: "S" });
     expect(marks.get("2026-11-20")).toBeUndefined();
@@ -95,8 +98,8 @@ describe("Next 7 days before S/T", () => {
     const plain = nextWeekScore(h, r, new Set());
     const withSim = nextWeekScore(h, r, new Set(), marks);
     expect(plain.green).toBe(7);
-    expect(withSim.green).toBe(2);   // 20-21 Nov: after the 2-day trip on the roster
-    expect(withSim.off).toBe(5);
+    expect(withSim.green).toBe(5);   // 15-17 Nov (DT to spare before a 2-day trip) and 20-21 Nov
+    expect(withSim.off).toBe(2);     // the trip itself
   });
 });
 
@@ -129,7 +132,8 @@ describe("Sim trip and the 168h cycle", () => {
     expect(s.notes.join(" ")).toMatch(/needs 120h from S\/T, 96h left on 24 Nov - put RR \(2 days\) ending between 21 Nov and 23 Nov/);
     const marks = simDayMarks([s], r);
     expect(marks.get("2026-11-22")).toMatchObject({ kind: "lead", rrOk: true });
-    expect(marks.get("2026-11-18")).toMatchObject({ kind: "lead", rrOk: false });
+    expect(marks.get("2026-11-18")).toBeUndefined();   // outside the RR window and > 3 days before S/T
+    expect(marks.get("2026-11-21")).toMatchObject({ kind: "lead", rrOk: true, daysTo: 3 });
   });
 
   it("the same early RR is fine when OFF comes right after the sim - OFF counts as the RR", () => {
@@ -153,5 +157,27 @@ describe("Sim trip and the 168h cycle", () => {
     const marks = simDayMarks([s], r);
     expect(marks.get("2026-11-28")).toMatchObject({ kind: "after", left: 24 });
     expect(marks.get("2026-11-29")).toBeUndefined();
+  });
+});
+
+// Capt. Weera, 20 Nov 2026: a sim trip uses up to 10h duty a day (S/T to S/T)
+// and 4h flight time on each sim training day (S).
+import { simNeeds } from "./dutyHistory.js";
+describe("What a sim trip needs", () => {
+  it("4 days (2 S): DT 40h, FT 8h; 5 days (3 S): DT 50h, FT 12h", () => {
+    const four = roster({ "2026-11-20": "S/T", "2026-11-21": "S", "2026-11-22": "S", "2026-11-23": "S/T" });
+    const five = roster({ "2026-11-20": "S/T", "2026-11-21": "S", "2026-11-22": "S", "2026-11-23": "S", "2026-11-24": "S/T" });
+    expect(simNeeds(simTrips(four, today)[0])).toEqual({ dt: 40, ft: 8 });
+    expect(simNeeds(simTrips(five, today)[0])).toEqual({ dt: 50, ft: 12 });
+  });
+
+  it("the readiness check uses the trip's own needs", () => {
+    const r = roster({ "2026-11-18": "RR", "2026-11-19": "RR", "2026-11-20": "S/T", "2026-11-21": "S", "2026-11-22": "S", "2026-11-23": "S/T" });
+    // 5 flight days 10-14 Nov, 07:00-16:30 duty each: DT 7D left on 20 Nov is well over 40h.
+    const entries = ["2026-11-10", "2026-11-11", "2026-11-12", "2026-11-13", "2026-11-14"].map((d) => flight(d));
+    const h = pilotHistory(entries, limits, { todayIso: today, asOf: new Date(2026, 10, 14, 21), rosterDays: r });
+    const s = simReadiness(h, simTrips(r, today)[0], limits, r, today);
+    expect(s).toMatchObject({ minDt: 40, minFt: 8, dtOk: true, ftOk: true });
+    expect(s.dtSpare).toBe(s.dtLeft - 40);
   });
 });
