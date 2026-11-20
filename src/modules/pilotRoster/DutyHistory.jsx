@@ -168,6 +168,9 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
   // One pilot on a phone or tablet: 14 days keeps the table readable.
   const [range, setRange] = useState(personal ? 14 : 28);
   const [search, setSearch] = useState("");
+  // Legend details open / closed - remembered on this device only.
+  const [legendOpen, setLegendOpenState] = useState(() => { try { return localStorage.getItem("dutyhist_legend") === "1"; } catch { return false; } });
+  const setLegendOpen = (v) => { setLegendOpenState(v); try { localStorage.setItem("dutyhist_legend", v ? "1" : "0"); } catch { /* fine */ } };
   // Which group to show (Capt. Weera: see the Co-pilot rows without
   // scrolling past every Captain). "all" | 0 (Captain) | 1 (Co-pilot).
   // Remembered on this device only.
@@ -277,12 +280,18 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
 
   return (
     <div className={`roster-page dutyhist-page${fullScreen ? " roster-fullscreen" : ""}`}>
-      <div className="module-header no-print">
-        <div>
-          <h1>Duty &amp; Flight History</h1>
-          {personal
-            ? <p>What you have flown (FT) and been on duty (DT) day by day, your rolling totals, and the flight and duty time the limits still allow you over the next {AHEAD_DAYS} days, with your roster.</p>
-            : <p>What each pilot has flown (FT) and been on duty (DT) day by day, their rolling totals, and the flight time the limits still allow over the next {AHEAD_DAYS} days — for planning who can be given flying.</p>}
+      {/* Compact header (Capt. Weera, 20 Nov 2026): title, view tabs and tools
+          share one row so the table starts higher; the description moved to
+          the title's tooltip (and the Help tab). */}
+      <div className="module-header no-print dutyhist-head">
+        <div className="dutyhist-titlebar">
+          <h1 title={personal
+            ? `What you have flown (FT) and been on duty (DT) day by day, your rolling totals, and the flight and duty time the limits still allow you over the next ${AHEAD_DAYS} days, with your roster.`
+            : `What each pilot has flown (FT) and been on duty (DT) day by day, their rolling totals, and the flight time the limits still allow over the next ${AHEAD_DAYS} days - for planning who can be given flying.`}>Duty &amp; Flight History</h1>
+          <div className="dutyhist-viewtabs" role="tablist" aria-label="Duty & Flight History view">
+            <button type="button" role="tab" aria-selected={view === "table"} className={view === "table" ? "active" : ""} onClick={() => setView("table")}>📊 History</button>
+            <button type="button" role="tab" aria-selected={view === "help"} className={view === "help" ? "active" : ""} onClick={() => setView("help")}>📖 Help · คู่มือ</button>
+          </div>
         </div>
         <div className="header-tools">
           {!personal && <input className="roster-search" placeholder="Search pilot name/code..." value={search} onChange={(e) => setSearch(e.target.value)} />}
@@ -312,26 +321,30 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
         </div>
       </div>
 
-      <div className="dutyhist-viewtabs no-print" role="tablist" aria-label="Duty & Flight History view">
-        <button type="button" role="tab" aria-selected={view === "table"} className={view === "table" ? "active" : ""} onClick={() => setView("table")}>📊 History</button>
-        <button type="button" role="tab" aria-selected={view === "help"} className={view === "help" ? "active" : ""} onClick={() => setView("help")}>📖 Help · คู่มือ</button>
-      </div>
-
       {view === "help" && <DutyHistoryHelp />}
 
       {/* Hidden, not unmounted, so the table keeps its scroll position. */}
       <div className="dutyhist-view" hidden={view !== "table"}>
-      <div className="dutyhist-legend no-print">
-        <span><b className="dutyhist-swatch flight" /> Flight day: <b>FT</b> on top, DT below</span>
-        <span><b className="dutyhist-swatch nonflight" /> Non-flight duty (DSB / NSB / GT …) with DT</span>
-        <span><b className="dutyhist-swatch warn" /> Near a limit</span>
-        <span><b className="dutyhist-swatch exc" /> Over a limit / nothing left</span>
-        <span><b className="dutyhist-swatch ok" /> Within all limits</span>
-        <span>Next {AHEAD_DAYS} days: <b>FT left</b> / DT left / 168h cycle (hours until a 36h Recovery Rest must start; RR ✓ = resting now). Counts recorded duty only.</span>
-        <span><b className="dutyhist-swatch exc" /> <b className="dutyhist-offtext">red text on a red cell</b> = roster OFF, SL / VL leave, or a limit reached (not available) · <b className="dutyhist-offtext">Red text</b> only = the RR pair right before a 7-day OFF</span>
-        <span><b className="dutyhist-simtag">S/T</b> positioning to / from the sim · <b className="dutyhist-simtag">S</b> sim training · <b className="dutyhist-simtag">Free · S/T −3</b> keep free of duty before S/T (DT 7D on S/T must cover 10h a trip day; FT 4h a sim day)</span>
-        <span>🖱 Drag the table to move it.</span>
-      </div>
+      {/* One line of colours; the full explanation opens on "Details". */}
+      <details className="dutyhist-legend no-print" open={legendOpen} onToggle={(e) => setLegendOpen(e.currentTarget.open)}>
+        <summary>
+          <span><b className="dutyhist-swatch flight" /> Flight</span>
+          <span><b className="dutyhist-swatch nonflight" /> Non-flight</span>
+          <span><b className="dutyhist-swatch ok" /> OK</span>
+          <span><b className="dutyhist-swatch warn" /> Near limit</span>
+          <span><b className="dutyhist-swatch exc" /> Over / not available</span>
+          <span>Next {AHEAD_DAYS} days: <b>FT</b> / DT / 168h</span>
+          <span><b className="dutyhist-simtag">S/T</b> <b className="dutyhist-simtag">S</b> sim</span>
+          <span className="dutyhist-legend-more">ℹ {legendOpen ? "Hide" : "Details"}</span>
+        </summary>
+        <div className="dutyhist-legend-body">
+          <span><b className="dutyhist-swatch flight" /> Flight day: <b>FT</b> on top, DT below · <b className="dutyhist-swatch nonflight" /> Non-flight duty (DSB / NSB / GT …) with DT</span>
+          <span>Next {AHEAD_DAYS} days: <b>FT left</b> / DT left / 168h cycle (hours until a 36h Recovery Rest must start; RR ✓ = resting now). Counts recorded duty only.</span>
+          <span><b className="dutyhist-swatch exc" /> <b className="dutyhist-offtext">red text on a red cell</b> = roster OFF, SL / VL leave, or a limit reached (not available) · <b className="dutyhist-offtext">Red text</b> only = the RR pair right before a 7-day OFF</span>
+          <span><b className="dutyhist-simtag">S/T</b> positioning to / from the sim · <b className="dutyhist-simtag">S</b> sim training · <b className="dutyhist-simtag">Free · S/T −3</b> keep free of duty before S/T (DT 7D on S/T must cover 10h a trip day; FT 4h a sim day) · <b className="dutyhist-simtag">RR ok</b> an RR here carries the trip in the 168h cycle</span>
+          <span>🖱 Drag the table to move it.</span>
+        </div>
+      </details>
 
       {error && <div className="settings-msg error">Could not load duty records: {error}</div>}
       {rosterError && <div className="settings-msg error">Remark column: could not load the roster ({rosterError}). Hours are unaffected.</div>}
