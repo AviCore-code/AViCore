@@ -14,7 +14,8 @@ import "./DutyHistory.css";
 // for planning who can be given flying. Read-only: the source is Daily Duty.
 
 const RANGE_OPTIONS = [7, 14, 28, 56];
-const AHEAD_DAYS = 7;
+// Days ahead in the table (Capt. Weera, 20 Nov 2026: 7 -> 14).
+const AHEAD_DAYS = 14;
 const WEEKDAY = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 function dayHeader(iso) {
@@ -357,7 +358,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                     <td colSpan={totalCols}>
                       {GROUP_LABELS[pilotGroup(pilot)]}{" "}
                       <span className="dutyhist-grouprow-note">
-                        ({visible.filter((v) => pilotGroup(v.pilot) === pilotGroup(pilot)).length}) · most green days in the next 7 first
+                        ({visible.filter((v) => pilotGroup(v.pilot) === pilotGroup(pilot)).length}) · most green days in the next {AHEAD_DAYS} first
                       </span>
                     </td>
                   </tr>
@@ -405,8 +406,8 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                     // the trip itself are marked, so the run-up is planned.
                     const sim = simMarks?.get(a.iso);
                     const awayDay = !!leave || !!off || ["rest", "off", "leave"].includes(remarkLabel(rosterDays?.get(a.iso))?.category);
-                    const simCls = sim ? (sim.kind === "trip" ? " sim-trip" : sim.keepFree && !awayDay ? " sim-keepfree" : " sim-lead") : "";
-                    const simTag = sim ? (sim.kind === "trip" ? (sim.code || "SIM") : awayDay ? `S/T −${sim.daysTo}` : sim.keepFree ? `Free · S/T −${sim.daysTo}` : `≤${decimalToHHMM(sim.spare)} · S/T −${sim.daysTo}`) : "";
+                    const simCls = sim ? (sim.kind === "trip" ? " sim-trip" : sim.kind === "after" ? (sim.left < 24 ? " sim-after-rr" : " sim-after") : sim.rrOk && !awayDay ? " sim-rrok" : sim.keepFree && !awayDay ? " sim-keepfree" : " sim-lead") : "";
+                    const simTag = sim ? (sim.kind === "trip" ? (sim.code || "SIM") : sim.kind === "after" ? (sim.left < 24 ? "RR · after S/T" : `${Math.floor(sim.left)}h · after S/T`) : awayDay ? `S/T −${sim.daysTo}` : sim.rrOk ? `RR ok · S/T −${sim.daysTo}` : sim.keepFree ? `Free · S/T −${sim.daysTo}` : `≤${decimalToHHMM(sim.spare)} · S/T −${sim.daysTo}`) : "";
                     const tip = [why, sim ? simMarkText(sim) : "", aheadTitle(a)].filter(Boolean).join("\n");
                     return (
                     <td key={a.iso} className={`dutyhist-ahead ${a.status}${redText ? " rostered-off" : ""}${redCell ? " rostered-redcell" : ""}${leave ? " rostered-leave" : ""}${simCls}${i === 0 ? " dutyhist-sep" : ""}`}
@@ -418,7 +419,7 @@ export default function DutyHistory({ loadRows = loadAllPilotStatusRows, loadRos
                     </td>
                     );
                   })}
-                  <td className="dutyhist-remark" title={remark.map((it) => it.text).join("\n") || "No RR / OFF / leave on the roster in the next 7 days"}>
+                  <td className="dutyhist-remark" title={remark.map((it) => it.text).join("\n") || `No RR / OFF / leave on the roster in the next ${AHEAD_DAYS} days`}>
                     {/* One running line, items separated by commas, so the row
                         only grows when the cell is genuinely full. */}
                     {remark.map((it, n) => (

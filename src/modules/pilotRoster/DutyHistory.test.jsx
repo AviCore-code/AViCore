@@ -39,7 +39,7 @@ describe("DutyHistory", () => {
     expect(dayCells).toContain("3:20");                      // flight day cell
     expect(dayCells).toContain("DSB");                       // standby day cell
     expect(screen.getAllByText("FT 7D").length).toBe(1);
-    expect(rowFor("CSU").querySelectorAll(".dutyhist-ahead")).toHaveLength(7);
+    expect(rowFor("CSU").querySelectorAll(".dutyhist-ahead")).toHaveLength(14);   // next 14 days
   });
 
   it("filters by pilot and changes the range", async () => {
@@ -83,8 +83,8 @@ describe("DutyHistory remark column", () => {
     await screen.findByText("CSU");
     const cells = [...rowFor("CSU").querySelectorAll(".dutyhist-ahead")];
     // RR pair before the OFF: red text only; OFF: red text on a red cell.
-    expect(cells.map((c) => c.classList.contains("rostered-off"))).toEqual([false, false, true, true, false, false, false]);
-    expect(cells.map((c) => c.classList.contains("rostered-redcell"))).toEqual([false, false, false, false, true, true, true]);
+    expect(cells.slice(0, 7).map((c) => c.classList.contains("rostered-off"))).toEqual([false, false, true, true, false, false, false]);
+    expect(cells.slice(0, 7).map((c) => c.classList.contains("rostered-redcell"))).toEqual([false, false, false, false, true, true, true]);
     expect(cells[2].title).toMatch(/^Roster: RR/);
     expect(cells[4].title).toMatch(/^Roster: OFF/);
   });

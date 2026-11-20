@@ -35,7 +35,7 @@ export default function SimTrainingPanel({ items }) {
               <th>Trip (S/T = day 1)</th>
               <th>DT 7D left on S/T</th>
               <th>FT 7D left on S/T</th>
-              <th>RR before S/T</th>
+              <th>RR before S/T (168h)</th>
               <th>Status</th>
               <th>What to do</th>
             </tr>
@@ -48,7 +48,7 @@ export default function SimTrainingPanel({ items }) {
                 <td className={sim.dtOk ? "ok" : "exc"}>{hhmm(sim.dtLeft)} <small>/ {SIM_MIN_DT_LEFT}:00</small></td>
                 <td className={sim.ftOk ? "ok" : "exc"}>{hhmm(sim.ftLeft)} <small>/ {SIM_MIN_FT_LEFT}:00</small></td>
                 <td className={sim.rrBeforeOk ? "ok" : "exc"}
-                  title={sim.cycle.hoursLeft != null ? `168h cycle at the start of S/T: ${Math.max(0, Math.floor(sim.cycle.hoursLeft))}h left (trip ${sim.cycleNeedHours}h)` : undefined}>
+                  title={sim.cycleHoursAtStart != null ? `168h cycle at the start of S/T: ${Math.max(0, Math.floor(sim.cycleHoursAtStart))}h left - needs ${sim.cycleNeedHours}h (the trip${sim.afterDuty?.length ? ` + ${sim.afterDuty.length} duty day(s) after it` : ""})` : undefined}>
                   {sim.rrBeforeOk ? `✓ ${sim.rrText}` : "✗ none"}
                 </td>
                 <td><span className={`simplan-badge ${sim.status}`}>{VERDICT[sim.status]}</span></td>

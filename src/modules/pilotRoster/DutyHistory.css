@@ -184,3 +184,9 @@
 .dhhelp-table th,.dhhelp-table td{border:1px solid #e2e8f0;padding:5px 9px;text-align:left;vertical-align:top}
 .dhhelp-table th{background:#eef2ff;color:#1e1b4b;font-weight:700}
 @media (max-width:640px){.dhhelp-body{padding:12px 14px;font-size:13.5px}}
+/* Sim trip and the 168h cycle (Capt. Weera, 20 Nov 2026) */
+.dutyhist-ahead.sim-rrok{box-shadow:inset 0 0 0 2px #16a34a}
+.dutyhist-ahead.sim-rrok .dutyhist-simtag{background:#16a34a;color:#fff}
+.dutyhist-ahead.sim-after{box-shadow:inset 0 0 0 2px rgba(109,40,217,.35)}
+.dutyhist-ahead.sim-after-rr{box-shadow:inset 0 0 0 2px #dc2626}
+.dutyhist-ahead.sim-after-rr .dutyhist-simtag{background:#dc2626;color:#fff}

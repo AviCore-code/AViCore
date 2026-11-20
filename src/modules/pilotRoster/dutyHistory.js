@@ -384,7 +384,8 @@ export function cycleOnDay(cycle, iso, limits) {
 // there must be a Recovery Rest (RR) right before the S/T day, so the 168h
 // cycle starts fresh for the trip. Looked for over the next 14 days. The app
 // only checks and suggests - the admin and crew scheduler change the roster.
-export const SIM_LOOKAHEAD_DAYS = 14;
+// 21 = the 14-day table + the 7 days before S/T that it marks.
+export const SIM_LOOKAHEAD_DAYS = 21;
 export const SIM_MIN_DT_LEFT = 60;     // DT the trip uses (7D)
 export const SIM_MIN_FT_LEFT = 12;     // FT the trip uses (7D)
 
@@ -450,7 +451,6 @@ export function simReadiness(history, trip, limits, rosterDays, todayIso, {
   const restingNow = dayBefore <= todayIso && history.cycle?.kind === "resting";
   const rrBeforeOk = !!rrRun || restingNow;
   const rr = cycleOnDayWithRoster(history.cycle, trip.from, limits, rosterDays, todayIso);
-  const needH = trip.days * 24;
 
   // Duty on the roster in the 7 days before travel (from tomorrow): every
   // hour of it comes off the DT 7D figure the trip needs.
@@ -479,6 +479,49 @@ export function simReadiness(history, trip, limits, rosterDays, todayIso, {
       if (minOf(l.dt) >= minDt && minOf(l.ft) >= minFt) { readyFrom = d; break; }
     }
   }
+  // --- The 168h cycle around the trip (Capt. Weera, 20 Nov 2026) ---------
+  // A 4-5 day trip uses 96-120h of the 168h cycle. The cycle that carries
+  // the trip must also carry the duty the roster still has AFTER it, up to
+  // the next Recovery Rest (RR / OFF / VL / SL, 2+ days). So the RR before
+  // S/T need not be right before: it may end up to
+  //   S/T + (trip days + the days up to the last duty after it) - 8
+  // e.g. 4-day trip, 1 duty day after -> RR may end on S/T-3; nothing after
+  // -> S/T-4. After the sim, the hours left say how much more duty fits
+  // before RR (an OFF / VL of 2+ days counts as that RR).
+  const dayDiff = (a, b) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400000);
+  const isAway = (d) => ["rest", "off", "leave"].includes(remarkLabel(rosterDays?.get(d))?.category);
+  const afterDuty = [];
+  let lastWork = trip.to;
+  let restAfter = null;
+  for (let k = 1; k <= 8; k++) {
+    const d = isoAddDays(trip.to, k);
+    const run = awayRunAt(rosterDays, d);
+    if (run) { restAfter = run; break; }                // the next Recovery Rest on the roster
+    const raw = rosterDays?.get(d);
+    if (!raw) break;                                    // roster not written that far yet
+    if (isAway(d)) continue;                            // one day off: the cycle runs on
+    afterDuty.push({ iso: d, code: String(raw).trim() });
+    lastWork = d;
+  }
+  const blockDays = dayDiff(trip.from, lastWork) + 1;
+  const needH = blockDays * 24;
+  // Hours of the cycle left at the start of the S/T day.
+  const hoursAtStart = rr.hoursLeft != null ? rr.hoursLeft : (rrBeforeOk ? (limits?.recoveryRestCycleMaxHours ?? 168) : null);
+  const cycleOk = hoursAtStart != null && hoursAtStart >= needH - 0.01;
+  const afterLeft = hoursAtStart != null ? hoursAtStart - trip.days * 24 : null;
+  // The RR before S/T that already counts (latest 2+ day run within 7 days).
+  let rrFound = rrRun;
+  for (let k = 1; !rrFound && k <= 7; k++) {
+    const d = isoAddDays(trip.from, -k);
+    if (d <= todayIso) break;
+    rrFound = awayRunAt(rosterDays, d);
+  }
+  // Where an RR (2 days) would work: ending between rrEarliest and the day before S/T.
+  const tomorrow = isoAddDays(todayIso, 1);
+  let rrEarliest = isoAddDays(trip.from, blockDays - 8);
+  if (rrEarliest <= tomorrow) rrEarliest = isoAddDays(tomorrow, 1);
+  const rrWindow = !cycleOk && blockDays <= 7 && rrEarliest <= dayBefore ? { from: isoAddDays(rrEarliest, -1), to: dayBefore, earliestEnd: rrEarliest } : null;
+
   const dutyText = dutyBefore.map((x) => `${dayMon(x.iso)} ${x.code}`).join(", ");
   const label = (k) => [...FT_WINDOWS, ...DT_WINDOWS].find((w) => w.key === k)?.label || k;
 
@@ -488,20 +531,34 @@ export function simReadiness(history, trip, limits, rosterDays, todayIso, {
   if (ft7Left != null && ft7Left < minFt) notes.push(`FT 7D left ${fmtH(ft7Left)} on ${dayMon(trip.from)} - the trip needs ${fmtH(minFt)}, short ${fmtH(minFt - ft7Left)}`);
   for (const w of ftLonger) notes.push(`${label(w.key)} has only ${fmtH(w.left)} left - short for the trip's ${fmtH(minFt)}`);
   if (readyFrom) notes.push(`Enough DT/FT from ${dayMon(readyFrom)} on recorded duty alone`);
-  if (!rrBeforeOk) notes.push(`No RR before S/T - put RR (2 days) on ${dayMon(isoAddDays(trip.from, -2))}–${dayMon(dayBefore)}`);
+  const afterText = afterDuty.length ? ` + ${afterDuty.length} duty day${afterDuty.length > 1 ? "s" : ""} after it (${afterDuty.map((x) => `${dayMon(x.iso)} ${x.code}`).join(", ")})` : "";
+  if (!cycleOk) {
+    const have = hoursAtStart == null ? "no Recovery Rest found" : `${Math.max(0, Math.floor(hoursAtStart))}h left on ${dayMon(trip.from)}`;
+    if (rrWindow) {
+      notes.push(`168h cycle: the ${trip.days}-day trip${afterText} needs ${needH}h from S/T, ${have} - put RR (2 days) ending ${rrWindow.earliestEnd === dayBefore ? dayMon(dayBefore) : `between ${dayMon(rrWindow.earliestEnd)} and ${dayMon(dayBefore)}`} (earliest ${dayMon(isoAddDays(rrWindow.earliestEnd, -1))}–${dayMon(rrWindow.earliestEnd)})`);
+    } else {
+      notes.push(`168h cycle: the ${trip.days}-day trip${afterText} is ${blockDays} days - more than 168h even with RR right before S/T; put RR (2 days) on ${dayMon(isoAddDays(trip.from, -2))}–${dayMon(dayBefore)} and end duty after the sim by ${dayMon(isoAddDays(trip.from, 6))}, then RR`);
+    }
+  }
+  if (afterLeft != null && cycleOk) {
+    const nextRest = restAfter ? `${remarkLabel(rosterDays.get(restAfter.from))?.label || "RR"} ${dayMonRange(restAfter.from, restAfter.to)}` : "";
+    if (afterLeft >= 24) notes.push(`After the sim: ${Math.floor(afterLeft)}h of the 168h cycle left - duty possible up to ${dayMon(isoAddDays(trip.to, Math.floor(afterLeft / 24)))}, then RR${nextRest ? ` (roster: ${nextRest})` : ""}`);
+    else notes.push(`After the sim: ${Math.max(0, Math.floor(afterLeft))}h of the 168h cycle left - RR right after the sim${nextRest ? ` (roster: ${nextRest} ✓)` : " (or OFF / VL of 2+ days)"}`);
+  }
   if (dutyBefore.length && (!dtOk || (dtSpare != null && dtSpare <= 0))) {
     notes.push(`Roster duty ${dutyText} in the 7 days before travel takes DT 7D ${dtOk ? "below" : "further below"} ${fmtH(minDt)}`);
   } else if (dutyBefore.length) {
     notes.push(`Roster duty ${dutyText} before travel: keep it within ${fmtH(dtSpare)} DT${ftSpare != null ? ` and ${fmtH(ftSpare)} FT` : ""}`);
   }
 
-  const status = !dtOk || !ftOk || !rrBeforeOk ? "exc" : notes.length ? "warn" : "ok";
+  const status = !dtOk || !ftOk || !cycleOk ? "exc" : notes.some((n) => !n.startsWith("After the sim")) ? "warn" : "ok";
   return {
     trip, dtLeft: dt7Left, ftLeft: ft7Left, dtOk, ftOk, dtSpare, ftSpare,
-    rrBeforeOk, rrRun, cycle: rr, cycleNeedHours: needH,
+    rrBeforeOk: cycleOk, rrRun: rrFound, cycle: rr, cycleNeedHours: needH, cycleHoursAtStart: hoursAtStart,
+    afterDuty, afterLeft, restAfter, rrWindow, blockDays,
     dutyBefore, readyFrom, notes, status,
     tripText: trip.days > 1 ? `S/T ${dayMonRange(trip.from, trip.to)} (${trip.days}d)` : `S/T ${dayMon(trip.from)}`,
-    rrText: rrRun ? `${remarkLabel(rosterDays.get(rrRun.to))?.label || "RR"} ${rrRun.days > 1 ? dayMonRange(rrRun.from, rrRun.to) : dayMon(rrRun.from)}` : restingNow ? "Resting now" : "None"
+    rrText: rrFound ? `${remarkLabel(rosterDays.get(rrFound.to))?.label || "RR"} ${rrFound.days > 1 ? dayMonRange(rrFound.from, rrFound.to) : dayMon(rrFound.from)}` : restingNow ? "Resting now" : "None"
   };
 }
 
@@ -519,7 +576,9 @@ export function simDayMarks(sims, rosterDays = null) {
       marks.set(d, {
         kind: "lead", sim, daysTo: k,
         keepFree: sim.dtSpare == null || sim.dtSpare <= 0,
-        spare: sim.dtSpare
+        spare: sim.dtSpare,
+        // An RR (2 days) on this day would carry the trip (168h cycle).
+        rrOk: !!sim.rrWindow && d >= sim.rrWindow.from && d <= sim.rrWindow.to
       });
     }
     for (let n = 1; n <= sim.trip.days; n++) {
@@ -527,6 +586,16 @@ export function simDayMarks(sims, rosterDays = null) {
       const parts = rosterParts(rosterDays?.get(d));
       const code = parts.includes("S/T") ? "S/T" : parts.includes("S") ? "S" : parts.join(",");
       marks.set(d, { kind: "trip", sim, n, code });
+    }
+    // Duty after the sim, still inside the trip's 168h cycle.
+    if (sim.afterLeft != null) {
+      for (let k = 1; k <= 7; k++) {
+        const d = isoAddDays(sim.trip.to, k);
+        if (marks.has(d) || (sim.restAfter && d >= sim.restAfter.from)) break;
+        const left = sim.afterLeft - (k - 1) * 24;
+        marks.set(d, { kind: "after", sim, k, left });
+        if (left < 24) break;
+      }
     }
   }
   return marks;
@@ -541,7 +610,13 @@ export function simMarkText(mark) {
       : mark.code === "S" ? "S - sim training" : mark.code;
     return `${what} (trip day ${mark.n} of ${mark.sim.trip.days}, S/T ${st})`;
   }
-  return mark.keepFree
+  if (mark.kind === "after") {
+    return mark.left >= 24
+      ? `After the sim (S/T ${st}): ${Math.floor(mark.left)}h of the 168h cycle left at the start of today`
+      : `After the sim (S/T ${st}): ${Math.max(0, Math.floor(mark.left))}h of the 168h cycle left - RR today (or OFF / VL of 2+ days)`;
+  }
+  const rrHint = mark.rrOk ? `\nRR (2 days) ending on or before S/T works: the 168h cycle then carries the trip${mark.sim.afterDuty?.length ? " and the duty after it" : ""}` : "";
+  return (mark.keepFree
     ? `Keep free for Sim: S/T ${st} in ${mark.daysTo} day(s) - duty today comes off the ${fmtH(SIM_MIN_DT_LEFT)} DT 7D the trip needs`
-    : `Sim S/T ${st} in ${mark.daysTo} day(s): keep duty before it within ${fmtH(mark.spare)} DT`;
+    : `Sim S/T ${st} in ${mark.daysTo} day(s): keep duty before it within ${fmtH(mark.spare)} DT`) + rrHint;
 }
