@@ -1,7 +1,11 @@
 /* Crew home page. Uses the app's own palette (--acw-* in WebApp.css) so it
    belongs to the product rather than looking bolted on. */
 
-.cdash { color: var(--acw-text); padding-bottom: 24px; }
+.cdash {
+  --cdash-secondary: #cbd5e1;
+  color: var(--acw-text);
+  padding-bottom: 24px;
+}
 
 .cdash-head {
   display: flex; align-items: flex-start; justify-content: space-between;
@@ -37,9 +41,9 @@
   background: var(--acw-panel); border: 1px solid var(--acw-border);
   border-radius: 14px; padding: 12px 14px; display: flex; flex-direction: column; gap: 3px;
 }
-.cdash-card-label { font-size: 11px; color: var(--acw-text-dim); }
+.cdash-card-label,
+.cdash-card-note { font-size: 11px; color: var(--cdash-secondary); }
 .cdash-card-value { font-size: 21px; font-weight: 500; line-height: 1.2; }
-.cdash-card-note { font-size: 11px; color: var(--acw-text-dim); }
 /* Status colour on the value only, plus a left edge - never colour alone. */
 .cdash-card.status-ok { border-left: 3px solid #4ade80; }
 .cdash-card.status-ok .cdash-card-value { color: #4ade80; }
@@ -57,7 +61,10 @@
   display: flex; align-items: baseline; justify-content: space-between;
   gap: 12px; margin-bottom: 12px; font-size: 14px;
 }
-.cdash-legend { display: flex; gap: 14px; font-size: 11px; color: var(--acw-text-dim); }
+.cdash-legend {
+  display: flex; flex-wrap: wrap; gap: 8px 14px;
+  font-size: 11px; color: var(--cdash-secondary);
+}
 .cdash-legend .swatch {
   display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px;
 }
@@ -118,9 +125,22 @@
   .cdash-chart { height: 150px; }
 }
 
+@media (max-width: 480px) {
+  .cdash-panel-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .cdash-legend { width: 100%; gap: 8px 12px; }
+}
+
 @media print {
+  .cdash {
+    --cdash-secondary: #334155;
+    --acw-text-dim: #334155;
+    color: black;
+  }
   .cdash-year { display: none; }
-  .cdash { color: black; }
   .cdash-panel, .cdash-card { background: white; border-color: #94a3b8; color: black; }
   .cdash-card-value, .cdash-head h1 { color: black !important; }
 }

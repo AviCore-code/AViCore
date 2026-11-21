@@ -5,6 +5,7 @@ const read = (name) => readFileSync(new URL(`./${name}`, import.meta.url), "utf8
 const admin = read("AdminWebApp.css");
 const sidebar = read("AppSidebar.css");
 const web = read("WebApp.css");
+const crewDashboard = read("CrewDashboard.css");
 const crewAccess = read("CrewAccess.css");
 const loginMonitor = read("CrewLoginMonitor.css");
 
@@ -39,6 +40,15 @@ describe("responsive Admin visual system", () => {
     expect(admin).toMatch(/\.admin-shell \.module-header p,[\s\S]*?\{[^}]*font-size:\s*14px;/s);
     expect(admin).toContain(".admin-shell .crewacc-page .module-header");
     expect(admin).toMatch(/@media\s*\(pointer:\s*coarse\)[\s\S]*?\.admin-shell button,[\s\S]*?\{[^}]*min-height:\s*44px;[^}]*min-width:\s*44px;/s);
+  });
+
+  it("keeps the Crew dashboard legend readable and wrapped on phones and print", () => {
+    expect(crewDashboard).toMatch(/\.cdash\s*\{[^}]*--cdash-secondary:\s*#cbd5e1;/s);
+    expect(crewDashboard).toMatch(/\.cdash-legend\s*\{[^}]*flex-wrap:\s*wrap;[^}]*color:\s*var\(--cdash-secondary\);/s);
+    expect(crewDashboard).toMatch(/@media\s*\(max-width:\s*480px\)[\s\S]*?\.cdash-panel-head\s*\{[^}]*align-items:\s*flex-start;[^}]*flex-direction:\s*column;/s);
+    expect(crewDashboard).toMatch(/@media\s*\(max-width:\s*480px\)[\s\S]*?\.cdash-legend\s*\{[^}]*width:\s*100%;[^}]*gap:\s*8px\s+12px;/s);
+    expect(crewDashboard).toMatch(/\.cdash-card-label,[\s\S]*?\.cdash-card-note\s*\{[^}]*color:\s*var\(--cdash-secondary\);/s);
+    expect(crewDashboard).toMatch(/@media\s+print\s*\{[\s\S]*?\.cdash\s*\{[^}]*--cdash-secondary:\s*#334155;[^}]*--acw-text-dim:\s*#334155;/s);
   });
 
   it("turns Crew Access rows into labeled, touch-friendly mobile cards", () => {
