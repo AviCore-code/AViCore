@@ -15,6 +15,7 @@ import { PairingPanel, PairingCheck } from "./PairingPanel.jsx";
 import DailyDutyMonitor from "./DailyDutyMonitor.jsx";
 import DutyCalculator from "./DutyCalculator.jsx";
 import { dailyMonitor } from "./dailyMonitor.js";
+import { DEFAULT_AIRCRAFT_TYPE } from "../../utils/aircraftType.js";
 import "./DutyEntry.css";
 import { todayIso } from "../../utils/dateKeys.js";
 
@@ -24,7 +25,6 @@ const DUTY_ROLES = ["PIC", "PICUS", "SIC", "TRI", "TRE"];
 // two calendar days (see the end-date field), so non-flight entries carry
 // their own endDate (defaults to the start date).
 const NON_FLIGHT_TYPES = ["Day Standby", "Night Standby", "Positioning", "Ground Training", "Meeting", "Travel", "Office", "Ground Run", "Other"];
-const DEFAULT_AIRCRAFT_TYPE = "AW139";
 const MAX_FLIGHTS_PER_DAY = 8;
 // Later flights start as a copy of flight 1 and follow its changes until edited
 // (Capt. Weera, 16 Nov 2026: type, A/C, registration, the same pilot pair, route, role).

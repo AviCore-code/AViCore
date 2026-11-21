@@ -1,3 +1,4 @@
+import { entryAircraftType } from "./aircraftType.js";
 // Combines the Pilot Experience PDF baseline (a snapshot as of its "Update"
 // date) with everything logged in Daily Duty since that date, so totals
 // shown to users reflect flight hours up to today - not just the baseline.
@@ -143,7 +144,8 @@ export function combineAircraftRows(rows, dutyEntries, updateDate) {
 
   return (rows || []).map((row) => {
     const type = normalizeType(row[0]);
-    const matching = type ? since.filter((e) => normalizeType(e.aircraftType) === type) : [];
+    // No type on the flight (FDT imports) -> the company's type (aircraftType.js).
+    const matching = type ? since.filter((e) => normalizeType(entryAircraftType(e)) === type) : [];
 
     const addPic = matching.reduce((s, e) => s + roleHours(e, "PIC"), 0);
     const addPicus = matching.reduce((s, e) => s + roleHours(e, "PICUS"), 0);

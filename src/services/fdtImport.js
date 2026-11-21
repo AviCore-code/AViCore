@@ -1,4 +1,5 @@
 import { buildFdtLegs, hhmmToMin, minToHHMM } from "./fdtLegs.js";
+import { DEFAULT_AIRCRAFT_TYPE } from "../utils/aircraftType.js";
 
 // xlsx is a heavy library (~800 KB uncompressed). We load it lazily so it
 // doesn't inflate the initial JS bundle that every page load pays for.
@@ -209,7 +210,9 @@ export function parseFdtExcelToEntries(filename, workbook) {
       });
       entries.push({
         pilotCode: code, dutyType: "flight", date: dateKey,
-        flightType: lbData.flightType || "Revenue Flight", aircraftType: "", registration: lbData.registration || "", route: lbData.route || "",
+        // The Excel has no type column: the company's type (aircraftType.js) -
+        // without it Pilot Experience Summary dropped these hours (21 Nov 2026).
+        flightType: lbData.flightType || "Revenue Flight", aircraftType: DEFAULT_AIRCRAFT_TYPE, registration: lbData.registration || "", route: lbData.route || "",
         schDep: hourToHHMM(schDep || 0), stop: hourToHHMM(stop || 0),
         // Column 16 in the source sheet is Crew Number. Deliberately NOT
         // imported: nothing reads it, and the Fatigue Monitor derives the Crew
@@ -219,7 +222,7 @@ export function parseFdtExcelToEntries(filename, workbook) {
         crew: lbData.crew || [],
         totalFlightTime: minToHHMM(totalMinutes),
         roles,
-        legs, legsSplit: split,
+        legs: legs.map((l) => ({ ...l, aircraftType: l.aircraftType || DEFAULT_AIRCRAFT_TYPE })), legsSplit: split,
         ifrHours: lbData.ifrHours || "0:00", ifrRulesHours: lbData.ifrRulesHours || "0:00", onshoreHours: lbData.onshoreHours || "0:00", offshoreHours: lbData.offshoreHours || "0:00",
         toDay: lbData.toDay ?? 0, toNight: lbData.toNight ?? 0, landDay: lbData.landDay ?? 0, landNight: lbData.landNight ?? 0, iApp: lbData.iApp ?? 0,
         source: "excel", sourceFile: filename, seq: seq++

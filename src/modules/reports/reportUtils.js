@@ -1,3 +1,4 @@
+import { entryAircraftType } from "../../utils/aircraftType.js";
 // Shared helpers for Report B (Monthly Flight Time / Pilot Recency) - month-
 // scoped sums, distinct from experienceCombine.js's baseline+since-update-
 // date combine pattern used elsewhere in this app.
@@ -43,6 +44,6 @@ function normalizeType(v) {
 export function monthFtOnType(dutyEntries, aircraftType, from, to) {
   const type = normalizeType(aircraftType);
   return (dutyEntries || [])
-    .filter((e) => e.dutyType === "flight" && e.date >= from && e.date <= to && normalizeType(e.aircraftType) === type)
+    .filter((e) => e.dutyType === "flight" && e.date >= from && e.date <= to && normalizeType(entryAircraftType(e)) === type)
     .reduce((sum, e) => sum + hhmmToDecimal(e.totalFlightTime), 0);
 }

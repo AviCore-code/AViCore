@@ -84,7 +84,9 @@ export default function DutyImport() {
         // one fleet assignment (validated against real CSU data: PICUS/SIC
         // increases matched the updated PES PDF exactly when treated this way).
         const tagged = aircraftType.trim()
-          ? entries.map((e) => (e.dutyType === "flight" ? { ...e, aircraftType: aircraftType.trim() } : e))
+          ? entries.map((e) => (e.dutyType === "flight"
+            ? { ...e, aircraftType: aircraftType.trim(), legs: (e.legs || []).map((l) => ({ ...l, aircraftType: aircraftType.trim() })) }
+            : e))
           : entries;
         const dbResult = await replaceDutyEntriesFromFile(code, tagged, range);
         const flightCount = entries.filter((e) => e.dutyType === "flight").length;
