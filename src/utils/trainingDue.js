@@ -182,6 +182,42 @@ export function settingsVisibleTrainingItems() {
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+// Training expiry is a calendar-date rule, not a 24-hour countdown. A due
+// value such as "2026-11-22" is parsed by JavaScript at midnight, so comparing
+// it with 15:00 on the same day and flooring the millisecond difference marks
+// it one day overdue. Convert both values to timezone-independent calendar-day
+// numbers before subtracting so the due date remains valid through that day.
+function calendarDayNumber(value) {
+  if (typeof value === "string") {
+    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      // A training due date is calendar-only: reject impossible dates
+      // (month 13, day 32) instead of silently rolling into another month.
+      if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+      // Clamp impossible days (e.g. 2026-02-31) to the last valid day of
+      // the month so a bogus value cannot silently shift the due date.
+      const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      const clampedDay = Math.min(day, lastDay);
+      return Date.UTC(year, month - 1, clampedDay) / MS_PER_DAY;
+    }
+    return null;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (isNaN(date.getTime())) return null;
+  // Use UTC getters only. The comparison is date-only and must not move when
+  // the server or a device changes its local timezone.
+  return (
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate()
+    ) / MS_PER_DAY
+  );
+}
+
 // value: ISO date string / Date, "For life" (lifetime marker), a number (for
 // the iApp180 count item), or null/"" (never recorded in the source data).
 // thresholdDays: caution window in days for date items, or the minimum
@@ -202,7 +238,10 @@ export function classifyTrainingValue(item, value, thresholdDays, today = new Da
   const due = value instanceof Date ? value : new Date(value);
   if (isNaN(due.getTime())) return { status: "unknown", daysRemaining: null };
 
-  const daysRemaining = Math.floor((due.getTime() - today.getTime()) / MS_PER_DAY);
+  const dueDay = calendarDayNumber(value);
+  const todayDay = calendarDayNumber(today);
+  if (dueDay == null || todayDay == null) return { status: "unknown", daysRemaining: null };
+  const daysRemaining = dueDay - todayDay;
   let status = daysRemaining < 0 ? "exc" : daysRemaining <= thresholdDays ? "warn" : "ok";
   // Night Currency (maxSeverity:"warn") never escalates to red even when
   // actually overdue - overdue night currency only restricts night flying,
