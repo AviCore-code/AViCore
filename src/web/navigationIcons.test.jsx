@@ -50,10 +50,12 @@ describe("stable navigation icons and touch targets", () => {
   it("keeps every coarse-pointer navigation and header action at least 44px", () => {
     const sidebarCss = read("AppSidebar.css");
     const webCss = read("WebApp.css");
+    const adminCss = read("AdminWebApp.css");
 
     expect(webCss).toMatch(/\.navigation-icon\s*\{[^}]*width:\s*18px;[^}]*height:\s*18px;/s);
     expect(sidebarCss).toMatch(/\.admin-shell\s+\.app-sidebar-item,[\s\S]*?min-height:\s*44px;/s);
     expect(webCss).toMatch(/\.web-tabbar\s+button\s*\{[^}]*min-height:\s*44px;/s);
+    expect(adminCss).toMatch(/\.admin-subtabs\s+button\s*\{[^}]*min-height:\s*44px;/s);
     expect(webCss).toMatch(/@media\s*\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)[\s\S]*?\.web-header-refresh,[\s\S]*?\.web-header-logout\s*\{[^}]*min-width:\s*44px;[^}]*min-height:\s*44px;/s);
   });
 });
