@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { listRoster, listRosterPilots, listExperience, importRosterMany, deleteRosterEntry, getSetting, exportLogbookPdf } from "../../services/desktopDatabase.js";
+import { listRoster, listExperience, importRosterMany, deleteRosterEntry, getSetting, exportLogbookPdf } from "../../services/desktopDatabase.js";
 import { getCodeInfo, CATEGORY_ORDER, CATEGORY_LABELS, CATEGORY_STYLE } from "./rosterCodes.js";
 import { isDemoPilotCode } from "../../config/demoUsers.js";
 import RosterImportPanel from "./RosterImportPanel.jsx";
@@ -210,13 +210,21 @@ export default function DutySchedule() {
 
   async function refresh() {
     setLoading(true);
-    const [list, pilots, experiencePilots] = await Promise.all([
+    const [list, experiencePilots] = await Promise.all([
       listRoster({ from, to }),
-      listRosterPilots(),
       listExperience()
     ]);
     setRows(list);
-    setPilotsMeta(pilots);
+    // Experience already contains the active fleet roster (code/name/rank).
+    // Using it as the pilot list avoids listRosterPilots(), which had to page
+    // through every historical roster day (36k+ rows in production) before the
+    // selected month could render. Any code that exists only in this month's
+    // roster is still added by the rows merge in byPilot below.
+    setPilotsMeta((experiencePilots || []).map((p) => ({
+      pilot_code: normalizeCode(p.code || p.profile?.code),
+      pilot_name: p.name || p.profile?.name || "",
+      base: p.base || p.profile?.base || ""
+    })).filter((p) => p.pilot_code));
     // Position ("Captain"/"SFO"/"FO", set on the Pilot Experience Profile
     // tab) lives in pilot_experience, keyed by the same 3-letter code the
     // roster uses - joined here by code so the headcount below doesn't need
