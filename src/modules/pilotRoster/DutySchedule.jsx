@@ -225,6 +225,24 @@ export default function DutySchedule() {
       pilot_name: p.name || p.profile?.name || "",
       base: p.base || p.profile?.base || ""
     })).filter((p) => p.pilot_code));
+
+    // base is not returned by listExperience (only code/name/licence/position).
+    // Fill it from the selected month's roster rows so saved roster rows carry
+    // the correct base; pilots visible only in this month's roster rows get
+    // their base from those rows.
+    const baseByCode = new Map();
+    for (const r of list || []) {
+      const code = normalizeCode(r.pilot_code);
+      if (code) baseByCode.set(code, r.base || r.pilot_name || "");
+    }
+    setPilotsMeta(
+      (experiencePilots || []).map((p) => ({
+        pilot_code: normalizeCode(p.code || p.profile?.code),
+        pilot_name: p.name || p.profile?.name || "",
+        base:
+          p.base || p.profile?.base || baseByCode.get(normalizeCode(p.code || p.profile?.code)) || ""
+      })).filter((p) => p.pilot_code)
+    );
     // Position ("Captain"/"SFO"/"FO", set on the Pilot Experience Profile
     // tab) lives in pilot_experience, keyed by the same 3-letter code the
     // roster uses - joined here by code so the headcount below doesn't need

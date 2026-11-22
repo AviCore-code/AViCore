@@ -190,11 +190,32 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 function calendarDayNumber(value) {
   if (typeof value === "string") {
     const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (match) return Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) / MS_PER_DAY;
+    if (match) {
+      const year = Number(match[1]);
+      const month = Number(match[2]);
+      const day = Number(match[3]);
+      // A training due date is calendar-only: reject impossible dates
+      // (month 13, day 32) instead of silently rolling into another month.
+      if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+      // Clamp impossible days (e.g. 2026-02-31) to the last valid day of
+      // the month so a bogus value cannot silently shift the due date.
+      const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+      const clampedDay = Math.min(day, lastDay);
+      return Date.UTC(year, month - 1, clampedDay) / MS_PER_DAY;
+    }
+    return null;
   }
   const date = value instanceof Date ? value : new Date(value);
   if (isNaN(date.getTime())) return null;
-  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / MS_PER_DAY;
+  // Use UTC getters only. The comparison is date-only and must not move when
+  // the server or a device changes its local timezone.
+  return (
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate()
+    ) / MS_PER_DAY
+  );
 }
 
 // value: ISO date string / Date, "For life" (lifetime marker), a number (for
