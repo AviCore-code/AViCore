@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import NavigationIcon from "./NavigationIcon.jsx";
 
 // Shared sidebar used by both the Admin shell (.admin-shell) and the Crew
 // shell (.crew-shell) - each parent applies its own theme class so the two
@@ -13,7 +14,7 @@ import { useEffect, useState } from "react";
 //   1. Every item still carries a native `title` attribute (tooltip on
 //      hover over the SPECIFIC icon, no CSS needed, works even if JS is
 //      slow to hydrate).
-//   2. A pin toggle (📌) at the top lets the user keep the sidebar
+//   2. A pin toggle at the top lets the user keep the sidebar
 //      expanded permanently - persisted in localStorage so the choice
 //      survives a reload. Hover-to-expand still works when unpinned.
 const PIN_KEY = "avicore_sidebar_pinned";
@@ -40,10 +41,10 @@ export default function AppSidebar({ groups, brand, sync, footItems }) {
   useEffect(() => { writePinned(pinned); }, [pinned]);
 
   return (
-    <nav className={`app-sidebar${pinned ? " pinned" : ""}`}>
+    <nav className={`app-sidebar${pinned ? " pinned" : ""}`} aria-label="Primary navigation">
       {brand && (
         <div className="app-sidebar-item app-sidebar-brand" title={brand.title}>
-          <span className="app-sidebar-icon" aria-hidden="true">{brand.icon}</span>
+          <span className="app-sidebar-icon"><NavigationIcon name={brand.icon} /></span>
           <span className="app-sidebar-text">
             <strong>{brand.title}</strong>
             {brand.subtitle && <small>{brand.subtitle}</small>}
@@ -55,10 +56,11 @@ export default function AppSidebar({ groups, brand, sync, footItems }) {
         type="button"
         className="app-sidebar-item app-sidebar-pin"
         title={pinned ? "Unpin sidebar (auto-collapse)" : "Pin sidebar open"}
+        aria-label={pinned ? "Unpin sidebar" : "Pin sidebar open"}
         aria-pressed={pinned}
         onClick={() => setPinned((v) => !v)}
       >
-        <span className="app-sidebar-icon" aria-hidden="true">{pinned ? "📌" : "📍"}</span>
+        <span className="app-sidebar-icon"><NavigationIcon name={pinned ? "pin-filled" : "pin"} /></span>
         <span className="app-sidebar-text">{pinned ? "Pinned open" : "Pin sidebar"}</span>
       </button>
 
@@ -81,7 +83,7 @@ export default function AppSidebar({ groups, brand, sync, footItems }) {
               aria-current={item.active ? "page" : undefined}
               onClick={item.onClick}
             >
-              <span className="app-sidebar-icon" aria-hidden="true">{item.icon}</span>
+              <span className="app-sidebar-icon"><NavigationIcon name={item.icon} /></span>
               <span className="app-sidebar-text">{item.label}</span>
             </button>
           ))}
@@ -98,7 +100,7 @@ export default function AppSidebar({ groups, brand, sync, footItems }) {
               title={item.label}
               onClick={item.onClick}
             >
-              <span className="app-sidebar-icon" aria-hidden="true">{item.icon}</span>
+              <span className="app-sidebar-icon"><NavigationIcon name={item.icon} /></span>
               <span className="app-sidebar-text">{item.label}</span>
             </button>
           ))}

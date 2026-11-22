@@ -22,6 +22,7 @@ import ErrorBoundary from "./ErrorBoundary.jsx";
 import LoginShell from "./AdminLoginShell.jsx";
 import { ADMIN_ALLOWED_EMAILS } from "../config/adminAllowlist.js";
 import AppSidebar from "./AppSidebar.jsx";
+import NavigationIcon from "./NavigationIcon.jsx";
 import { ADMIN_SECTIONS, ADMIN_SCREEN_KEYS, defaultScreenForSection, sectionForScreen } from "./adminNavigation.js";
 import "./WebApp.css";
 import "./AdminWebApp.css";
@@ -63,31 +64,31 @@ async function accountAllowed(session) {
 // web data layer. Excel/PDF *import* (which needs the Electron file dialog)
 // and email alerts stay PC-only; manual editing works here.
 const TABS = [
-  { key: "dashboard", label: "Dashboard", icon: "📊", Component: Dashboard },
+  { key: "dashboard", label: "Dashboard", icon: "dashboard", Component: Dashboard },
   // Pilot Roster sits second (right of Dashboard); Daily Duty swapped down
   // into the FDT tab's own tab bar, where Pilot Roster used to be.
-  { key: "pilotRoster", label: "Pilot Roster", icon: "🗓️", Component: PilotRoster },
-  { key: "crews", label: "FDT", icon: "✈️", Component: FlightCrews },
+  { key: "pilotRoster", label: "Pilot Roster", icon: "roster", Component: PilotRoster },
+  { key: "crews", label: "FDT", icon: "status", Component: FlightCrews },
   // Sits next to FDT: both answer "is this pilot fit to be assigned", FDT from
   // the hard limits and this from the company fatigue score (OPS-CM-01 7.17.3).
-  { key: "fatigue", label: "Fatigue", icon: "😴", Component: FatigueMonitor },
+  { key: "fatigue", label: "Fatigue", icon: "dutyhistory", Component: FatigueMonitor },
   // Monthly FT/DT and fatigue statistics for internal review and for CAAT /
   // customer auditors. Sits next to Fatigue because it reports on the same
   // figures - one screen answers "is anyone at risk today", the other "what
   // did the last six months look like".
-  { key: "statistics", label: "Statistics", icon: "📈", Component: Reports },
-  { key: "training", label: "Training", icon: "🎓", Component: Training },
+  { key: "statistics", label: "Statistics", icon: "reports", Component: Reports },
+  { key: "training", label: "Training", icon: "training", Component: Training },
   // Same Logbook page the Crew app has (Capt. Weera: "tab logbook ใน admin
   // เหมือน ของ crew เลย แต่ยังเลือกชือนักบิน ได้ครับ"). No admin-specific
   // variant: the component already shows a pilot dropdown wherever
   // isSinglePilotDevice() is false, which is every build except Crew web - so
   // admin gets the selector for free and the two can never drift apart.
-  { key: "logbook", label: "Logbook", icon: "📖", Component: MyLogbook },
-  { key: "experience", label: "Pilot Experience Summary", icon: "🪪", Component: PilotExperienceSummary },
-  { key: "settings", label: "Settings", icon: "⚙️", Component: Settings },
-  { key: "access", label: "Crew Access", icon: "🔑", Component: CrewAccess },
-  { key: "utility", label: "Utility", icon: "🛠️", Component: CrewLoginMonitor },
-  { key: "autoImport", label: "Auto Import", icon: "📥", Component: AutoImport }
+  { key: "logbook", label: "Logbook", icon: "logbook", Component: MyLogbook },
+  { key: "experience", label: "Pilot Experience Summary", icon: "experience", Component: PilotExperienceSummary },
+  { key: "settings", label: "Settings", icon: "settings", Component: Settings },
+  { key: "access", label: "Crew Access", icon: "access", Component: CrewAccess },
+  { key: "utility", label: "Utility", icon: "utility", Component: CrewLoginMonitor },
+  { key: "autoImport", label: "Auto Import", icon: "import", Component: AutoImport }
 ];
 
 // The screen names this build knows about, used to validate a remembered one.
@@ -325,8 +326,8 @@ export default function AdminWebApp() {
         section.key === activeSection.key ? tab : defaultScreenForSection(section.key),
       ),
       })),
-      { key: "refresh", label: "Refresh", icon: "⟳", onClick: () => window.location.reload() },
-      { key: "signout", label: "Sign Out", icon: "⏻", danger: true, onClick: handleSignOut },
+      { key: "refresh", label: "Refresh", icon: "refresh", onClick: () => window.location.reload() },
+      { key: "signout", label: "Sign Out", icon: "signout", danger: true, onClick: handleSignOut },
     ],
   }];
 
@@ -337,7 +338,7 @@ export default function AdminWebApp() {
       <ConflictDialog />
       <div className="web-body">
         <AppSidebar
-          brand={{ icon: "✦", title: "AviCore Enterprise", subtitle: `ADMIN · v${APP_VERSION}` }}
+          brand={{ icon: "brand", title: "AviCore Enterprise", subtitle: `ADMIN · v${APP_VERSION}` }}
           sync={{ status: syncStatus.status, label: SYNC_LABEL[syncStatus.status] || syncStatus.status }}
           groups={sidebarGroups}
         />
@@ -347,7 +348,7 @@ export default function AdminWebApp() {
               {branding?.logo ? (
                 <img className="web-header-logo" src={branding.logo} alt="" />
               ) : (
-                <span className="web-header-planeicon" aria-hidden="true">✦</span>
+                <span className="web-header-planeicon"><NavigationIcon name="brand" /></span>
               )}
               <div className="web-header-titlegroup">
                 <span className="web-header-title">AviCore Enterprise <span className="admin-web-badge admin-web-badge-edit">ADMIN</span></span>
@@ -370,7 +371,7 @@ export default function AdminWebApp() {
                   className={screen.key === tab ? "active" : ""}
                   onClick={() => setTab(screen.key)}
                 >
-                  <span aria-hidden="true">{screen.icon}</span>
+                  <NavigationIcon name={screen.icon} />
                   {screen.label}
                 </button>
               ))}

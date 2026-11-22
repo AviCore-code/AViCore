@@ -7,6 +7,7 @@ import { startOfflineQueue } from "../services/offlineQueue.js";
 import { getPairedPilotCode, clearPairedPilotCode, isConfigured, getSetting, subscribeSyncStatus, pingServer } from "../services/webDatabase.js";
 import { isDemoSession, getPairingHoursLeft } from "../services/desktopDatabase.js";
 import WebPilotLogin from "./WebPilotLogin.jsx";
+import NavigationIcon from "./NavigationIcon.jsx";
 import MyStatus from "../modules/myStatus/MyStatus.jsx";
 import DutyEntry from "../modules/dutyEntry/DutyEntry.jsx";
 import MyLogbook from "../modules/myLogbook/MyLogbook.jsx";
@@ -35,16 +36,16 @@ import "./AppAppearance.css";
 const TABS = [
   // Home first: this is where the app opens, and the default tab below must
   // match it or a fresh browser lands somewhere else.
-  { key: "home", label: "Home", icon: "🏠", Component: CrewDashboard },
-  { key: "duty", label: "Daily Duty Entry", icon: "📝", Component: DutyEntry },
-  { key: "status", label: "FDT Monitor", icon: "⏱️", Component: MyStatus },
-  { key: "dutyhistory", label: "Duty & Flight History", icon: "📈", Component: MyDutyHistory },
-  { key: "training", label: "Training Monitor", icon: "🎓", Component: MyTrainingStatus },
-  { key: "roster", label: "Roster", icon: "🗓️", Component: MyRoster },
-  { key: "weekly", label: "Weekly Schedule", icon: "🚁", Component: MyWeeklySchedule },
-  { key: "logbook", label: "Logbook", icon: "📖", Component: MyLogbook },
-  { key: "experience", label: "Experience", icon: "📊", Component: MyExperience },
-  { key: "settings", label: "Settings", icon: "⚙️", Component: CrewSettings }
+  { key: "home", label: "Home", icon: "home", Component: CrewDashboard },
+  { key: "duty", label: "Daily Duty Entry", icon: "duty", Component: DutyEntry },
+  { key: "status", label: "FDT Monitor", icon: "status", Component: MyStatus },
+  { key: "dutyhistory", label: "Duty & Flight History", icon: "dutyhistory", Component: MyDutyHistory },
+  { key: "training", label: "Training Monitor", icon: "training", Component: MyTrainingStatus },
+  { key: "roster", label: "Roster", icon: "roster", Component: MyRoster },
+  { key: "weekly", label: "Weekly Schedule", icon: "weekly", Component: MyWeeklySchedule },
+  { key: "logbook", label: "Logbook", icon: "logbook", Component: MyLogbook },
+  { key: "experience", label: "Experience", icon: "experience", Component: MyExperience },
+  { key: "settings", label: "Settings", icon: "settings", Component: CrewSettings }
 ];
 
 // The tab names this build knows about, used to validate a remembered one.
@@ -372,17 +373,17 @@ export default function WebApp() {
           {branding?.logo ? (
             <img className="web-header-logo" src={branding.logo} alt="" />
           ) : (
-            <span className="web-header-planeicon" aria-hidden="true">✈</span>
+            <span className="web-header-planeicon"><NavigationIcon name="brand" /></span>
           )}
           <div className="web-header-titlegroup">
             <span className="web-header-title">AviCore Crew{isDemoSession() && <span className="web-demo-badge">DEMO · view only</span>}</span>
             <span className="web-header-copyright">© Capt.Weera Juntaklud</span>
           </div>
         </div>
-        <nav className="web-tabbar">
+        <nav className="web-tabbar" aria-label="Crew screens">
           {TABS.map((t) => (
-            <button key={t.key} className={tab === t.key ? "active" : ""} onClick={() => setTab(t.key)}>
-              <span className="web-tabbar-icon" aria-hidden="true">{t.icon}</span>
+            <button key={t.key} type="button" className={tab === t.key ? "active" : ""} aria-current={tab === t.key ? "page" : undefined} onClick={() => setTab(t.key)}>
+              <span className="web-tabbar-icon"><NavigationIcon name={t.icon} /></span>
               <span className="web-tabbar-label">{t.label}</span>
             </button>
           ))}
@@ -394,7 +395,7 @@ export default function WebApp() {
           <span className="web-sync-dot" />
           <span className="web-sync-label">{SYNC_LABEL[syncStatus.status] || syncStatus.status}</span>
         </span>
-        <button className="web-header-refresh" onClick={handleRefresh} title="Refresh page and reload latest data" aria-label="Refresh">⟳</button>
+        <button className="web-header-refresh" onClick={handleRefresh} title="Refresh page and reload latest data" aria-label="Refresh"><NavigationIcon name="refresh" /></button>
         {/* The pairing now lasts 24 hours rather than until the browser closes,
             so the pilot can reopen the app on a rig with no signal. Showing
             what is left matters: without it, expiry looks like being logged out

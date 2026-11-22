@@ -81,8 +81,8 @@
 .app-sidebar-pin:hover { opacity: 1; }
 .app-sidebar[class*="pinned"] .app-sidebar-pin { color: var(--acw-accent, #22d3ee); }
 
-.app-sidebar-icon { font-size: 17px; line-height: 1; flex: 0 0 auto; filter: grayscale(1) opacity(.85); }
-.app-sidebar-item.active .app-sidebar-icon { filter: none; }
+.app-sidebar-icon { display: grid; place-items: center; width: 20px; height: 20px; line-height: 1; flex: 0 0 auto; opacity: .86; }
+.app-sidebar-item.active .app-sidebar-icon { opacity: 1; }
 
 .app-sidebar-brand {
   cursor: default;
@@ -147,7 +147,7 @@
 .admin-shell .app-sidebar-label { padding-left: 14px; color: #7f9daf; }
 .admin-shell .app-sidebar-item,
 .admin-shell .app-sidebar-sync {
-  min-height: 43px; gap: 13px; padding: 9px 11px;
+  min-height: 44px; gap: 13px; padding: 9px 11px;
   border: 1px solid transparent; border-radius: 12px;
 }
 .admin-shell .app-sidebar-item:hover {
@@ -160,7 +160,7 @@
 }
 .admin-shell .app-sidebar-icon {
   display: grid; place-items: center; width: 28px; height: 28px;
-  border-radius: 9px; font-size: 15px; background: #ffffff09;
+  border-radius: 9px; background: #ffffff09;
 }
 .admin-shell .app-sidebar-item.active .app-sidebar-icon {
   background: #44d8e621; box-shadow: 0 0 18px #44d8e61c;
