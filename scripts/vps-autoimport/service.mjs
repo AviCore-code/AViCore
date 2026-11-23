@@ -160,6 +160,10 @@ function publishPcConfig(cfg) {
 function pcLastSync() {
   try { return new Date(fs.statSync(path.join(ROOT, ".pc-heartbeat")).mtimeMs).toISOString(); } catch { return null; }
 }
+// The PC that last synced: ".pc-heartbeat" holds "<time> <computer name>".
+function pcHost() {
+  try { return fs.readFileSync(path.join(ROOT, ".pc-heartbeat"), "utf8").trim().split(/\s+/).slice(1).join(" "); } catch { return ""; }
+}
 
 async function writeStatus(cfg, state, account) {
   const files = {};
@@ -175,6 +179,7 @@ async function writeStatus(cfg, state, account) {
     lastCheck: state.lastCheckAt || null,
     lastRun: state.lastRunAt || null,
     pcLastSync: pcLastSync(),
+    pcHost: pcHost(),
     files,
     log: (state.log || []).slice(0, 200)
   });

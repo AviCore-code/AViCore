@@ -17,6 +17,7 @@ import FatigueMonitor from "../modules/fatigue/FatigueMonitor.jsx";
 import Reports from "../modules/statistics/Reports.jsx";
 import CrewLoginMonitor from "./CrewLoginMonitor.jsx";
 import AutoImport from "../modules/autoImport/AutoImport.jsx";
+import AutoImportAlert from "../modules/autoImport/AutoImportAlert.jsx";
 import CrewAccess from "./CrewAccess.jsx";
 import ErrorBoundary from "./ErrorBoundary.jsx";
 import LoginShell from "./AdminLoginShell.jsx";
@@ -335,6 +336,8 @@ export default function AdminWebApp() {
     <div className="web-app admin-shell" data-app-theme={appearanceTheme}>
       <OfflineBar />
       <UpdateBar />
+      {/* Office PC / VPS not bringing the Excel files in (23 Nov 2026). */}
+      <AutoImportAlert onOpen={tab === "autoImport" ? null : () => setTab("autoImport")} />
       <ConflictDialog />
       <div className="web-body">
         <AppSidebar

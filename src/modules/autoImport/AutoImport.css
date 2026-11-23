@@ -78,3 +78,14 @@
 @keyframes autoimp-spin{to{transform:rotate(360deg)}}
 .autoimp-log tr.justran td{background:#f0fdf4}
 @media (prefers-reduced-motion:reduce){.autoimp-spin{animation:none}}
+
+/* Auto Import not bringing files in - bar on every Admin page (AutoImportAlert.jsx) */
+.autoimp-alert{display:flex;align-items:center;gap:10px 16px;flex-wrap:wrap;padding:9px 14px;font-size:13.5px;line-height:1.4;border-bottom:1px solid}
+.autoimp-alert.warn{background:#fffbeb;border-color:#fcd34d;color:#78350f}
+.autoimp-alert.exc{background:#fef2f2;border-color:#fca5a5;color:#7f1d1d}
+.autoimp-alert-text{flex:1 1 420px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.autoimp-alert-text span{font-size:12px;opacity:.8}
+.autoimp-alert-actions{display:flex;gap:8px;align-items:center}
+.autoimp-alert-actions button{all:unset;box-sizing:border-box;cursor:pointer;padding:6px 12px;border-radius:8px;font-weight:700;font-size:13px;background:#fff!important;border:1px solid currentColor!important;color:inherit!important;min-height:34px}
+.autoimp-alert-actions .autoimp-alert-x{padding:6px 10px;border-color:transparent!important;background:transparent!important}
+@media print{.autoimp-alert{display:none!important}}
